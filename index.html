@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a2a2a">
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<title>GAMEBOY EMULATOR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f1e8; --card:#ffffff; --text:#2b2b2b; --sub:#6b6b6b;
+  --accent:#e3350d; --accent2:#3b4cca; --border:#ddd6c4; --shadow:rgba(0,0,0,.12);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root[data-theme="dark"]{ --bg:#181615; --card:#242120; --text:#f1ede4; --sub:#a89f92; --border:#3a352f; --shadow:rgba(0,0,0,.4);}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#181615; --card:#242120; --text:#f1ede4; --sub:#a89f92; --border:#3a352f; --shadow:rgba(0,0,0,.4);}
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+*{box-sizing:border-box;}
+body{margin:0; min-height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; -webkit-tap-highlight-color:transparent; transition:background .25s ease,color .25s ease;}
+header{position:sticky; top:0; z-index:5; padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px; background:#2a2a2a; color:#e8e8e8; border-bottom:1px solid #3a3a3a; display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px;}
+.tl{display:flex; gap:7px; align-items:center;}
+.tl i{width:12px; height:12px; border-radius:50%; display:block;}
+.tl .r{background:#ff5f57;} .tl .y{background:#febc2e;} .tl .g{background:#28c840;}
+header .brand{position:absolute; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:6px; color:#8e8e8e; font-size:13px; font-weight:500; white-space:nowrap; pointer-events:none;}
+header .brand img{width:16px; height:16px;}
+header h1{margin:0; font-size:13px; font-weight:500; color:#8e8e8e;}
+.headright{display:flex; align-items:center; gap:8px; margin-left:auto;}
+header h1{margin:0; font-size:17px;}
+.headright{display:flex; align-items:center; gap:10px;}
+.iconbtn{border:none; background:#3a3a3a; color:#ddd; width:30px; height:30px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;}
+.btn{border:none; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.3px; touch-action:manipulation;}
+.btn-outline{background:transparent; color:var(--accent); border:1.5px solid var(--accent); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700;}
+main{max-width:960px; margin:0 auto; padding:18px 18px 100px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 2px 8px var(--shadow); display:flex; flex-direction:column; cursor:pointer; transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;}
+.card:hover, .card:active{transform:translateY(-6px) scale(1.045) rotate(-.5deg); box-shadow:0 14px 26px var(--shadow), 0 0 0 2px var(--accent);}
+.cover-wrap{overflow:hidden;}
+.cover{width:100%; aspect-ratio:1/1; object-fit:cover; background:#ccc; display:block; transition:transform .35s cubic-bezier(.34,1.56,.64,1);}
+.card:hover .cover, .card:active .cover{transform:scale(1.08) rotate(1deg);}
+.card-body{padding:10px 10px 2px;}
+.card-body .name{font-weight:700; font-size:14px; margin:0 0 2px; line-height:1.25;}
+.card-body .desc{font-size:11.5px; color:var(--sub); margin:0 0 6px; line-height:1.35; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+.tag{display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; color:#fff; margin-bottom:6px;}
+.tag-gb{background:#8bac0f}.tag-gbc{background:#3b4cca}.tag-gba{background:#e3350d}
+.card-actions{display:flex; gap:6px; padding:4px 10px 10px;}
+.card-actions button{flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:12px; cursor:pointer; touch-action:manipulation;}
+.card-actions button[data-act=play]{color:var(--accent); border-color:var(--accent); font-weight:700;}
+.card-actions button[data-act=edit],.card-actions button[data-act=del]{display:none;}
+body.authed .card-actions button[data-act=edit],body.authed .card-actions button[data-act=del]{display:inline-block;}
+.empty{text-align:center; color:var(--sub); padding:60px 20px;}
+.fab-zone{position:fixed; right:0; bottom:0; width:170px; height:170px; z-index:15; display:flex; align-items:flex-end; justify-content:flex-end; padding:20px calc(20px + env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) 20px; pointer-events:none;}
+.fab-zone, .fab{pointer-events:auto;}
+.fab{background:var(--accent); color:#fff; border:none; border-radius:50%; width:56px; height:56px; font-size:26px; box-shadow:0 4px 14px var(--shadow); cursor:pointer; opacity:1; transform:scale(1); transition:opacity .25s ease, transform .25s cubic-bezier(.34,1.56,.64,1); touch-action:manipulation;}
+.fab:active{opacity:1; transform:scale(1.08);}
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; padding:20px; z-index:20;}
+#keyModalBg, #imgModalBg{z-index:60;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--card); border-radius:16px; padding:20px; width:100%; max-width:380px; max-height:90vh; overflow-y:auto;}
+.input-minimal{border:none!important; border-bottom:1.5px solid var(--border)!important; border-radius:0!important; background:transparent!important; padding:8px 2px!important; text-align:center; letter-spacing:6px; font-size:18px;}
+.input-minimal:focus{outline:none; border-bottom-color:#a855f7!important;}
+.pass-box{width:100%; padding:8px 10px; border-radius:9px; border:1.5px solid var(--border); background:var(--bg); color:var(--text); text-align:center; letter-spacing:4px; font-size:15px; font-family:inherit;}
+.pass-box:focus{outline:none; border-color:#ffffff;}
+.modal-sub{margin:-6px 0 14px; font-size:12.5px; color:var(--sub); line-height:1.4;}
+.cover-preview{display:none; margin-top:8px; width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--border); background:var(--bg);}
+.modal h2{margin-top:0; font-size:16px;}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:12px; color:var(--sub); margin-bottom:5px; font-weight:600;}
+.field input[type=text], .field select, .field textarea{width:100%; padding:9px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:14px; font-family:inherit; resize:vertical;}
+.field input[type=file]{width:100%; font-size:12px; color:var(--text);}
+.field input[type=file]::file-selector-button{ margin-right:10px; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text); font-size:12px; font-family:inherit; cursor:pointer; transition:background .2s ease, border-color .2s ease; }
+.field input[type=file]::file-selector-button:hover{ background:var(--bg); border-color:#8b5cf6; }
+.modal-actions{display:flex; gap:8px; margin-top:6px;}
+.modal-actions button{flex:1; padding:10px; border-radius:8px; border:none; font-weight:700; cursor:pointer; touch-action:manipulation;}
+#playView{display:none;}
+/* ---------- intro 3D marquee splash ---------- */
+#introView{position:fixed; inset:0; z-index:50; background:#000; cursor:pointer; overflow:hidden;}
+.intro-stage{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; perspective:1400px;}
+.intro-plane{width:170%; aspect-ratio:1/1; transform:scale(1.15);}
+.intro-grid{width:100%; height:100%; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; transform:rotateX(55deg) rotateZ(45deg); transform-style:preserve-3d;}
+.intro-col{display:flex; flex-direction:column; gap:14px; will-change:transform;}
+.intro-col img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; display:block; filter:brightness(.75);}
+.intro-col.c1{animation:marqueeUp 14s ease-in-out infinite alternate;}
+.intro-col.c2{animation:marqueeDown 18s ease-in-out infinite alternate;}
+.intro-col.c3{animation:marqueeUp 22s ease-in-out infinite alternate;}
+@keyframes marqueeUp{from{transform:translateY(30px)} to{transform:translateY(-90px)}}
+@keyframes marqueeDown{from{transform:translateY(-30px)} to{transform:translateY(90px)}}
+.intro-overlay{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; pointer-events:none; background:radial-gradient(ellipse at center,rgba(0,0,0,.35) 0%,rgba(0,0,0,.75) 100%);}
+.intro-overlay img{width:56px; height:56px; margin-bottom:6px;}
+.intro-overlay h1{margin:0; text-shadow:0 2px 14px rgba(0,0,0,.7);}
+.intro-overlay p{margin:0; color:#d9c7f0; font-size:13px; letter-spacing:.5px; animation:pulseHint 1.8s ease-in-out infinite;}
+@keyframes pulseHint{0%,100%{opacity:.55} 50%{opacity:1}}
+@media (max-width:420px){ .intro-overlay h1{font-size:20px;} }
+.intro-title{font-family:'Prompt',sans-serif; font-weight:800; font-size:64px; letter-spacing:1px; color:#ffffff; cursor:pointer; transition:color .25s ease; pointer-events:auto;}
+.intro-title:hover{color:var(--accent);}
+@media (max-width:420px){ .intro-title{font-size:42px;} }
+#introView.zooming .intro-stage, #introView.zooming .intro-overlay{animation:introZoom .55s cubic-bezier(.4,0,.2,1) forwards;}
+@keyframes introZoom{ to{ transform:scale(2.4); opacity:0; filter:blur(2px); } }
+.intro-key-btn{position:absolute; right:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px)); width:30px; height:30px; border-radius:8px; border:none; background:transparent; color:rgba(255,255,255,.45); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; pointer-events:auto; transition:color .2s ease, transform .2s ease;}
+.intro-key-btn svg{width:17px; height:17px;}
+.intro-key-btn:hover{color:#c9a4f5; transform:scale(1.08);}
+.field label.checkline{display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;}
+.field label.checkline input{width:auto; accent-color:var(--accent);}
+.field-hint{font-size:11px; color:var(--sub); margin-top:4px;}
+.field-error{font-size:12px; color:#e3350d; min-height:14px; margin-top:2px;}
+.marquee-thumbs{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px;}
+.marquee-thumb{position:relative; aspect-ratio:4/3; border-radius:8px; overflow:hidden; background:var(--bg); border:1px solid var(--border);}
+.marquee-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+.marquee-thumb button{position:absolute; top:3px; right:3px; width:20px; height:20px; border-radius:50%; border:none; background:rgba(0,0,0,.62); color:#fff; font-size:13px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
+.marquee-empty-hint{font-size:12px; color:var(--sub); text-align:center; padding:14px 0;}
+#ejsContainer{width:100%; max-width:720px; margin:0 auto; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden;}
+.hint{color:var(--sub); font-size:12px; margin-top:12px; text-align:center; padding:0 10px;}
+@media (max-width:420px){
+  header h1{font-size:15px;} .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px;}
+}
+</style>
+</head>
+<body>
+<div id="introView">
+  <div class="intro-stage">
+    <div class="intro-plane">
+      <div class="intro-grid" id="introGrid"></div>
+    </div>
+  </div>
+  <div class="intro-overlay">
+    <h1 class="intro-title" id="introTitle">GAMEBOY EMULATOR</h1>
+  </div>
+  <button class="intro-key-btn" id="marqueeKeyBtn" title="ตั้งค่ารูปภาพ">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="7.5" cy="15.5" r="4.5"></circle>
+      <path d="M11 12 20 3"></path>
+      <path d="M16 8l2.5 2.5"></path>
+      <path d="M19 5l2.5 2.5"></path>
+    </svg>
+  </button>
+</div>
+
+<div class="modal-bg" id="keyModalBg">
+  <div class="modal">
+    <h2>ใส่รหัสผ่านเพื่อแก้ไข</h2>
+    <p class="modal-sub">ใส่รหัสผ่านแอดมินเพื่อเข้าสู่โหมดแก้ไขข้อมูล</p>
+    <div class="field">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="keyPassInput" class="pass-box" inputmode="numeric" placeholder="กรุณาใส่รหัสผ่าน" autocomplete="off">
+    </div>
+    <label class="field checkline">
+      <input type="checkbox" id="keyRememberChk" checked>
+      จดจำรหัสผ่านไว้ (ใส่ให้อัตโนมัติครั้งถัดไป)
+    </label>
+    <div class="field-hint">ทุกครั้งที่รีเฟรชหรือเปิดเว็บใหม่ ต้องกด "เข้าสู่ระบบ" อีกครั้งเสมอ — การจดจำรหัสผ่านมีไว้แค่ช่วยกรอกให้ ไม่ได้ล็อกอินค้างไว้ให้</div>
+    <div class="field-error" id="keyErrorMsg"></div>
+    <div class="modal-actions">
+      <button id="keyCancelBtn" style="background:var(--border);color:var(--text)">ยกเลิก</button>
+      <button id="keySubmitBtn" style="background:var(--accent);color:#fff">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="imgModalBg">
+  <div class="modal">
+    <h2>เปลี่ยนรูปหน้าแรก</h2>
+    <div class="field">
+      <label>อัปโหลดรูปภาพ</label>
+      <input type="file" id="marqueeImgFile" accept="image/*" multiple>
+      <div class="field-hint">เลือกได้หลายรูป ระบบจะย่อขนาดไฟล์ให้อัตโนมัติ อัปโหลดแล้วมีผลทันทีกับทุกคนที่เข้าเว็บนี้</div>
+    </div>
+    <div class="field">
+      <div class="marquee-thumbs" id="marqueeThumbs"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="imgCancelBtn" style="background:var(--border);color:var(--text)">ปิด</button>
+      <button id="imgSaveBtn" style="background:var(--accent);color:#fff">เสร็จสิ้น</button>
+    </div>
+  </div>
+</div>
+<header>
+  <div class="tl"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+  <div class="headright">
+    <button class="iconbtn" id="syncBtn" title="รหัสซิงก์เซฟส่วนตัว">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.1v-2a4 4 0 0 1 4-4h14"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.9v2a4 4 0 0 1-4 4H3"/></svg>
+    </button>
+    <button class="iconbtn" id="loginBtn" title="เข้าสู่ระบบ"></button>
+    <button class="iconbtn" id="themeBtn" title="สลับโหมดสว่าง/มืด"></button>
+    <button class="btn btn-outline" id="backBtn" style="display:none">BACK</button>
+  </div>
+</header>
+<main>
+  <div id="libraryView">
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="emptyMsg" style="display:none">ยังไม่มีเกมในคลัง แตะปุ่ม + มุมล่างขวาเพื่ออัปโหลด ROM (ต้องใส่รหัสผ่าน)</div>
+  </div>
+  <div id="playView">
+    <div id="ejsContainer"></div>
+    <div class="hint">ตัวควบคุมบนหน้าจอ/คีย์บอร์ดมาพร้อมกับตัวจำลองด้านบน — เกมจะบันทึกอัตโนมัติและโหลดเซฟเดิมให้เองเมื่อกลับเข้ามาเล่นซ้ำ (บนมือถือแนะนำหมุนจอแนวนอนสำหรับ GBA)</div>
+  </div>
+</main>
+<div class="fab-zone"><button class="fab" id="addBtn">+</button></div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">เพิ่มเกมใหม่</h2>
+    <div class="field">
+      <label id="romFileLabel">ไฟล์ ROM (.gb / .gbc / .gba)</label>
+      <input type="file" id="romFile" accept=".gb,.gbc,.gba,.zip">
+    </div>
+    <div class="field">
+      <label>ชื่อเกม</label>
+      <input type="text" id="romName" placeholder="เช่น Pokemon Emerald">
+    </div>
+    <div class="field">
+      <label>คำอธิบาย (ไม่บังคับ)</label>
+      <textarea id="romDesc" rows="2" placeholder="รายละเอียดเพิ่มเติมเกี่ยวกับเกมนี้"></textarea>
+    </div>
+    <div class="field">
+      <label>เครื่อง</label>
+      <select id="romSystem">
+        <option value="gb">Game Boy (GB)</option>
+        <option value="gbc">Game Boy Color (GBC)</option>
+        <option value="gba" selected>Game Boy Advance (GBA)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>รูปปก (ไม่บังคับ)</label>
+      <input type="file" id="coverFile" accept="image/*">
+      <img id="coverPreview" class="cover-preview" alt="ตัวอย่างรูปปก">
+    </div>
+    <div class="modal-actions">
+      <button id="cancelBtn" style="background:var(--border);color:var(--text)">ยกเลิก</button>
+      <button id="saveBtn" style="background:var(--accent);color:#fff">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="syncModalBg">
+  <div class="modal">
+    <h2>รหัสซิงก์เซฟส่วนตัว</h2>
+    <p class="field-hint" id="syncCurrentMsg" style="margin-bottom:10px;"></p>
+    <div class="field">
+      <label>รหัสของคุณ</label>
+      <input type="text" id="syncCodeInput" placeholder="ตั้งรหัสที่จำได้ เช่น ชื่อเล่น+เลขที่จำได้" autocomplete="off">
+      <div class="field-hint">ใส่รหัสเดียวกันทุกเครื่องที่เล่น เซฟของคุณจะตามไปด้วย ไม่ควรบอกรหัสนี้กับคนอื่นถ้าไม่อยากให้เห็นเซฟของคุณ</div>
+    </div>
+    <div class="modal-actions">
+      <button id="syncSkipBtn" style="background:var(--border);color:var(--text)">ปิด</button>
+      <button id="syncSaveBtn" style="background:var(--accent);color:#fff">บันทึกรหัส</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ---------- theme ----------
+const themeBtn=document.getElementById('themeBtn');
+const ICON_SUN='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.6 4.6l1.7 1.7M17.7 17.7l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.6 19.4l1.7-1.7M17.7 6.3l1.7-1.7"/></svg>';
+const ICON_MOON='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/></svg>';
+function applyTheme(t){
+  if(t){ document.documentElement.dataset.theme=t; localStorage.setItem('emuTheme',t); }
+  else { delete document.documentElement.dataset.theme; localStorage.removeItem('emuTheme'); }
+  const isDark = t ? t==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  themeBtn.innerHTML = isDark ? ICON_SUN : ICON_MOON;
+}
+applyTheme(localStorage.getItem('emuTheme'));
+themeBtn.onclick=()=>{
+  const cur=document.documentElement.dataset.theme || (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  applyTheme(cur==='dark'?'light':'dark');
+};
+
+// ---------- login button (header) ----------
+const loginBtn=document.getElementById('loginBtn');
+const ICON_LOCK_CLOSED='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"></rect><path d="M7.5 10.5V7a4.5 4.5 0 0 1 9 0v3.5"></path></svg>';
+const ICON_LOCK_OPEN='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2"></rect><path d="M7.5 10.5V7a4.5 4.5 0 0 1 8.5-2"></path></svg>';
+function updateAuthUI(){
+  document.body.classList.toggle('authed', marqueeAuthorized);
+  loginBtn.innerHTML = marqueeAuthorized ? ICON_LOCK_OPEN : ICON_LOCK_CLOSED;
+  loginBtn.title = marqueeAuthorized ? 'ออกจากระบบ' : 'เข้าสู่ระบบ';
+}
+loginBtn.onclick=()=>{
+  if(marqueeAuthorized){ marqueeAuthorized=false; updateAuthUI(); return; }
+  requireAuth(()=>updateAuthUI());
+};
+
+// ---------- Supabase ----------
+const SUPABASE_URL='https://opceuxrvzwbzuwzmubsh.supabase.co';
+const SUPABASE_KEY='sb_publishable_C5l7c8PPczcZT8BPx5lKkw_BHeuf1DO';
+const sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const BUCKET='gameboysemulator';
+function publicUrl(path){ return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl; }
+async function uploadToLibrary(fileOrBlob, folder, extHint){
+  let ext=extHint;
+  if(!ext){
+    if(fileOrBlob.name) ext=(fileOrBlob.name.split('.').pop()||'bin');
+    else if(fileOrBlob.type) ext=(fileOrBlob.type.split('/').pop()||'bin');
+    else ext='bin';
+  }
+  const path=folder+'/'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)+'.'+ext;
+  const {error}=await sb.storage.from(BUCKET).upload(path, fileOrBlob, {upsert:false, contentType: fileOrBlob.type||undefined});
+  if(error) throw error;
+  return path;
+}
+async function deleteFromLibrary(path){
+  if(!path) return;
+  try{ await sb.storage.from(BUCKET).remove([path]); }catch(e){ console.warn('storage delete failed', e); }
+}
+async function fetchGames(){
+  const {data,error}=await sb.from('games').select('*').order('created_at',{ascending:true});
+  if(error){ console.error(error); return []; }
+  return data||[];
+}
+async function deleteGame(item){
+  await sb.from('games').delete().eq('id', item.id);
+  if(item.rom_path) await deleteFromLibrary(item.rom_path);
+  if(item.cover_path) await deleteFromLibrary(item.cover_path);
+}
+
+// ---------- helpers ----------
+function placeholderCover(name,sys){
+  const c=document.createElement('canvas'); c.width=200; c.height=200;
+  const ctx=c.getContext('2d');
+  const colors={gb:'#8bac0f',gbc:'#3b4cca',gba:'#e3350d'};
+  ctx.fillStyle=colors[sys]||'#888'; ctx.fillRect(0,0,200,200);
+  ctx.fillStyle='#fff'; ctx.font='bold 90px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText((name||'?').trim().charAt(0).toUpperCase(),100,110);
+  ctx.font='bold 16px sans-serif'; ctx.fillText(sys.toUpperCase(),100,175);
+  return c.toDataURL('image/png');
+}
+
+// ---------- library UI (shared, from Supabase) ----------
+const grid=document.getElementById('grid'), emptyMsg=document.getElementById('emptyMsg');
+async function renderLibrary(){
+  const items=await fetchGames();
+  grid.innerHTML='';
+  emptyMsg.style.display=items.length?'none':'block';
+  items.sort((a,b)=>a.name.localeCompare(b.name)).forEach(item=>{
+    const coverSrc = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`
+      <div class="cover-wrap"><img class="cover" src="${coverSrc}"></div>
+      <div class="card-body">
+        <span class="tag tag-${item.core}">${item.core.toUpperCase()}</span>
+        <p class="name">${item.name}</p>
+        ${item.description ? `<p class="desc">${item.description}</p>` : ''}
+      </div>
+      <div class="card-actions">
+        <button data-act="play">▶ เล่น</button>
+        <button data-act="edit">แก้ไข</button>
+        <button data-act="del">ลบ</button>
+      </div>`;
+    card.querySelector('[data-act=play]').onclick=(e)=>{e.stopPropagation(); startGame(item.id);};
+    card.querySelector('[data-act=edit]').onclick=(e)=>{
+      e.stopPropagation();
+      requireAuth(()=>openEditModal(item));
+    };
+    card.querySelector('[data-act=del]').onclick=(e)=>{
+      e.stopPropagation();
+      requireAuth(async()=>{
+        if(confirm('ลบเกมนี้? (มีผลกับทุกคนที่เข้าเว็บนี้)')){ await deleteGame(item); renderLibrary(); }
+      });
+    };
+    card.onclick=()=>startGame(item.id);
+    grid.appendChild(card);
+  });
+}
+
+// ---------- add / edit modal ----------
+const modalBg=document.getElementById('modalBg');
+const modalTitleEl=document.getElementById('modalTitle');
+const romFileLabelEl=document.getElementById('romFileLabel');
+const romFileInput=document.getElementById('romFile');
+const coverFileInput=document.getElementById('coverFile');
+const coverPreview=document.getElementById('coverPreview');
+const romNameInput=document.getElementById('romName');
+const romDescInput=document.getElementById('romDesc');
+const romSystemInput=document.getElementById('romSystem');
+const saveBtn=document.getElementById('saveBtn');
+let editingItem=null; // set when the modal is used to edit an existing game instead of adding a new one
+
+coverFileInput.addEventListener('change', ()=>{
+  const f=coverFileInput.files[0];
+  if(!f){ coverPreview.style.display='none'; coverPreview.src=''; return; }
+  const reader=new FileReader();
+  reader.onload=(e)=>{ coverPreview.src=e.target.result; coverPreview.style.display='block'; };
+  reader.readAsDataURL(f);
+});
+
+function resetModalToAdd(){
+  editingItem=null;
+  modalTitleEl.textContent='เพิ่มเกมใหม่';
+  romFileLabelEl.textContent='ไฟล์ ROM (.gb / .gbc / .gba)';
+  romNameInput.value='';
+  romDescInput.value='';
+  romSystemInput.value='gba';
+  romFileInput.value='';
+  coverFileInput.value='';
+  coverPreview.style.display='none'; coverPreview.src='';
+  saveBtn.textContent='บันทึก';
+}
+function openEditModal(item){
+  editingItem=item;
+  modalTitleEl.textContent='แก้ไขเกม';
+  romFileLabelEl.textContent='ไฟล์ ROM (ไม่บังคับ ใส่เฉพาะถ้าต้องการเปลี่ยน)';
+  romNameInput.value=item.name||'';
+  romDescInput.value=item.description||'';
+  romSystemInput.value=item.core;
+  romFileInput.value='';
+  coverFileInput.value='';
+  if(item.cover_path){ coverPreview.src=publicUrl(item.cover_path); coverPreview.style.display='block'; }
+  else { coverPreview.style.display='none'; coverPreview.src=''; }
+  saveBtn.textContent='บันทึกการแก้ไข';
+  modalBg.classList.add('show');
+}
+document.getElementById('addBtn').onclick=()=>requireAuth(()=>{ resetModalToAdd(); modalBg.classList.add('show'); });
+document.getElementById('cancelBtn').onclick=()=>{ modalBg.classList.remove('show'); editingItem=null; };
+saveBtn.onclick=async()=>{
+  const romFile=romFileInput.files[0];
+  const coverFile=coverFileInput.files[0];
+  const system=romSystemInput.value;
+  const description=romDescInput.value.trim();
+  let name=romNameInput.value.trim();
+  if(!editingItem && !romFile){ alert('กรุณาเลือกไฟล์ ROM'); return; }
+  if(!name && romFile) name=romFile.name.replace(/\.[^.]+$/,'');
+  if(!name && editingItem) name=editingItem.name;
+  if(!name){ alert('กรุณาใส่ชื่อเกม'); return; }
+  saveBtn.disabled=true; saveBtn.textContent=editingItem?'กำลังบันทึก...':'กำลังอัปโหลด...';
+  try{
+    if(editingItem){
+      const updateData={ name, core:system, description };
+      if(romFile){
+        updateData.rom_path=await uploadToLibrary(romFile,'roms');
+        if(editingItem.rom_path) await deleteFromLibrary(editingItem.rom_path);
+      }
+      if(coverFile){
+        updateData.cover_path=await uploadToLibrary(coverFile,'covers');
+        if(editingItem.cover_path) await deleteFromLibrary(editingItem.cover_path);
+      }
+      const {error}=await sb.from('games').update(updateData).eq('id', editingItem.id);
+      if(error) throw error;
+    } else {
+      const romPath=await uploadToLibrary(romFile,'roms');
+      let coverPath=null;
+      if(coverFile){ coverPath=await uploadToLibrary(coverFile,'covers'); }
+      const {error}=await sb.from('games').insert({ name, core:system, description, rom_path:romPath, cover_path:coverPath });
+      if(error) throw error;
+    }
+    modalBg.classList.remove('show');
+    resetModalToAdd();
+    renderLibrary();
+  }catch(err){
+    console.error(err);
+    alert((editingItem?'บันทึกการแก้ไข':'อัปโหลด')+'ไม่สำเร็จ: '+(err.message||err));
+  }finally{
+    saveBtn.disabled=false; saveBtn.textContent=editingItem?'บันทึกการแก้ไข':'บันทึก';
+  }
+};
+
+// ---------- sync code (personal, follows the player across devices) ----------
+function getSyncCode(){ return localStorage.getItem('syncCode') || ''; }
+function setSyncCode(code){ if(code) localStorage.setItem('syncCode', code); else localStorage.removeItem('syncCode'); }
+const syncModalBg=document.getElementById('syncModalBg');
+const syncCodeInput=document.getElementById('syncCodeInput');
+const syncCurrentMsg=document.getElementById('syncCurrentMsg');
+let syncModalResolve=null;
+function openSyncModal(){
+  return new Promise(resolve=>{
+    syncModalResolve=resolve;
+    const cur=getSyncCode();
+    syncCurrentMsg.textContent = cur ? ('ตอนนี้ใช้รหัส: '+cur) : 'ยังไม่ได้ตั้งรหัส — เซฟจะไม่ตามไปเครื่องอื่นจนกว่าจะตั้ง';
+    syncCodeInput.value=cur;
+    syncModalBg.classList.add('show');
+    setTimeout(()=>syncCodeInput.focus(),50);
+  });
+}
+document.getElementById('syncSaveBtn').onclick=()=>{
+  const v=syncCodeInput.value.trim();
+  if(v) setSyncCode(v);
+  syncModalBg.classList.remove('show');
+  if(syncModalResolve){ syncModalResolve(getSyncCode()); syncModalResolve=null; }
+};
+document.getElementById('syncSkipBtn').onclick=()=>{
+  syncModalBg.classList.remove('show');
+  if(syncModalResolve){ syncModalResolve(getSyncCode()); syncModalResolve=null; }
+};
+document.getElementById('syncBtn').addEventListener('click', ()=>{ openSyncModal(); });
+
+// ---------- play flow (reload-based so EmulatorJS always boots fresh) ----------
+function startGame(id){
+  sessionStorage.setItem('playId', id);
+  location.reload();
+}
+function bytesToBase64(bytes){
+  let bin=''; const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){ bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+  return btoa(bin);
+}
+function base64ToBytes(b64){
+  const bin=atob(b64); const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+// ---- in-game save (SRAM) syncs to the "saves" table, keyed by personal sync code + game id ----
+async function grabSave(){
+  try{
+    const gm = window.EJS_emulator && window.EJS_emulator.gameManager;
+    if(!gm || typeof gm.getSaveFile !== 'function') return null;
+    const bytes = gm.getSaveFile();
+    return bytes ? new Uint8Array(bytes) : null;
+  }catch(e){ console.warn('grabSave failed', e); return null; }
+}
+async function flushSave(){
+  const id = sessionStorage.getItem('playId');
+  if(!id) return;
+  const code = getSyncCode();
+  if(!code) return; // no personal code set yet — nothing to sync to
+  const bytes = await grabSave();
+  if(!bytes) return;
+  try{
+    await sb.from('saves').upsert({ sync_code:code, game_id:id, sram:bytesToBase64(bytes), updated_at:new Date().toISOString() });
+  }catch(e){ console.warn('flushSave failed', e); }
+}
+document.getElementById('backBtn').onclick=async()=>{
+  await flushSave();
+  sessionStorage.removeItem('playId');
+  location.reload();
+};
+window.addEventListener('pagehide', ()=>{ if(sessionStorage.getItem('playId')) flushSave(); });
+
+function coreFor(system){ return system==='gba' ? 'gba' : 'gb'; } // gb core (Gambatte) handles GB + GBC
+
+async function bootPlayer(id){
+  const {data:rec}=await sb.from('games').select('*').eq('id',id).maybeSingle();
+  if(!rec){ sessionStorage.removeItem('playId'); return; }
+  document.getElementById('libraryView').style.display='none';
+  document.getElementById('playView').style.display='block';
+  document.querySelector('.fab-zone').style.display='none';
+  document.getElementById('backBtn').style.display='inline-block';
+  document.title='เล่น: '+rec.name;
+
+  let code=getSyncCode();
+  if(!code){ code=await openSyncModal(); }
+
+  const romUrl=publicUrl(rec.rom_path);
+  let saveBytes=null;
+  if(code){
+    const {data:saveRow}=await sb.from('saves').select('sram').eq('sync_code',code).eq('game_id',id).maybeSingle();
+    if(saveRow && saveRow.sram){ saveBytes=base64ToBytes(saveRow.sram); }
+  }
+  if(saveBytes){
+    window.EJS_onGameStart=()=>{
+      try{
+        const gm=window.EJS_emulator.gameManager;
+        gm.FS.writeFile(gm.getSaveFilePath(), saveBytes);
+        if(typeof gm.loadSaveFiles==='function') gm.loadSaveFiles();
+      }catch(e){ console.warn('restore save failed', e); }
+    };
+  }
+  setInterval(flushSave, 15000);
+  window.EJS_player='#ejsContainer';
+  window.EJS_core=coreFor(rec.core);
+  window.EJS_gameUrl=romUrl;
+  window.EJS_gameName=rec.name;
+  window.EJS_gameID='pkmn-'+rec.id; // stable id so EmulatorJS's own save data is found again next time
+  window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';
+  window.EJS_startOnLoaded=true;
+  window.EJS_backgroundColor='#000';
+  window.EJS_VirtualGamepadSettings=[];
+  const s=document.createElement('script');
+  s.src='https://cdn.emulatorjs.org/stable/data/loader.js';
+  document.body.appendChild(s);
+}
+
+// ---------- intro 3D marquee (shared images, from Supabase) ----------
+const DEFAULT_MARQUEE_IMAGES=[
+  'https://picsum.photos/seed/gba1/400/300','https://picsum.photos/seed/gba2/400/300',
+  'https://picsum.photos/seed/gba3/400/300','https://picsum.photos/seed/gba4/400/300',
+  'https://picsum.photos/seed/gba5/400/300','https://picsum.photos/seed/gba6/400/300',
+  'https://picsum.photos/seed/gba7/400/300','https://picsum.photos/seed/gba8/400/300',
+  'https://picsum.photos/seed/gba9/400/300','https://picsum.photos/seed/gba10/400/300',
+  'https://picsum.photos/seed/gba11/400/300','https://picsum.photos/seed/gba12/400/300'
+];
+const MARQUEE_PASSWORD='1212312121';
+async function fetchMarqueeRows(){
+  const {data,error}=await sb.from('marquee_images').select('*').order('sort_order',{ascending:true});
+  if(error){ console.error(error); return []; }
+  return data||[];
+}
+async function buildIntroMarquee(){
+  const grid=document.getElementById('introGrid');
+  grid.innerHTML='';
+  const rows=await fetchMarqueeRows();
+  const urls = rows.length ? rows.map(r=>publicUrl(r.image_path)) : DEFAULT_MARQUEE_IMAGES;
+  const cols=[[],[],[]];
+  urls.forEach((src,i)=>cols[i%3].push(src));
+  cols.forEach((list,i)=>{
+    const col=document.createElement('div');
+    col.className='intro-col c'+(i+1);
+    // duplicate list so the loop feels continuous
+    [...list,...list].forEach(src=>{
+      const img=document.createElement('img');
+      img.src=src; img.alt=''; img.draggable=false;
+      col.appendChild(img);
+    });
+    grid.appendChild(col);
+  });
+}
+
+// clicking the title zooms into the site, then reveals the library
+function enterFromIntro(){
+  const introEl=document.getElementById('introView');
+  if(introEl.classList.contains('zooming')) return;
+  introEl.classList.add('zooming');
+  setTimeout(()=>{ introEl.style.display='none'; }, 560);
+}
+document.getElementById('introTitle').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  enterFromIntro();
+});
+
+// ---------- key button: password gate for editing the shared library (games + marquee images) ----------
+const keyModalBg=document.getElementById('keyModalBg');
+const imgModalBg=document.getElementById('imgModalBg');
+const keyPassInput=document.getElementById('keyPassInput');
+const keyRememberChk=document.getElementById('keyRememberChk');
+const keyErrorMsg=document.getElementById('keyErrorMsg');
+const KEY_PASS_STORAGE='gbeAdminPassSaved';
+const marqueeThumbsEl=document.getElementById('marqueeThumbs');
+let marqueeAuthorized=false; // in-memory only — always cleared on page refresh, so the password must be entered again every time
+let stagedImages=[]; // rows {id, image_path, sort_order} currently shown in the editor
+let pendingAuthAction=null;
+
+function requireAuth(action){
+  if(marqueeAuthorized){ action(); return; }
+  pendingAuthAction=action;
+  keyErrorMsg.textContent='';
+  const saved=localStorage.getItem(KEY_PASS_STORAGE);
+  keyPassInput.value=saved||'';
+  keyRememberChk.checked=true;
+  keyModalBg.classList.add('show');
+  setTimeout(()=>keyPassInput.focus(),50);
+}
+document.getElementById('keyCancelBtn').onclick=()=>{ keyModalBg.classList.remove('show'); pendingAuthAction=null; };
+document.getElementById('keySubmitBtn').onclick=()=>{
+  if(keyPassInput.value===MARQUEE_PASSWORD){
+    marqueeAuthorized=true;
+    if(keyRememberChk.checked){ localStorage.setItem(KEY_PASS_STORAGE,keyPassInput.value); }
+    else{ localStorage.removeItem(KEY_PASS_STORAGE); }
+    updateAuthUI();
+    keyModalBg.classList.remove('show');
+    const act=pendingAuthAction; pendingAuthAction=null;
+    if(act) act();
+  } else {
+    keyErrorMsg.textContent='รหัสผ่านไม่ถูกต้อง';
+  }
+};
+keyPassInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') document.getElementById('keySubmitBtn').click(); });
+
+function renderThumbs(){
+  marqueeThumbsEl.innerHTML='';
+  if(!stagedImages.length){
+    marqueeThumbsEl.innerHTML='<div class="marquee-empty-hint">ยังไม่มีรูป — อัปโหลดรูปด้านบน</div>';
+    return;
+  }
+  stagedImages.forEach((row)=>{
+    const cell=document.createElement('div');
+    cell.className='marquee-thumb';
+    const img=document.createElement('img'); img.src=publicUrl(row.image_path); img.alt='';
+    const rm=document.createElement('button'); rm.textContent='×'; rm.title='ลบรูปนี้';
+    rm.onclick=async()=>{
+      rm.disabled=true;
+      try{
+        await sb.from('marquee_images').delete().eq('id', row.id);
+        await deleteFromLibrary(row.image_path);
+        stagedImages=stagedImages.filter(r=>r.id!==row.id);
+        renderThumbs();
+      }catch(err){ alert('ลบไม่สำเร็จ: '+(err.message||err)); rm.disabled=false; }
+    };
+    cell.appendChild(img); cell.appendChild(rm);
+    marqueeThumbsEl.appendChild(cell);
+  });
+}
+function resizeImageFileToBlob(file,maxW=900,quality=0.82){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onload=()=>{
+        const scale=Math.min(1, maxW/img.width);
+        const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        canvas.toBlob(blob=> blob ? resolve(blob) : reject(new Error('ย่อรูปไม่สำเร็จ')), 'image/jpeg', quality);
+      };
+      img.onerror=()=>reject(new Error('อ่านไฟล์รูปไม่ได้'));
+      img.src=e.target.result;
+    };
+    reader.onerror=()=>reject(new Error('อ่านไฟล์ไม่ได้'));
+    reader.readAsDataURL(file);
+  });
+}
+document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{
+  const files=[...e.target.files];
+  for(const f of files){
+    try{
+      const blob=await resizeImageFileToBlob(f);
+      const path=await uploadToLibrary(blob,'marquee','jpg');
+      const nextOrder = stagedImages.length ? Math.max(...stagedImages.map(r=>r.sort_order||0))+1 : 0;
+      const {data,error}=await sb.from('marquee_images').insert({image_path:path, sort_order:nextOrder}).select().single();
+      if(error) throw error;
+      stagedImages.push(data);
+      renderThumbs();
+    }catch(err){ console.warn('upload failed', err); alert('อัปโหลดรูปไม่สำเร็จ: '+(err.message||err)); }
+  }
+  e.target.value='';
+});
+
+async function openImageEditor(){
+  stagedImages=await fetchMarqueeRows();
+  renderThumbs();
+  imgModalBg.classList.add('show');
+}
+document.getElementById('marqueeKeyBtn').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  requireAuth(openImageEditor);
+});
+document.getElementById('imgCancelBtn').onclick=()=>imgModalBg.classList.remove('show');
+document.getElementById('imgSaveBtn').onclick=()=>{
+  imgModalBg.classList.remove('show');
+  buildIntroMarquee();
+};
+
+// ---------- boot ----------
+// รีเฟรชหน้าเว็บทีไรจะเริ่มที่หน้ารูปวิ่งนี้เสมอ ยกเว้นตอนกำลังเล่นเกมค้างอยู่ (จะเข้าเกมต่อทันที)
+localStorage.removeItem('marqueeAuth'); // เอาสถานะ "จำรหัสผ่าน" แบบเดิมออก — ต้องใส่รหัสผ่านใหม่ทุกครั้งที่รีเฟรช
+updateAuthUI();
+const playingId=sessionStorage.getItem('playId');
+if(playingId){
+  document.getElementById('introView').style.display='none';
+  bootPlayer(playingId);
+} else {
+  buildIntroMarquee();
+  renderLibrary();
+}
+</script>
+</body>
+</html>
