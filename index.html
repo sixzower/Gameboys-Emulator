@@ -51,10 +51,15 @@ body.authed .card{cursor:grab;}
 .card-body .name{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-weight:700; font-size:15.5px; letter-spacing:-.1px; margin:0 0 3px; line-height:1.28;}
 .card-body .desc{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:12px; font-weight:400; color:var(--sub); margin:0 0 6px; line-height:1.48;}
 .tag{display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; color:#fff; margin-bottom:6px;}
-.tag-row{display:flex; align-items:center; gap:5px; margin-bottom:6px;}
+.tag-row{display:flex; align-items:center; gap:5px; margin-bottom:6px; flex-wrap:wrap;}
 .tag-row .tag{margin-bottom:0;}
 .tag-row .thai-flag-inline{margin:0;}
 .tag-gb{background:#8bac0f}.tag-gbc{background:#3b4cca}.tag-gba{background:#e3350d}
+.version-chip{display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; color:#fff; background:var(--sub);}
+.tag-row .thai-flag-inline{margin-left:auto;}
+/* the detail popup keeps the flag right next to the system tag — only the library
+   grid cards push it out to the row's far edge */
+.detail-tag-row .thai-flag-inline{margin-left:0;}
 .card-actions{display:flex; gap:6px; padding:4px 10px 10px; margin-top:auto;}
 .card-actions button{flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:12px; cursor:pointer; touch-action:manipulation;}
 .card-actions button[data-act=play]{color:var(--accent); border-color:var(--accent); font-weight:700;}
@@ -69,6 +74,9 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 #keyModalBg, #imgModalBg{z-index:60;}
 .modal-bg.show{display:flex;}
 .modal{background:var(--card); border-radius:16px; padding:20px; width:100%; max-width:380px; max-height:90vh; overflow-y:auto;}
+/* bouncy pop-in used whenever a modal/popup appears (paired with a matching pop sound in JS for the game-detail popup) */
+@keyframes modalPopIn{0%{transform:scale(.86); opacity:0;} 65%{transform:scale(1.03); opacity:1;} 100%{transform:scale(1); opacity:1;}}
+.modal-bg.show .modal{animation:modalPopIn .32s cubic-bezier(.34,1.56,.64,1);}
 .input-minimal{border:none!important; border-bottom:1.5px solid var(--border)!important; border-radius:0!important; background:transparent!important; padding:8px 2px!important; text-align:center; letter-spacing:6px; font-size:18px;}
 .input-minimal:focus{outline:none; border-bottom-color:#a855f7!important;}
 .pass-box{width:100%; padding:8px 10px; border-radius:9px; border:1.5px solid var(--border); background:var(--bg); color:var(--text); text-align:center; letter-spacing:4px; font-size:15px; font-family:inherit;}
@@ -113,8 +121,34 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 .intro-key-btn{position:absolute; right:18px; bottom:calc(18px + env(safe-area-inset-bottom,0px)); width:30px; height:30px; border-radius:8px; border:none; background:transparent; color:rgba(255,255,255,.45); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; pointer-events:auto; transition:color .2s ease, transform .2s ease;}
 .intro-key-btn svg{width:17px; height:17px;}
 .intro-key-btn:hover{color:#c9a4f5; transform:scale(1.08);}
-.field label.checkline{display:flex; align-items:center; gap:5px; font-size:6px; cursor:pointer;}
-.field label.checkline input{width:6px; height:6px; margin:0; accent-color:var(--accent);}
+/* NOTE: this used to be ".field label.checkline" which never matched, because the
+   markup below is a single <label class="field checkline">, not a label.checkline
+   nested inside a separate .field — so none of this ever applied and the checkbox
+   + text fell back to the browser's native (much larger) size. Selector fixed to
+   target the label itself. */
+label.checkline{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer; line-height:1.35; margin-bottom:4px;}
+/* custom-drawn checkbox (appearance:none) — a native checkbox's rendered size can be
+   clamped by the browser/OS regardless of width/height, so we draw our own to
+   guarantee it actually renders tiny everywhere */
+label.checkline input{
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  width:15px; height:15px; margin:0; padding:0; flex-shrink:0;
+  border:1px solid var(--border); border-radius:3px; background:var(--bg);
+  position:relative; cursor:pointer;
+}
+label.checkline input:checked{ background:var(--accent); border-color:var(--accent); }
+label.checkline input:checked::after{
+  content:''; position:absolute; left:4px; top:0.5px; width:4px; height:8px;
+  border:solid #fff; border-width:0 1.6px 1.6px 0; transform:rotate(45deg);
+}
+/* "มีแปลไทย" in the add/edit modal needs more room and a slightly bigger box than the
+   password-remember checkbox above (which stays tight against its own hint text) */
+label.checkline.checkline-lg{ font-size:14px; margin-bottom:16px; }
+label.checkline.checkline-lg input{ width:17px; height:17px; }
+label.checkline.checkline-lg input:checked::after{
+  left:4.5px; top:0.6px; width:4.5px; height:9px; border-width:0 1.8px 1.8px 0;
+}
+.field-hint-tiny{font-size:9.5px;}
 .field-hint{font-size:11px; color:var(--sub); margin-top:4px;}
 .field-error{font-size:12px; color:#e3350d; min-height:14px; margin-top:2px;}
 .marquee-thumbs{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px;}
@@ -134,16 +168,20 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 .title-resize-box span{font-family:'Prompt',sans-serif; font-weight:800; color:#fff; white-space:nowrap; user-select:none; line-height:1;}
 .title-resize-handle{position:absolute; right:4px; bottom:4px; width:16px; height:16px; border-radius:4px; background:var(--accent); cursor:nwse-resize; touch-action:none; box-shadow:0 0 0 2px rgba(255,255,255,.5);}
 #ejsContainer{width:100%; max-width:720px; margin:0 auto; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden;}
-/* ทดลอง: ลดช่องว่างระหว่างจอเกมกับปุ่มตอนเล่นแบบเต็มจอแนวตั้งบนมือถือ โดยจำกัดความสูงของกล่องตอน fullscreen แทนที่จะปล่อยให้สูงเต็ม 100vh (ไม่แตะ CSS ภายในของ EmulatorJS เลย) — ค่า 78vh เป็นค่าทดลองเบื้องต้น ปรับได้ตามผลทดสอบจริง */
-@media (orientation:portrait){
-  #ejsContainer:fullscreen,
-  #ejsContainer:-webkit-full-screen{
-    max-height:78vh;
-    margin:0 auto;
-    background:#000;
-  }
-}
-.hint{color:var(--sub); font-size:12px; margin-top:12px; text-align:center; padding:0 10px;}
+.hint{color:var(--sub); font-size:12px; margin-top:10px; text-align:center; padding:0 10px; line-height:1.55;}
+.hint-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
+.hint-list li{margin:0;}
+.hint b{color:var(--text); font-weight:700;}
+.hint-area{margin-top:14px; text-align:center; max-width:720px; margin-left:auto; margin-right:auto;}
+.hint-toggle{display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--border); color:var(--sub); font-family:inherit; font-size:12px; font-weight:600; padding:6px 14px; border-radius:20px; cursor:pointer; touch-action:manipulation; transition:color .2s ease, border-color .2s ease;}
+.hint-toggle:hover{color:var(--text); border-color:var(--accent2);}
+.hint-toggle svg{flex-shrink:0;}
+.hint-toggle .chev{transition:transform .25s ease;}
+.hint-toggle[aria-expanded="true"]{color:var(--accent2); border-color:var(--accent2);}
+.hint-toggle[aria-expanded="true"] .chev{transform:rotate(180deg);}
+.hint-collapse{display:grid; grid-template-rows:0fr; transition:grid-template-rows .28s ease;}
+.hint-collapse.open{grid-template-rows:1fr;}
+.hint-collapse-inner{overflow:hidden; min-height:0;}
 @media (max-width:420px){
   header h1{font-size:15px;} .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px;}
 }
@@ -180,7 +218,7 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
       <input type="checkbox" id="keyRememberChk" checked>
       จดจำรหัสผ่านไว้ (ใส่ให้อัตโนมัติครั้งถัดไป)
     </label>
-    <div class="field-hint">ทุกครั้งที่รีเฟรชหรือเปิดเว็บใหม่ ต้องกด "เข้าสู่ระบบ" อีกครั้งเสมอ — การจดจำรหัสผ่านมีไว้แค่ช่วยกรอกให้ ไม่ได้ล็อกอินค้างไว้ให้</div>
+    <div class="field-hint field-hint-tiny">ทุกครั้งที่รีเฟรชหรือเปิดเว็บใหม่ ต้องกด "เข้าสู่ระบบ" อีกครั้งเสมอ — การจดจำรหัสผ่านมีไว้แค่ช่วยกรอกให้ ไม่ได้ล็อกอินค้างไว้ให้</div>
     <div class="field-error" id="keyErrorMsg"></div>
     <div class="modal-actions">
       <button id="keyCancelBtn" style="background:var(--border);color:var(--text)">ยกเลิก</button>
@@ -210,7 +248,7 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
         <span id="titleResizePreview">GAMEBOY EMULATOR</span>
         <div class="title-resize-handle" id="titleResizeHandle"></div>
       </div>
-      <div class="field-hint">ลากมุมล่างขวาเพื่อปรับขนาดตัวอักษรหัวข้อหน้าแรก (บันทึกไว้ในเครื่องนี้)</div>
+      <div class="field-hint">ลากมุมล่างขวาเพื่อปรับขนาดตัวอักษรหัวข้อหน้าแรก (มีผลกับทุกคนที่เข้าเว็บนี้)</div>
     </div>
     <div class="modal-actions">
       <button id="imgCancelBtn" style="background:var(--border);color:var(--text)">ปิด</button>
@@ -223,7 +261,7 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
   <div class="brand" id="headerGameName" style="display:none;"><span id="headerGameNameText"></span></div>
   <div class="headright">
     <button class="iconbtn" id="syncBtn" title="รหัสซิงก์เซฟส่วนตัว">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.1v-2a4 4 0 0 1 4-4h14"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.9v2a4 4 0 0 1-4 4H3"/></svg>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H7a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18 9.06 4.5 4.5 0 0 1 17.5 19Z"/><path d="m9 13 2 2 4-4"/></svg>
     </button>
     <button class="iconbtn" id="loginBtn" title="เข้าสู่ระบบ"></button>
     <button class="iconbtn" id="themeBtn" title="สลับโหมดสว่าง/มืด"></button>
@@ -237,7 +275,24 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
   </div>
   <div id="playView">
     <div id="ejsContainer"></div>
-    <div class="hint">ตัวควบคุมบนหน้าจอ/คีย์บอร์ดมาพร้อมกับตัวจำลองด้านบน — เกมจะบันทึกอัตโนมัติและโหลดเซฟเดิมให้เองเมื่อกลับเข้ามาเล่นซ้ำ (เล่นบนมือถือ: กดที่ 3 ขีดมุมขวาบน เลือก Enter Full Screen — แนะนำหมุนจอเป็นแนวนอนสำหรับเกม GBA)</div>
+    <div class="hint-area">
+      <button type="button" class="hint-toggle" id="hintToggleBtn" aria-expanded="false" aria-controls="hintCollapse">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16.5"></line><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"></circle></svg>
+        <span>วิธีเล่น &amp; การบันทึกเกม</span>
+        <svg class="chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="hint-collapse" id="hintCollapse">
+        <div class="hint-collapse-inner">
+          <div class="hint">
+            <ul class="hint-list">
+              <li><b>ปุ่มควบคุม:</b> <b>Z</b>, <b>X</b> และปุ่มทิศทาง — ใช้คีย์บอร์ดหรือปุ่มบนหน้าจอที่มากับตัวจำลอง</li>
+              <li><b>ระบบบันทึกเกม:</b> เล่นเครื่องไหนก็ได้ เซฟจะตามไปด้วยเสมอ แต่ต้องใส่ <b>"รหัสซิงก์เซฟส่วนตัว"</b> ทุกครั้งที่เล่น</li>
+              <li><b>เล่นบนมือถือ:</b> เล่นได้ปกติ แนะนำหมุนจอเป็นแนวนอนสำหรับเกม GBA — กดปุ่มขยายจอจะมีปุ่มควบคุมขึ้นมาให้</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
 <div class="fab-zone"><button class="fab" id="addBtn">+</button></div>
@@ -261,10 +316,14 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
       <label>คำอธิบาย (ไม่บังคับ)</label>
       <textarea id="romDesc" rows="2" placeholder="รายละเอียดเพิ่มเติมเกี่ยวกับเกมนี้"></textarea>
     </div>
-    <label class="field checkline">
+    <label class="field checkline checkline-lg">
       <input type="checkbox" id="romHasThai">
       มีแปลไทย
     </label>
+    <div class="field">
+      <label>เวอร์ชัน (ระบบจะดึงข้อมูลจากชื่อไฟล์ ROM แต่แก้ไขเองได้)</label>
+      <input type="text" id="romVersion" placeholder="เช่น 1.2 หรือ Rev 1">
+    </div>
     <div class="field">
       <label>เครื่อง</label>
       <select id="romSystem">
@@ -292,11 +351,12 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 <div class="modal-bg" id="detailModalBg">
   <div class="modal">
     <img id="detailCover" alt="" style="display:block;width:100%;max-height:220px;object-fit:contain;background:var(--bg);border-radius:10px;margin-bottom:10px;">
-    <div class="tag-row">
+    <div class="tag-row detail-tag-row">
       <span class="tag" id="detailTag"></span>
       <span class="thai-flag-inline" id="detailThaiFlag" title="มีแปลไทย" style="display:none;"></span>
     </div>
     <h2 id="detailName" style="margin:6px 0 6px;"></h2>
+    <p id="detailVersion" style="font-size:11px;color:var(--sub);margin:0 0 6px;display:none;"></p>
     <p id="detailDesc" style="font-size:13px;color:var(--sub);line-height:1.55;white-space:pre-wrap;margin:0 0 6px;"></p>
     <div class="modal-actions">
       <button id="detailCloseBtn" style="background:var(--border);color:var(--text)">ปิด</button>
@@ -308,11 +368,10 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 <div class="modal-bg" id="syncModalBg">
   <div class="modal">
     <h2>รหัสซิงก์เซฟส่วนตัว</h2>
-    <p class="field-hint" id="syncCurrentMsg" style="margin-bottom:10px;"></p>
+    <p class="field-hint" id="syncCurrentMsg" style="margin-bottom:4px;"></p>
     <div class="field">
-      <label>รหัสของคุณ</label>
-      <input type="text" id="syncCodeInput" placeholder="ตั้งรหัสที่จำได้ เช่น ชื่อเล่น+เลขที่จำได้" autocomplete="off">
-      <div class="field-hint">ใส่รหัสเดียวกันทุกเครื่องที่เล่น เซฟของคุณจะตามไปด้วย ไม่ควรบอกรหัสนี้กับคนอื่นถ้าไม่อยากให้เห็นเซฟของคุณ</div>
+      <input type="text" id="syncCodeInput" placeholder="กำหนดรหัสผ่าน" autocomplete="off">
+      <div class="field-hint" style="margin-top:2px;">ใส่รหัสเดียวกันทุกเครื่องที่เล่น เซฟของคุณจะตามไปด้วย ไม่ควรบอกรหัสนี้กับคนอื่นถ้าไม่อยากให้เห็นเซฟของคุณ</div>
     </div>
     <div class="modal-actions">
       <button id="syncSkipBtn" style="background:var(--border);color:var(--text)">ปิด</button>
@@ -368,7 +427,19 @@ async function uploadToLibrary(fileOrBlob, folder, extHint){
     else if(fileOrBlob.type) ext=(fileOrBlob.type.split('/').pop()||'bin');
     else ext='bin';
   }
-  const path=folder+'/'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)+'.'+ext;
+  const prefix=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  // Keep a sanitized copy of the ORIGINAL filename inside the storage path itself
+  // (after the "__"). Previously the path was just prefix+ext, so the original ROM
+  // filename was thrown away forever the moment it was uploaded — meaning "has Thai
+  // translation" / "version" could only ever be guessed from the game's title, never
+  // from the actual ROM filename, and only at the moment of upload. Embedding it here
+  // means that info can still be read back later even if the local ROM file itself
+  // has since been deleted.
+  let path=folder+'/'+prefix+'.'+ext;
+  if(fileOrBlob.name){
+    const safeName=fileOrBlob.name.replace(/[^A-Za-z0-9._-]+/g,'_');
+    path=folder+'/'+prefix+'__'+safeName;
+  }
   const {error}=await sb.storage.from(BUCKET).upload(path, fileOrBlob, {upsert:false, contentType: fileOrBlob.type||undefined});
   if(error) throw error;
   return path;
@@ -383,6 +454,23 @@ async function fetchGames(){
   return data||[];
 }
 
+// ---------- site_settings: small shared key/value table so UI tweaks (like the intro
+// title font size) apply to every visitor instantly, the same way marquee_images does,
+// instead of only being saved in the browser that made the change ----------
+async function getSiteSetting(key, fallback){
+  try{
+    const {data,error}=await sb.from('site_settings').select('value').eq('key',key).maybeSingle();
+    if(error || !data) return fallback;
+    const num=parseFloat(data.value);
+    return Number.isNaN(num) ? fallback : num;
+  }catch(e){ console.warn('getSiteSetting failed', e); return fallback; }
+}
+async function setSiteSetting(key, value){
+  try{
+    await sb.from('site_settings').upsert({key, value:String(value), updated_at:new Date().toISOString()});
+  }catch(e){ console.warn('setSiteSetting failed', e); }
+}
+
 async function deleteGame(item){
   await sb.from('games').delete().eq('id', item.id);
   if(item.rom_path) await deleteFromLibrary(item.rom_path);
@@ -390,6 +478,47 @@ async function deleteGame(item){
 }
 
 // ---------- helpers ----------
+// auto-detect "has Thai translation" from the ROM filename — only when it contains
+// "TH" written in capital letters exactly like that, as its own token (so "THE LEGEND..."
+// doesn't false-trigger on the "TH" inside "THE")
+function filenameLooksThai(filename){
+  if(!filename) return false;
+  return /(^|[^A-Za-z])TH([^A-Za-z]|$)/.test(filename);
+}
+// auto-detect a version string from the ROM filename's own numbers, e.g.
+// "Pokemon Emerald v1.2.gba" -> "1.2", "Game (Rev 1).gba" -> "Rev 1", "Game 1.04.gba" -> "1.04"
+function extractVersionFromFilename(filename){
+  if(!filename) return '';
+  const base=filename.replace(/\.[^.]+$/,'');
+  let m=base.match(/[vV]\.?\s*(\d+(?:\.\d+)*)/);
+  if(m) return m[1];
+  m=base.match(/[Rr]ev\.?\s*(\d+)/);
+  if(m) return 'Rev '+m[1];
+  m=base.match(/\b(\d+\.\d+(?:\.\d+)*)\b/);
+  if(m) return m[1];
+  return '';
+}
+// display fallbacks — for games already sitting in the database (added before the
+// version/Thai columns existed, or edited without picking a new ROM file), read the
+// same signals off the stored game name AND off the original ROM filename that's kept
+// inside rom_path (see uploadToLibrary) — so the flag/version show up from existing
+// backend data alone, with no need for the original ROM file to still exist anywhere
+function originalFilenameFromPath(path){
+  if(!path) return '';
+  const seg=path.split('/').pop()||'';
+  const idx=seg.indexOf('__');
+  return idx>=0 ? seg.slice(idx+2) : '';
+}
+function getDisplayHasThai(item){
+  return !!item.has_thai || filenameLooksThai(item.name||'') || filenameLooksThai(originalFilenameFromPath(item.rom_path));
+}
+function getDisplayVersion(item){
+  return item.version || extractVersionFromFilename(item.name||'') || extractVersionFromFilename(originalFilenameFromPath(item.rom_path));
+}
+// "1.2" -> "v1.2", but "Rev 1" (already has its own word) is shown as-is
+function formatVersionLabel(v){
+  return /^\d/.test(v) ? 'v'+v : v;
+}
 const THAI_FLAG_SVG='<svg width="15" height="10" viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg"><rect width="30" height="20" fill="#A51931"/><rect y="3.33" width="30" height="13.34" fill="#F4F5F8"/><rect y="6.67" width="30" height="6.66" fill="#2D2A4A"/></svg>';
 function placeholderCover(name,sys){
   const c=document.createElement('canvas'); c.width=200; c.height=200;
@@ -416,7 +545,7 @@ function renderGridFromCurrent(){
     card.innerHTML=`
       <div class="cover-wrap"><img class="cover" src="${coverSrc}"></div>
       <div class="card-body">
-        <div class="tag-row"><span class="tag tag-${item.core}">${item.core.toUpperCase()}</span>${item.has_thai ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</div>
+        <div class="tag-row"><span class="tag tag-${item.core}">${item.core.toUpperCase()}</span>${getDisplayVersion(item) ? `<span class="version-chip">${formatVersionLabel(getDisplayVersion(item))}</span>` : ''}${getDisplayHasThai(item) ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</div>
         <p class="name">${item.name}</p>
         ${item.description ? `<p class="desc">${item.description}</p>` : ''}
       </div>
@@ -437,6 +566,10 @@ function renderGridFromCurrent(){
       });
     };
     card.onclick=()=>openDetailModal(item);
+    // soft hover chime as each game card bounces up — no click needed first (the
+    // one-time click on the "GAMEBOY EMULATOR" title to enter the library already
+    // unlocked the shared AudioContext, so this works right away)
+    card.addEventListener('mouseenter', ()=> playHover());
     // drag-to-reorder — only active when logged in as admin (marqueeAuthorized)
     card.addEventListener('dragstart',(e)=>{
       if(!marqueeAuthorized){ e.preventDefault(); return; }
@@ -485,16 +618,24 @@ const detailCover=document.getElementById('detailCover');
 const detailTag=document.getElementById('detailTag');
 const detailThaiFlag=document.getElementById('detailThaiFlag');
 const detailName=document.getElementById('detailName');
+const detailVersion=document.getElementById('detailVersion');
 const detailDesc=document.getElementById('detailDesc');
 let detailItem=null;
 function openDetailModal(item){
+  playPop();
   detailItem=item;
   detailCover.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
   detailTag.textContent=item.core.toUpperCase();
   detailTag.className='tag tag-'+item.core;
-  if(item.has_thai){ detailThaiFlag.innerHTML=THAI_FLAG_SVG; detailThaiFlag.style.display='inline-flex'; }
+  if(getDisplayHasThai(item)){ detailThaiFlag.innerHTML=THAI_FLAG_SVG; detailThaiFlag.style.display='inline-flex'; }
   else { detailThaiFlag.style.display='none'; detailThaiFlag.innerHTML=''; }
   detailName.textContent=item.name;
+  // version only shows here (in the detail popup) and now also as a small chip on the
+  // library grid card — falls back to reading it off the existing name so it shows
+  // immediately from backend data, no re-upload needed
+  const displayVersion=getDisplayVersion(item);
+  if(displayVersion){ detailVersion.textContent='เวอร์ชัน '+formatVersionLabel(displayVersion); detailVersion.style.display='block'; }
+  else { detailVersion.style.display='none'; detailVersion.textContent=''; }
   detailDesc.textContent=item.description || 'ไม่มีคำอธิบายเพิ่มเติม';
   detailModalBg.classList.add('show');
 }
@@ -515,6 +656,7 @@ const coverPreview=document.getElementById('coverPreview');
 const romNameInput=document.getElementById('romName');
 const romDescInput=document.getElementById('romDesc');
 const romHasThaiInput=document.getElementById('romHasThai');
+const romVersionInput=document.getElementById('romVersion');
 const romSystemInput=document.getElementById('romSystem');
 const saveBtn=document.getElementById('saveBtn');
 let editingItem=null; // set when the modal is used to edit an existing game instead of adding a new one
@@ -554,6 +696,16 @@ const romFileNameEl=wireFilePicker('romFile','romFileName');
 const coverFileNameEl=wireFilePicker('coverFile','coverFileName');
 const marqueeImgFileNameEl=wireFilePicker('marqueeImgFile','marqueeImgFileName');
 
+// auto-fill "มีแปลไทย" and "เวอร์ชัน" from the picked ROM's filename — still fully
+// editable by hand afterwards, this is just a head start
+romFileInput.addEventListener('change', ()=>{
+  const f=romFileInput.files[0];
+  if(!f) return;
+  if(filenameLooksThai(f.name)) romHasThaiInput.checked=true;
+  const ver=extractVersionFromFilename(f.name);
+  if(ver) romVersionInput.value=ver;
+});
+
 coverFileInput.addEventListener('change', ()=>{
   const f=coverFileInput.files[0];
   if(!f){ coverPreview.style.display='none'; coverPreview.src=''; return; }
@@ -569,6 +721,7 @@ function resetModalToAdd(){
   romNameInput.value='';
   romDescInput.value='';
   romHasThaiInput.checked=false;
+  romVersionInput.value='';
   romSystemInput.value='gba';
   romFileInput.value='';
   coverFileInput.value='';
@@ -583,7 +736,8 @@ function openEditModal(item){
   romFileLabelEl.textContent='ไฟล์ ROM (ไม่บังคับ ใส่เฉพาะถ้าต้องการเปลี่ยน)';
   romNameInput.value=item.name||'';
   romDescInput.value=item.description||'';
-  romHasThaiInput.checked=!!item.has_thai;
+  romHasThaiInput.checked=getDisplayHasThai(item);
+  romVersionInput.value=getDisplayVersion(item);
   romSystemInput.value=item.core;
   romFileInput.value='';
   coverFileInput.value='';
@@ -602,6 +756,7 @@ saveBtn.onclick=async()=>{
   const system=romSystemInput.value;
   const description=romDescInput.value.trim();
   const hasThai=romHasThaiInput.checked;
+  const version=romVersionInput.value.trim();
   let name=romNameInput.value.trim();
   if(!editingItem && !romFile){ alert('กรุณาเลือกไฟล์ ROM'); return; }
   if(!name && romFile) name=romFile.name.replace(/\.[^.]+$/,'');
@@ -610,7 +765,7 @@ saveBtn.onclick=async()=>{
   saveBtn.disabled=true; saveBtn.textContent=editingItem?'กำลังบันทึก...':'กำลังอัปโหลด...';
   try{
     if(editingItem){
-      const updateData={ name, core:system, description, has_thai:hasThai };
+      const updateData={ name, core:system, description, has_thai:hasThai, version };
       if(romFile){
         updateData.rom_path=await uploadToLibrary(romFile,'roms');
         if(editingItem.rom_path) await deleteFromLibrary(editingItem.rom_path);
@@ -626,7 +781,7 @@ saveBtn.onclick=async()=>{
       let coverPath=null;
       if(coverFile){ coverPath=await uploadToLibrary(coverFile,'covers'); }
       const nextOrder = currentGames.length ? Math.max(...currentGames.map(g=>g.sort_order||0))+1 : 0;
-      const {error}=await sb.from('games').insert({ name, core:system, description, rom_path:romPath, cover_path:coverPath, sort_order:nextOrder, has_thai:hasThai });
+      const {error}=await sb.from('games').insert({ name, core:system, description, rom_path:romPath, cover_path:coverPath, sort_order:nextOrder, has_thai:hasThai, version });
       if(error) throw error;
     }
     modalBg.classList.remove('show');
@@ -651,7 +806,7 @@ function openSyncModal(){
   return new Promise(resolve=>{
     syncModalResolve=resolve;
     const cur=getSyncCode();
-    syncCurrentMsg.textContent = cur ? ('ตอนนี้ใช้รหัส: '+cur) : 'ยังไม่ได้ตั้งรหัส — เซฟจะไม่ตามไปเครื่องอื่นจนกว่าจะตั้ง';
+    syncCurrentMsg.textContent = cur ? ('ตอนนี้ใช้รหัส: '+cur) : 'ระบุรหัสผ่าน ซิงค์ข้อมูลนำไปใช้บนอุปกรณ์อื่น';
     syncCodeInput.value=cur;
     syncModalBg.classList.add('show');
     setTimeout(()=>syncCodeInput.focus(),50);
@@ -672,7 +827,10 @@ document.getElementById('syncBtn').addEventListener('click', ()=>{ openSyncModal
 // ---------- play flow (reload-based so EmulatorJS always boots fresh) ----------
 function startGame(id){
   sessionStorage.setItem('playId', id);
-  location.reload();
+  // The click blip (playClick) is ~120ms long. Reloading the page immediately, as
+  // before, destroyed the audio context before any sound could actually come out —
+  // that's why PLAY was silent. A short delay lets the blip finish first.
+  setTimeout(()=>location.reload(), 160);
 }
 function bytesToBase64(bytes){
   let bin=''; const chunk=0x8000;
@@ -710,6 +868,16 @@ document.getElementById('backBtn').onclick=async()=>{
   location.reload();
 };
 window.addEventListener('pagehide', ()=>{ if(sessionStorage.getItem('playId')) flushSave(); });
+
+// ---------- collapsible "how to play" hint under the emulator — starts tucked away so ----------
+// the play screen looks clean, but stays one tap away for anyone new who needs it
+const hintToggleBtn=document.getElementById('hintToggleBtn');
+const hintCollapse=document.getElementById('hintCollapse');
+hintToggleBtn.addEventListener('click', ()=>{
+  const open=!hintCollapse.classList.contains('open');
+  hintCollapse.classList.toggle('open', open);
+  hintToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
 
 function coreFor(system){ return system==='gba' ? 'gba' : 'gb'; } // gb core (Gambatte) handles GB + GBC
 
@@ -792,11 +960,28 @@ async function buildIntroMarquee(){
   });
 }
 
+// ---------- shared audio context ----------
+// All three UI sounds below used to each create a brand-new AudioContext and then
+// close it when done. Spinning up a fresh context has real startup cost, which is
+// why every sound played with a noticeable delay. Worse, a context created outside
+// of a genuine click/tap (e.g. inside a "mouseenter" handler) starts life
+// *suspended* under the browser's autoplay policy, so it could play nothing at all —
+// this is exactly why the hover chime went silent while dragging the mouse onto the
+// game popup. Fix: keep ONE context alive for the whole page and just resume() it
+// before each sound, so it only ever needs to "start up" once.
+let sharedAudioCtx=null;
+function getAudioCtx(){
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC) return null;
+  if(!sharedAudioCtx) sharedAudioCtx=new AC();
+  if(sharedAudioCtx.state==='suspended') sharedAudioCtx.resume().catch(()=>{});
+  return sharedAudioCtx;
+}
 // short retro "power-on" chime played on tap of the GAMEBOY EMULATOR title (generated with WebAudio, no audio file needed)
 function playDing(){
   try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    const ctx=new AC();
+    const ctx=getAudioCtx();
+    if(!ctx) return;
     const now=ctx.currentTime;
     const notes=[[988,0],[1319,0.09]]; // two quick square-wave notes — a retro chiptune "power on" blip
     notes.forEach(([freq,delay])=>{
@@ -811,14 +996,13 @@ function playDing(){
       osc.start(now+delay);
       osc.stop(now+delay+0.22);
     });
-    setTimeout(()=>ctx.close(), 500);
   }catch(e){ /* ignore — audio is a nice-to-have, never block navigation */ }
 }
 // soft click blip — used only for explicit button presses (e.g. the Play button), never on hover
 function playClick(){
   try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    const ctx=new AC();
+    const ctx=getAudioCtx();
+    if(!ctx) return;
     const osc=ctx.createOscillator();
     const gain=ctx.createGain();
     osc.type='triangle';
@@ -829,14 +1013,13 @@ function playClick(){
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime+0.12);
-    osc.onended=()=>ctx.close();
   }catch(e){ /* ignore audio errors */ }
 }
-// very soft hover chime — used only for the game-detail popup, never on the library grid/icons
+// very soft hover chime — used for game popups: each library card and the game-detail popup
 function playHover(){
   try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    const ctx=new AC();
+    const ctx=getAudioCtx();
+    if(!ctx) return;
     const osc=ctx.createOscillator();
     const gain=ctx.createGain();
     osc.type='sine';
@@ -847,7 +1030,26 @@ function playHover(){
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime+0.1);
-    osc.onended=()=>ctx.close();
+  }catch(e){ /* ignore audio errors */ }
+}
+// bouncy little "pop" — plays right as the game-detail popup bounces open (its card
+// click is also what unlocks the shared AudioContext in time for the hover chime below)
+function playPop(){
+  try{
+    const ctx=getAudioCtx();
+    if(!ctx) return;
+    const now=ctx.currentTime;
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now+0.09);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now+0.16);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now+0.17);
   }catch(e){ /* ignore audio errors */ }
 }
 // clicking the title zooms into the site, then reveals the library
@@ -991,17 +1193,17 @@ document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>
   marqueeImgFileNameEl.textContent=FILE_PICKER_EMPTY;
 });
 
-// ---------- drag-to-resize the "GAMEBOY EMULATOR" intro title ----------
-const TITLE_SIZE_STORAGE='gbeIntroTitleSize';
+// ---------- drag-to-resize the "GAMEBOY EMULATOR" intro title (shared via Supabase site_settings, same as the marquee images — everyone sees the size you set) ----------
+const TITLE_SIZE_KEY='introTitleSize';
 const introTitleEl=document.getElementById('introTitle');
 const titleResizePreview=document.getElementById('titleResizePreview');
 const titleResizeHandle=document.getElementById('titleResizeHandle');
-function applyIntroTitleSize(){
-  const saved=parseFloat(localStorage.getItem(TITLE_SIZE_STORAGE));
+async function applyIntroTitleSize(){
+  const saved=await getSiteSetting(TITLE_SIZE_KEY, null);
   if(saved) introTitleEl.style.fontSize=saved+'px';
 }
-function initTitleResizePreview(){
-  const saved=parseFloat(localStorage.getItem(TITLE_SIZE_STORAGE));
+async function initTitleResizePreview(){
+  const saved=await getSiteSetting(TITLE_SIZE_KEY, null);
   titleResizePreview.style.fontSize=(saved || 40)+'px';
 }
 titleResizeHandle.addEventListener('pointerdown',(e)=>{
@@ -1018,7 +1220,7 @@ titleResizeHandle.addEventListener('pointerdown',(e)=>{
     document.removeEventListener('pointermove',onMove);
     document.removeEventListener('pointerup',onUp);
     const finalSize=Math.round(parseFloat(titleResizePreview.style.fontSize));
-    localStorage.setItem(TITLE_SIZE_STORAGE, finalSize);
+    setSiteSetting(TITLE_SIZE_KEY, finalSize); // saved centrally — every visitor gets this size on next load
     introTitleEl.style.fontSize=finalSize+'px';
   };
   document.addEventListener('pointermove',onMove);
@@ -1029,7 +1231,7 @@ titleResizeHandle.addEventListener('pointerdown',(e)=>{
 async function openImageEditor(){
   stagedImages=await fetchMarqueeRows();
   renderThumbs();
-  initTitleResizePreview();
+  await initTitleResizePreview();
   imgModalBg.classList.add('show');
 }
 document.getElementById('marqueeKeyBtn').addEventListener('click',(e)=>{
