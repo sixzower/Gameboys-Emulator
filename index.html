@@ -34,6 +34,7 @@ header h1{margin:0; font-size:13px; font-weight:500; color:#8e8e8e;}
 header h1{margin:0; font-size:17px;}
 .headright{display:flex; align-items:center; gap:10px;}
 .iconbtn{border:none; background:#3a3a3a; color:#ddd; width:30px; height:30px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;}
+.iconbtn-mini{width:22px; height:22px; flex:0 0 auto;}
 .btn{border:none; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.3px; touch-action:manipulation;}
 .btn-outline{background:transparent; color:var(--accent); border:1.5px solid var(--accent); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700;}
 main{max-width:960px; margin:0 auto; padding:18px 18px 100px;}
@@ -113,7 +114,8 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 .intro-overlay p{margin:0; color:#d9c7f0; font-size:13px; letter-spacing:.5px; animation:pulseHint 1.8s ease-in-out infinite;}
 @keyframes pulseHint{0%,100%{opacity:.55} 50%{opacity:1}}
 @media (max-width:420px){ .intro-overlay h1{font-size:20px;} }
-.intro-title{font-family:'Prompt',sans-serif; font-weight:800; font-size:64px; letter-spacing:1px; color:#ffffff; cursor:pointer; transition:color .25s ease; pointer-events:auto;}
+.intro-title{font-family:'Prompt',sans-serif; font-weight:800; font-size:64px; letter-spacing:1px; color:#ffffff; cursor:pointer; transition:color .25s ease, opacity .2s ease; pointer-events:auto; opacity:0;}
+.intro-title.ready{opacity:1;}
 .intro-title:hover{color:var(--accent);}
 @media (max-width:420px){ .intro-title{font-size:42px;} }
 #introView.zooming .intro-stage, #introView.zooming .intro-overlay{animation:introZoom .55s cubic-bezier(.4,0,.2,1) forwards;}
@@ -196,6 +198,8 @@ label.checkline.checkline-lg input:checked::after{
   </div>
   <div class="intro-overlay">
     <h1 class="intro-title" id="introTitle">GAMEBOY EMULATOR</h1>
+    <script>try{var _s=parseFloat(localStorage.getItem('introTitleSizeCache'));if(_s)document.getElementById('introTitle').style.fontSize=_s+'px';}catch(e){}
+    setTimeout(function(){var t=document.getElementById('introTitle');if(t)t.classList.add('ready');},2000); // safety net: never leave the title hidden</script>
   </div>
   <button class="intro-key-btn" id="marqueeKeyBtn" title="ตั้งค่ารูปภาพ">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -243,12 +247,18 @@ label.checkline.checkline-lg input:checked::after{
       <div class="marquee-thumbs" id="marqueeThumbs"></div>
     </div>
     <div class="field">
-      <label>ขนาดตัวอักษรหัวข้อ "GAMEBOY EMULATOR"</label>
+      <label style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="iconbtn iconbtn-mini" id="titleSizeResetBtn" title="รีเซ็ตขนาดตัวอักษรเป็นค่าเริ่มต้น"></button>
+        <span>ขนาดตัวอักษรหัวข้อ "GAMEBOY EMULATOR"</span>
+      </label>
       <div class="title-resize-box" id="titleResizeBox">
         <span id="titleResizePreview">GAMEBOY EMULATOR</span>
         <div class="title-resize-handle" id="titleResizeHandle"></div>
       </div>
-      <div class="field-hint">ลากมุมล่างขวาเพื่อปรับขนาดตัวอักษรหัวข้อหน้าแรก (มีผลกับทุกคนที่เข้าเว็บนี้)</div>
+      <div class="field-hint" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px;">
+        <span>ลากมุมล่างขวาเพื่อปรับขนาดตัวอักษรหัวข้อหน้าแรก</span>
+        <span id="titleResizeSizeLabel"></span>
+      </div>
     </div>
     <div class="modal-actions">
       <button id="imgCancelBtn" style="background:var(--border);color:var(--text)">ปิด</button>
@@ -459,16 +469,25 @@ async function fetchGames(){
 // instead of only being saved in the browser that made the change ----------
 async function getSiteSetting(key, fallback){
   try{
-    const {data,error}=await sb.from('site_settings').select('value').eq('key',key).maybeSingle();
-    if(error || !data) return fallback;
-    const num=parseFloat(data.value);
+    const {data,error}=await sb.from('site_settings').select('value').eq('key',key).order('updated_at',{ascending:false}).limit(1);
+    if(error){ console.warn('getSiteSetting error', error); return fallback; }
+    if(!data || !data.length) return fallback;
+    const num=parseFloat(data[0].value);
     return Number.isNaN(num) ? fallback : num;
   }catch(e){ console.warn('getSiteSetting failed', e); return fallback; }
 }
 async function setSiteSetting(key, value){
   try{
-    await sb.from('site_settings').upsert({key, value:String(value), updated_at:new Date().toISOString()});
-  }catch(e){ console.warn('setSiteSetting failed', e); }
+    const payload={key, value:String(value), updated_at:new Date().toISOString()};
+    // Try UPDATE first (works even if there's no unique constraint on "key" for ON CONFLICT to target).
+    const {data:updatedRows, error:updateErr}=await sb.from('site_settings').update(payload).eq('key',key).select('key');
+    if(updateErr){ console.warn('setSiteSetting update error', updateErr); alert('บันทึกไม่สำเร็จ: '+updateErr.message); return; }
+    if(!updatedRows || updatedRows.length===0){
+      // No existing row for this key yet — insert one.
+      const {error:insertErr}=await sb.from('site_settings').insert(payload);
+      if(insertErr){ console.warn('setSiteSetting insert error', insertErr); alert('บันทึกไม่สำเร็จ: '+insertErr.message); }
+    }
+  }catch(e){ console.warn('setSiteSetting failed', e); alert('บันทึกไม่สำเร็จ: '+(e.message||e)); }
 }
 
 async function deleteGame(item){
@@ -944,7 +963,9 @@ async function buildIntroMarquee(){
   const grid=document.getElementById('introGrid');
   grid.innerHTML='';
   const rows=await fetchMarqueeRows();
-  const urls = rows.length ? rows.map(r=>publicUrl(r.image_path)) : DEFAULT_MARQUEE_IMAGES;
+  const urls = [...(rows.length ? rows.map(r=>publicUrl(r.image_path)) : DEFAULT_MARQUEE_IMAGES)];
+  // random order on every page load (Fisher–Yates) — only the display is shuffled; the saved sort_order in the admin panel is untouched
+  for(let i=urls.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [urls[i],urls[j]]=[urls[j],urls[i]]; }
   const cols=[[],[],[]];
   urls.forEach((src,i)=>cols[i%3].push(src));
   cols.forEach((list,i)=>{
@@ -1064,6 +1085,36 @@ document.getElementById('introTitle').addEventListener('click',(e)=>{
   playDing();
   enterFromIntro();
 });
+// hover sound for the GAMEBOY EMULATOR title — plays the moment the colour starts changing, no click needed.
+// Browsers keep audio locked until the visitor has interacted with the page at least once (tap/click/key),
+// so we unlock the shared AudioContext on the very first interaction anywhere on the page.
+function playTitleHover(){
+  try{
+    const ctx=getAudioCtx();
+    if(!ctx) return;
+    const go=()=>{
+      const now=ctx.currentTime;
+      [[880,0],[1320,0.07]].forEach(([freq,delay])=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+        osc.type='triangle';
+        osc.frequency.setValueAtTime(freq, now+delay);
+        gain.gain.setValueAtTime(0.0001, now+delay);
+        gain.gain.exponentialRampToValueAtTime(0.09, now+delay+0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now+delay+0.14);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(now+delay);
+        osc.stop(now+delay+0.16);
+      });
+    };
+    if(ctx.state==='running') go();
+    else ctx.resume().then(()=>{ if(ctx.state==='running') go(); }).catch(()=>{});
+  }catch(e){ /* ignore audio errors */ }
+}
+['pointerdown','touchstart','keydown'].forEach(evt=>{
+  window.addEventListener(evt, ()=>{ getAudioCtx(); }, {once:true, passive:true});
+});
+document.getElementById('introTitle').addEventListener('mouseenter', playTitleHover);
 
 // ---------- key button: password gate for editing the shared library (games + marquee images) ----------
 const keyModalBg=document.getElementById('keyModalBg');
@@ -1198,13 +1249,41 @@ const TITLE_SIZE_KEY='introTitleSize';
 const introTitleEl=document.getElementById('introTitle');
 const titleResizePreview=document.getElementById('titleResizePreview');
 const titleResizeHandle=document.getElementById('titleResizeHandle');
+const titleSizeResetBtn=document.getElementById('titleSizeResetBtn');
+const titleResizeSizeLabel=document.getElementById('titleResizeSizeLabel');
+const ICON_RESET='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 4v5h5"/></svg>';
+titleSizeResetBtn.innerHTML=ICON_RESET;
+function updateTitleResizeSizeLabel(px){ titleResizeSizeLabel.textContent=Math.round(px)+'px'; }
+const TITLE_SIZE_DEFAULT=60; // fixed default the reset button always returns to
+titleSizeResetBtn.addEventListener('click',async()=>{
+  titleResizePreview.style.fontSize=TITLE_SIZE_DEFAULT+'px';
+  introTitleEl.style.fontSize=TITLE_SIZE_DEFAULT+'px';
+  updateTitleResizeSizeLabel(TITLE_SIZE_DEFAULT);
+  cacheTitleSize(TITLE_SIZE_DEFAULT);
+  await setSiteSetting(TITLE_SIZE_KEY, TITLE_SIZE_DEFAULT);
+});
+function cacheTitleSize(px){ try{ localStorage.setItem('introTitleSizeCache', String(px)); }catch(e){} }
 async function applyIntroTitleSize(){
-  const saved=await getSiteSetting(TITLE_SIZE_KEY, null);
-  if(saved) introTitleEl.style.fontSize=saved+'px';
+  // With a cached size the title is already the right size before first paint, so only wait for the font.
+  // Without one (first visit), wait for the saved size too (max ~1.5s) so it never visibly jumps.
+  let hasCache=false;
+  try{ hasCache=!!parseFloat(localStorage.getItem('introTitleSizeCache')); }catch(e){}
+  const fontReady=Promise.race([
+    (document.fonts&&document.fonts.load ? document.fonts.load('800 40px Prompt') : Promise.resolve()).catch(()=>{}),
+    new Promise(r=>setTimeout(r,1500))
+  ]);
+  const sizeReady=getSiteSetting(TITLE_SIZE_KEY, null).then(saved=>{
+    if(saved){ introTitleEl.style.fontSize=saved+'px'; cacheTitleSize(saved); }
+  });
+  await (hasCache ? fontReady : Promise.race([Promise.all([fontReady,sizeReady]), new Promise(r=>setTimeout(r,1500))]));
+  introTitleEl.classList.add('ready');
+  await sizeReady;
 }
 async function initTitleResizePreview(){
   const saved=await getSiteSetting(TITLE_SIZE_KEY, null);
-  titleResizePreview.style.fontSize=(saved || 40)+'px';
+  const current=saved || 40;
+  titleResizePreview.style.fontSize=current+'px';
+  updateTitleResizeSizeLabel(current);
 }
 titleResizeHandle.addEventListener('pointerdown',(e)=>{
   e.preventDefault();
@@ -1213,8 +1292,9 @@ titleResizeHandle.addEventListener('pointerdown',(e)=>{
   titleResizeHandle.setPointerCapture(e.pointerId);
   const onMove=(ev)=>{
     const delta=ev.clientX-startX;
-    const newSize=Math.max(18, Math.min(90, startSize+delta*0.4));
+    const newSize=Math.max(18, Math.min(220, startSize+delta*0.4));
     titleResizePreview.style.fontSize=newSize+'px';
+    updateTitleResizeSizeLabel(newSize);
   };
   const onUp=()=>{
     document.removeEventListener('pointermove',onMove);
@@ -1222,6 +1302,8 @@ titleResizeHandle.addEventListener('pointerdown',(e)=>{
     const finalSize=Math.round(parseFloat(titleResizePreview.style.fontSize));
     setSiteSetting(TITLE_SIZE_KEY, finalSize); // saved centrally — every visitor gets this size on next load
     introTitleEl.style.fontSize=finalSize+'px';
+    cacheTitleSize(finalSize);
+    updateTitleResizeSizeLabel(finalSize);
   };
   document.addEventListener('pointermove',onMove);
   document.addEventListener('pointerup',onUp);
