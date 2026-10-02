@@ -307,6 +307,8 @@ label.checkline.checkline-lg input:checked::after{
 /* search / favourites */
 #gameSearchInput{flex:1 1 130px; min-width:0; max-width:240px; padding:7px 12px; border-radius:20px; border:1.5px solid var(--border); background:var(--card); color:var(--text); font-size:13px; font-family:inherit;}
 #gameSearchInput:focus{outline:none; border-color:var(--accent);}
+body.in-play .intro-col, body.in-play .intro-overlay p{animation:none!important;}
+#ejsContainer canvas{touch-action:none;user-select:none;-webkit-user-select:none;}
 </style>
 </head>
 <body>
@@ -658,7 +660,24 @@ const SUPABASE_URL='https://opceuxrvzwbzuwzmubsh.supabase.co';
 const SUPABASE_KEY='sb_publishable_C5l7c8PPczcZT8BPx5lKkw_BHeuf1DO';
 const sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const BUCKET='gameboysemulator';
-function publicUrl(path){ return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl; }
+function publicUrl(path){
+  if(!path) return '';
+  path=String(path).trim();
+  if(/^(https?:|data:)/i.test(path)) return path;
+  if(path.startsWith('r2:')) return r2Base()+'/rom/'+path.slice(3).split('/').map(encodeURIComponent).join('/');
+  if(/^(blob:|file:)/i.test(path)) return ''; // device-local references cannot be shared
+  path=path.replace(/^\/+/, '');
+  if(path.startsWith(BUCKET+'/')) path=path.slice(BUCKET.length+1);
+  return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+// Show failed images explicitly instead of silently leaving blank cards.
+document.addEventListener('error', e=>{
+  const img=e.target;
+  if(!(img instanceof HTMLImageElement) || img.dataset.fallback) return;
+  img.dataset.fallback='1';
+  img.title='โหลดรูปไม่ได้: ตรวจ URL รูปและสิทธิ์อ่านไฟล์สาธารณะ';
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#222"/><text x="200" y="150" text-anchor="middle" fill="#ddd" font-size="20">Image unavailable</text></svg>');
+},true);
 async function uploadToLibrary(fileOrBlob, folder, extHint){
   let ext=extHint;
   if(!ext){
@@ -1499,47 +1518,106 @@ function toastMsg(msg){
 // This is separate from the cross-device SRAM sync above — it's a fast mid-session checkpoint, e.g. right before a boss fight.
 function quickSaveKey(id){ return id ? 'quickSave:'+id : null; }
 function quickSaveAtKey(id){ return id ? 'quickSaveAt:'+id : null; }
-function updateQuickLoadAvailability(){
-  const id=sessionStorage.getItem('playId');
-  const btn=document.getElementById('quickLoadBtn');
-  if(!btn || !id) return;
-  const ts=localStorage.getItem(quickSaveAtKey(id));
-  const has=!!localStorage.getItem(quickSaveKey(id));
-  btn.classList.toggle('disabled', !has);
-  if(has && ts){
-    try{ btn.title='โหลดด่วน (บันทึกไว้ '+new Date(Number(ts)).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})+')'; }
-    catch(e){ btn.title='โหลดด่วน'; }
-  } else btn.title='ยังไม่มีเซฟด่วนสำหรับเกมนี้';
+let quickBusy=false;
+let quickDBPromise;
+function quickDB(){
+  if(!quickDBPromise) quickDBPromise=new Promise((resolve,reject)=>{
+    const r=indexedDB.open('PokeWebQuickStates',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('states');
+    r.onsuccess=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error);
+  }).catch(e=>{quickDBPromise=null;throw e;});
+  return quickDBPromise;
+}
+async function quickRecord(id, record){
+  const db=await quickDB();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('states',record?'readwrite':'readonly');
+    const store=tx.objectStore('states');
+    const request=record?store.put(record,id):store.get(id);
+    tx.oncomplete=()=>resolve(record||request.result);
+    tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error||new Error('Storage aborted'));
+  });
+}
+async function readQuickState(id){
+  let rec=await quickRecord(id);
+  if(rec) return rec;
+  const old=localStorage.getItem(quickSaveKey(id));
+  return old?{bytes:base64ToBytes(old),at:Number(localStorage.getItem(quickSaveAtKey(id)))}:null;
+}
+async function updateQuickLoadAvailability(){
+  const id=sessionStorage.getItem('playId'), btn=document.getElementById('quickLoadBtn');
+  if(!btn||!id) return;
+  try{
+    const rec=await readQuickState(id);
+    btn.classList.toggle('disabled',!rec);
+    btn.title=rec?'โหลดด่วน (บันทึกไว้ '+new Date(rec.at||Date.now()).toLocaleString('th-TH')+')':'ยังไม่มีเซฟด่วนสำหรับเกมนี้';
+  }catch(e){btn.classList.remove('disabled');btn.title='ลองโหลดเซฟด่วน';}
 }
 async function quickSaveState(){
-  const id=sessionStorage.getItem('playId');
-  const gm=window.EJS_emulator && window.EJS_emulator.gameManager;
-  if(!id || !gm){ toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง'); return; }
+  const id=sessionStorage.getItem('playId'), gm=window.EJS_emulator?.gameManager;
+  if(quickBusy) return;
+  if(!id||!gm){toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;}
+  quickBusy=true;
   try{
-    let state=null;
-    if(typeof gm.getState==='function') state=await gm.getState();
-    else if(typeof gm.saveState==='function') state=await gm.saveState();
-    if(!state){ toastMsg('เซฟด่วนไม่สำเร็จ'); return; }
-    const bytes=state instanceof Uint8Array ? state : new Uint8Array(state);
-    localStorage.setItem(quickSaveKey(id), bytesToBase64(bytes));
-    localStorage.setItem(quickSaveAtKey(id), String(Date.now()));
-    toastMsg('เซฟด่วนแล้ว ✅');
-    vibrateShort(20);
-    updateQuickLoadAvailability();
-  }catch(e){ console.warn('quickSaveState failed', e); toastMsg('เซฟด่วนไม่สำเร็จ — เกมนี้อาจยังไม่รองรับ'); }
+    const state=typeof gm.getState==='function'?await gm.getState():null;
+    const bytes=state instanceof Blob?new Uint8Array(await state.arrayBuffer()):state instanceof Uint8Array?state:ArrayBuffer.isView(state)?new Uint8Array(state.buffer,state.byteOffset,state.byteLength):state instanceof ArrayBuffer?new Uint8Array(state):null;
+    if(!bytes?.byteLength) throw new Error('Core returned no save-state');
+    await quickRecord(id,{bytes,at:Date.now()});
+    // Delete legacy copy only after the new checkpoint has committed successfully.
+    try{localStorage.removeItem(quickSaveKey(id));localStorage.removeItem(quickSaveAtKey(id));}catch(e){}
+    toastMsg('เซฟด่วนแล้ว ✅');vibrateShort(20);
+    await updateQuickLoadAvailability();
+  }catch(e){console.warn('quickSaveState failed',e);toastMsg(e.name==='QuotaExceededError'?'พื้นที่เซฟเต็ม กรุณาเพิ่มพื้นที่ว่าง':'เซฟด่วนไม่สำเร็จ: '+e.message);}
+  finally{quickBusy=false;}
 }
 async function quickLoadState(){
-  const id=sessionStorage.getItem('playId');
-  const gm=window.EJS_emulator && window.EJS_emulator.gameManager;
-  if(!id || !gm){ toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง'); return; }
-  const b64=localStorage.getItem(quickSaveKey(id));
-  if(!b64){ toastMsg('ยังไม่มีเซฟด่วนสำหรับเกมนี้'); return; }
+  const id=sessionStorage.getItem('playId'), gm=window.EJS_emulator?.gameManager;
+  if(quickBusy) return;
+  if(!id||!gm){toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;}
+  quickBusy=true;
   try{
-    const bytes=base64ToBytes(b64);
-    if(typeof gm.loadState==='function'){ await gm.loadState(bytes); toastMsg('โหลดด่วนแล้ว ✅'); vibrateShort(20); }
-    else{ toastMsg('อุปกรณ์นี้ไม่รองรับโหลดด่วน'); }
-  }catch(e){ console.warn('quickLoadState failed', e); toastMsg('โหลดด่วนไม่สำเร็จ'); }
+    const rec=await readQuickState(id);
+    if(!rec){toastMsg('ยังไม่มีเซฟด่วนสำหรับเกมนี้');return;}
+    if(typeof gm.loadState!=='function') throw new Error('Core does not support loadState');
+    await gm.loadState(rec.bytes);toastMsg('โหลดด่วนแล้ว ✅');vibrateShort(20);
+  }catch(e){console.warn('quickLoadState failed',e);toastMsg('โหลดด่วนไม่สำเร็จ: '+e.message);}
+  finally{quickBusy=false;}
 }
+
+// Translate mobile stylus gestures into the same mouse events used on desktop.
+// Capture coordinates in CSS pixels; the core handles viewport scaling and screen layout.
+function installNdsTouch(){
+  const host=document.getElementById('ejsContainer');
+  let active=null, canvas=null;
+  function mouse(type,e){
+    canvas.dispatchEvent(new MouseEvent(type,{bubbles:true,cancelable:true,view:window,
+      clientX:e.clientX,clientY:e.clientY,button:0,buttons:type==='mouseup'?0:1}));
+  }
+  host.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'||active!==null||e.target.tagName!=='CANVAS') return;
+    canvas=e.target;active=e.pointerId;
+    e.preventDefault();e.stopImmediatePropagation();
+    canvas.setPointerCapture(e.pointerId);mouse('mousemove',e);mouse('mousedown',e);
+  },true);
+  host.addEventListener('pointermove',e=>{
+    if(e.pointerId!==active) return;
+    e.preventDefault();e.stopImmediatePropagation();mouse('mousemove',e);
+  },true);
+  const release=e=>{
+    if(e.pointerId!==active) return;
+    e.preventDefault();e.stopImmediatePropagation();mouse('mouseup',e);
+    if(canvas.hasPointerCapture(active)) canvas.releasePointerCapture(active);
+    active=null;
+  };
+  host.addEventListener('pointerup',release,true);
+  host.addEventListener('pointercancel',release,true);
+  // Avoid native touch listeners also sending a second stylus press.
+  for(const type of ['touchstart','touchmove','touchend','touchcancel']) host.addEventListener(type,e=>{
+    if(e.target.tagName==='CANVAS'){e.preventDefault();e.stopImmediatePropagation();}
+  },{capture:true,passive:false});
+}
+
 document.getElementById('quickSaveBtn').addEventListener('click', quickSaveState);
 document.getElementById('quickLoadBtn').addEventListener('click', quickLoadState);
 
@@ -1603,7 +1681,7 @@ async function bootPlayer(id){
       }catch(e){ console.warn('restore save failed', e); }
     };
   }
-  setInterval(flushSave, 15000);
+  setInterval(()=>{ if(document.visibilityState==='visible'&&!quickBusy) flushSave(); }, rec.core==='nds'?45000:15000);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
   // NDS's two stacked screens (256x384) are much taller/narrower than GB/GBA's landscape screen —
   // swap the player's aspect ratio to fit, and leave every other system exactly as before.
@@ -1617,16 +1695,19 @@ async function bootPlayer(id){
   window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';
   window.EJS_startOnLoaded=true;
   window.EJS_backgroundColor='#000';
-  window.EJS_VirtualGamepadSettings=[];
+  // Use the standard mobile gamepad instead of replacing it with an empty layout.
+  window.EJS_threads=rec.core==='nds' && window.crossOriginIsolated===true && typeof SharedArrayBuffer!=='undefined';
   window.EJS_disableDatabases=false; // keep EmulatorJS's own local storage on — this is what remembers button mapping, volume, etc. between plays
   if(rec.core==='nds'){
+    installNdsTouch();
     // melonDS (the nds core) needs bios7.bin, bios9.bin and firmware.bin — built into the site, see ndsBiosUrl()
     const biosUrl=ndsBiosUrl();
     if(biosUrl) window.EJS_biosUrl=biosUrl;
     else console.warn('No NDS BIOS available — upload roms/nds-bios.zip to R2 or fill NDS_BIOS_BASE64.');
   }
   const s=document.createElement('script');
-  s.src='https://cdn.emulatorjs.org/stable/data/loader.js';
+  s.src=window.EJS_pathtodata+'loader.js';
+  s.onerror=()=>toastMsg('โหลด Emulator ไม่สำเร็จ ตรวจอินเทอร์เน็ตหรือการบล็อก CDN');
   document.body.appendChild(s);
 }
 
