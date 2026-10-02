@@ -44,6 +44,11 @@ body.authed .header-icon-group .iconbtn{cursor:grab;}
 .header-icon-group .iconbtn.drag-over{box-shadow:0 0 0 2px var(--accent);}
 @media (max-width:640px){
   body.in-play #headerIconGroup{display:none;}
+  body.in-play header{gap:6px; padding-left:10px; padding-right:10px;}
+  body.in-play header .brand{position:static; left:auto; transform:none; flex:1 1 auto; min-width:0; max-width:none; margin:0 2px; justify-content:center; font-size:12px;}
+  body.in-play #headerGameNameText{display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  body.in-play .headright{gap:5px; flex:0 0 auto;}
+  body.in-play #backBtn{width:50px; min-width:50px; height:30px; padding:0 5px; border-radius:9px; font-size:10px; letter-spacing:.2px; flex:0 0 50px;}
 }
 .iconbtn{border:none; background:#3a3a3a; color:#ddd; width:30px; height:30px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;}
 .iconbtn-mini{width:22px; height:22px; flex:0 0 auto;}
@@ -309,6 +314,7 @@ label.checkline.checkline-lg input:checked::after{
 #gameSearchInput:focus{outline:none; border-color:var(--accent);}
 body.in-play .intro-col, body.in-play .intro-overlay p{animation:none!important;}
 #ejsContainer canvas{touch-action:none;user-select:none;-webkit-user-select:none;}
+body.in-play #ejsContainer{touch-action:none; overscroll-behavior:contain;}
 </style>
 </head>
 <body>
@@ -1585,74 +1591,19 @@ async function quickLoadState(){
   finally{quickBusy=false;}
 }
 
-// Translate mobile stylus/finger gestures into the mouse events melonDS expects.
-// Listen on the host (capture phase) because EmulatorJS can recreate its canvas
-// while starting a game. Keep coordinates in viewport CSS pixels; melonDS maps
-// them through the live canvas bounds, including the current screen layout.
-function installNdsTouch(){
-  const host=document.getElementById('ejsContainer');
-  if(!host||host.dataset.ndsTouchReady==='1') return;
-  host.dataset.ndsTouchReady='1';
-  let activeId=null, activeCanvas=null, usingPointer=typeof window.PointerEvent==='function';
-  const canvasAt=(x,y)=>{
-    const el=document.elementFromPoint(x,y);
-    if(el&&el.tagName==='CANVAS'&&host.contains(el)) return el;
-    return host.querySelector('canvas');
+// The EmulatorJS 4.3.0 NDS touch path currently drops touch input on mobile.
+// Pin NDS to 4.2.3 below (where native touch works) and keep its WebGL surface
+// opaque to reduce mobile compositing stalls while fingers move on the screen.
+function optimizeNdsWebGL(){
+  if(window.__ndsOpaqueWebGLInstalled) return;
+  const proto=HTMLCanvasElement.prototype, original=proto.getContext;
+  proto.getContext=function(type,attrs){
+    if(type==='webgl'||type==='webgl2'||type==='experimental-webgl'){
+      attrs=Object.assign({},attrs||{},{alpha:false,premultipliedAlpha:false});
+    }
+    return original.call(this,type,attrs);
   };
-  function mouse(type,canvas,x,y,buttons){
-    if(!canvas||!canvas.isConnected) canvas=host.querySelector('canvas');
-    if(!canvas) return;
-    canvas.dispatchEvent(new MouseEvent(type,{bubbles:true,cancelable:true,view:window,
-      clientX:x,clientY:y,button:0,buttons,which:buttons?1:0}));
-  }
-  function begin(id,x,y){
-    if(activeId!==null) return;
-    activeId=id;activeCanvas=canvasAt(x,y);
-    mouse('mousemove',activeCanvas,x,y,1);mouse('mousedown',activeCanvas,x,y,1);
-  }
-  function move(id,x,y){if(id===activeId) mouse('mousemove',activeCanvas,x,y,1);}
-  function end(id,x,y){
-    if(id!==activeId) return;
-    mouse('mouseup',activeCanvas,x,y,0);activeId=null;activeCanvas=null;
-  }
-  if(usingPointer){
-    host.addEventListener('pointerdown',e=>{
-      if(e.pointerType==='mouse'||e.target.tagName!=='CANVAS') return;
-      e.preventDefault();e.stopImmediatePropagation();
-      begin(e.pointerId,e.clientX,e.clientY);
-      try{host.setPointerCapture(e.pointerId);}catch(_){ }
-    },{capture:true,passive:false});
-    host.addEventListener('pointermove',e=>{
-      if(e.pointerId!==activeId) return;
-      e.preventDefault();e.stopImmediatePropagation();move(e.pointerId,e.clientX,e.clientY);
-    },{capture:true,passive:false});
-    const pointerEnd=e=>{
-      if(e.pointerId!==activeId) return;
-      e.preventDefault();e.stopImmediatePropagation();end(e.pointerId,e.clientX,e.clientY);
-      try{if(host.hasPointerCapture(e.pointerId)) host.releasePointerCapture(e.pointerId);}catch(_){ }
-    };
-    host.addEventListener('pointerup',pointerEnd,{capture:true,passive:false});
-    host.addEventListener('pointercancel',pointerEnd,{capture:true,passive:false});
-  }else{
-    // Fallback for older touch browsers without Pointer Events.
-    host.addEventListener('touchstart',e=>{
-      if(e.target.tagName!=='CANVAS'||!e.changedTouches.length) return;
-      const t=e.changedTouches[0];e.preventDefault();e.stopImmediatePropagation();
-      begin(t.identifier,t.clientX,t.clientY);
-    },{capture:true,passive:false});
-    host.addEventListener('touchmove',e=>{
-      for(const t of e.changedTouches) if(t.identifier===activeId){
-        e.preventDefault();e.stopImmediatePropagation();move(t.identifier,t.clientX,t.clientY);break;
-      }
-    },{capture:true,passive:false});
-    const touchEnd=e=>{
-      for(const t of e.changedTouches) if(t.identifier===activeId){
-        e.preventDefault();e.stopImmediatePropagation();end(t.identifier,t.clientX,t.clientY);break;
-      }
-    };
-    host.addEventListener('touchend',touchEnd,{capture:true,passive:false});
-    host.addEventListener('touchcancel',touchEnd,{capture:true,passive:false});
-  }
+  window.__ndsOpaqueWebGLInstalled=true;
 }
 
 document.getElementById('quickSaveBtn').addEventListener('click', quickSaveState);
@@ -1729,14 +1680,16 @@ async function bootPlayer(id){
   window.EJS_gameUrl=romUrl;
   window.EJS_gameName=rec.name;
   window.EJS_gameID='pkmn-'+rec.id; // stable id so EmulatorJS's own save data is found again next time
-  window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';
+  // EmulatorJS 4.3.0 has a reported NDS touchscreen regression on mobile;
+  // keep other systems on stable while NDS uses the last touch-working release.
+  window.EJS_pathtodata=rec.core==='nds'?'https://cdn.emulatorjs.org/4.2.3/data/':'https://cdn.emulatorjs.org/stable/data/';
   window.EJS_startOnLoaded=true;
   window.EJS_backgroundColor='#000';
   // Use the standard mobile gamepad instead of replacing it with an empty layout.
   window.EJS_threads=rec.core==='nds' && window.crossOriginIsolated===true && typeof SharedArrayBuffer!=='undefined';
   window.EJS_disableDatabases=false; // keep EmulatorJS's own local storage on — this is what remembers button mapping, volume, etc. between plays
   if(rec.core==='nds'){
-    installNdsTouch();
+    optimizeNdsWebGL();
     // melonDS (the nds core) needs bios7.bin, bios9.bin and firmware.bin — built into the site, see ndsBiosUrl()
     const biosUrl=ndsBiosUrl();
     if(biosUrl) window.EJS_biosUrl=biosUrl;
