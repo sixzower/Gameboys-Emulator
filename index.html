@@ -309,6 +309,18 @@ label.checkline.checkline-lg input:checked::after{
 #gameSearchInput:focus{outline:none; border-color:var(--accent);}
 body.in-play .intro-col, body.in-play .intro-overlay p{animation:none!important;}
 #ejsContainer canvas{touch-action:none;user-select:none;-webkit-user-select:none;}
+
+.player-status{display:flex;flex-wrap:wrap;gap:10px;align-items:center;max-width:720px;margin:0 auto 10px;font-size:12px}
+.player-status span{padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
+.player-status span[data-state="error"]{color:#f07070}.player-status span[data-state="ok"]{color:#45b77c}
+.player-settings{max-width:720px;margin:0 auto 12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:13px}
+.player-settings summary{cursor:pointer}.settings-grid{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}.settings-grid label{display:flex;align-items:center;gap:8px}.player-settings p{font-size:12px;color:var(--sub)}
+#mobilePad{position:relative;height:240px;max-width:720px;margin:8px auto;--pad-size:48px;--pad-opacity:.85;border-radius:12px;background:var(--card);overflow:hidden;touch-action:none}
+#mobilePad[hidden]{display:none}#mobilePad .pad-group{position:absolute;display:grid;grid-template-columns:repeat(2,var(--pad-size));gap:6px;touch-action:none;opacity:var(--pad-opacity)}
+#mobilePad button{width:var(--pad-size);height:var(--pad-size);border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;touch-action:none;user-select:none;-webkit-user-select:none}
+#mobilePad button.pressed{background:var(--accent);color:white}#mobilePad.editing .pad-group{outline:2px dashed var(--accent);cursor:move}
+body.custom-pad #ejsContainer .ejs_virtualGamepad_parent{display:none!important}
+body.custom-pad #ejsContainer canvas{pointer-events:auto!important;touch-action:none!important}
 </style>
 </head>
 <body>
@@ -501,11 +513,29 @@ setTimeout(function(){
     <div class="empty" id="emptyMsg" style="display:none">ยังไม่มีเกมในคลัง แตะปุ่ม + มุมล่างขวาเพื่ออัปโหลด ROM (ต้องใส่รหัสผ่าน)</div>
   </div>
   <div id="playView">
+    <div class="player-status" role="status" aria-live="polite"><span id="cloudSaveStatus">เซฟซิงก์: รอเริ่มเกม</span><span id="quickStateStatus">เซฟด่วน: ยังไม่ได้บันทึก</span><button class="chip" id="syncNowBtn">ซิงก์ตอนนี้</button></div>
+    <details class="player-settings"><summary>ตั้งค่าจอและปุ่มควบคุม</summary>
+      <div class="settings-grid">
+        <label>ขนาดปุ่ม <input id="padSize" type="range" min="36" max="72" value="48"></label>
+        <label>ความทึบปุ่ม <input id="padOpacity" type="range" min="25" max="100" value="85"></label>
+        <label><input id="padEdit" type="checkbox"> ย้ายตำแหน่งปุ่ม (ลากแต่ละกลุ่มด้านล่าง)</label>
+        <label><input id="padShow" type="checkbox"> แสดงปุ่มควบคุม</label>
+        <button id="padReset" class="chip">คืนตำแหน่งปุ่ม</button>
+        <label id="ndsLayoutField" hidden>จอ NDS <select id="ndsLayout"><option value="Top/Bottom">บน–ล่าง</option><option value="Left/Right">ซ้าย–ขวา</option><option value="Bottom Only">ขยายจอล่าง</option></select></label>
+        <label id="ndsPerfField" hidden>ประสิทธิภาพ NDS <select id="ndsPerf"><option value="light">ประหยัดกราฟิก (1x)</option><option value="default">ค่าเริ่มต้นของ core</option></select></label>
+      </div><p id="playerSettingsNote">ปรับปุ่มได้ระหว่างเล่น การตั้งค่าจะจำไว้ในเครื่องนี้</p>
+      <p id="ndsRuntime" hidden></p>
+    </details>
     <div class="ejs-wrap" id="ejsWrap">
       <div id="ejsContainer"></div>
       <div class="gb-boot" id="gbBootOverlay">
         <div class="gb-boot-logo">GAMEBOY<br>EMULATOR</div>
       </div>
+    </div>
+    <div id="mobilePad" hidden aria-label="ปุ่มควบคุมเกม">
+      <div class="pad-group" data-group="directions"><button data-key="4">▲</button><button data-key="6">◀</button><button data-key="5">▼</button><button data-key="7">▶</button></div>
+      <div class="pad-group" data-group="actions"><button data-key="9">X</button><button data-key="0">B</button><button data-key="1">Y</button><button data-key="8">A</button></div>
+      <div class="pad-group" data-group="shoulders"><button data-key="10">L</button><button data-key="11">R</button><button data-key="2">Select</button><button data-key="3">Start</button></div>
     </div>
     <div class="hint-area">
       <button type="button" class="hint-toggle" id="hintToggleBtn" aria-expanded="false" aria-controls="hintCollapse">
@@ -1447,7 +1477,7 @@ async function grabSave(){
   try{
     const gm = window.EJS_emulator && window.EJS_emulator.gameManager;
     if(!gm || typeof gm.getSaveFile !== 'function') return null;
-    const bytes = gm.getSaveFile();
+    const bytes = await gm.getSaveFile();
     return bytes ? new Uint8Array(bytes) : null;
   }catch(e){ console.warn('grabSave failed', e); return null; }
 }
@@ -1456,15 +1486,20 @@ async function grabSave(){
 // instead of silently overwriting their progress.
 let saveBaselineAt=null;
 let saveConflictWarned=false;
+let syncInFlight=false;
 async function flushSave(){
+  if(syncInFlight)return;
+  syncInFlight=true;
+  try{
   const id = sessionStorage.getItem('playId');
   if(!id) return;
   const code = getSyncCode();
-  if(!code) return; // no personal code set yet — nothing to sync to
+  if(!code){saveStatus('cloudSaveStatus','เซฟซิงก์: ยังไม่มีรหัสส่วนตัว');return;}
   const bytes = await grabSave();
-  if(!bytes) return;
+  if(!bytes?.length){saveStatus('cloudSaveStatus','เซฟซิงก์: ยังไม่มีข้อมูลจากเกม');return;}
   const sig=saveSignature(bytes);
   if(sig===lastSavedSig) return; // nothing changed since the last successful upload — skip the work and the network call
+  saveStatus('cloudSaveStatus','กำลังซิงก์เซฟ…');
   try{
     if(saveBaselineAt && !saveConflictWarned){
       const {data:cur}=await sb.from('saves').select('updated_at').eq('sync_code',code).eq('game_id',id).maybeSingle();
@@ -1479,14 +1514,17 @@ async function flushSave(){
     saveBaselineAt=nowIso;
     lastSavedSig=sig;
     saveFailNotifiedAt=0;
+    saveStatus('cloudSaveStatus','ซิงก์แล้ว '+saveTime(nowIso),'ok');
   }catch(e){
     console.warn('flushSave failed', e);
+    saveStatus('cloudSaveStatus','ซิงก์ไม่สำเร็จ — กดลองใหม่','error');
     // supabase-js returns errors instead of throwing, so this used to fail silently. Warn the player (at most once a minute).
     if(Date.now()-saveFailNotifiedAt>60000){
       saveFailNotifiedAt=Date.now();
       try{ toastMsg('⚠️ บันทึกเซฟขึ้นเซิร์ฟเวอร์ไม่สำเร็จ ลองเซฟในเกมซ้ำ หรือตรวจอินเทอร์เน็ต'); }catch(_){}
     }
   }
+  }finally{syncInFlight=false;}
 }
 let saveFailNotifiedAt=0;
 let lastSavedSig=null;
@@ -1551,6 +1589,7 @@ async function updateQuickLoadAvailability(){
   try{
     const rec=await readQuickState(id);
     btn.classList.toggle('disabled',!rec);
+    if(rec)saveStatus('quickStateStatus','เซฟด่วนในเครื่อง '+saveTime(rec.at),'ok');
     btn.title=rec?'โหลดด่วน (บันทึกไว้ '+new Date(rec.at||Date.now()).toLocaleString('th-TH')+')':'ยังไม่มีเซฟด่วนสำหรับเกมนี้';
   }catch(e){btn.classList.remove('disabled');btn.title='ลองโหลดเซฟด่วน';}
 }
@@ -1566,9 +1605,9 @@ async function quickSaveState(){
     await quickRecord(id,{bytes,at:Date.now()});
     // Delete legacy copy only after the new checkpoint has committed successfully.
     try{localStorage.removeItem(quickSaveKey(id));localStorage.removeItem(quickSaveAtKey(id));}catch(e){}
-    toastMsg('เซฟด่วนแล้ว ✅');vibrateShort(20);
+    saveStatus('quickStateStatus','เซฟด่วนในเครื่อง '+saveTime(Date.now()),'ok');toastMsg('เซฟด่วนแล้ว ✅');vibrateShort(20);
     await updateQuickLoadAvailability();
-  }catch(e){console.warn('quickSaveState failed',e);toastMsg(e.name==='QuotaExceededError'?'พื้นที่เซฟเต็ม กรุณาเพิ่มพื้นที่ว่าง':'เซฟด่วนไม่สำเร็จ: '+e.message);}
+  }catch(e){saveStatus('quickStateStatus','เซฟด่วนไม่สำเร็จ','error');console.warn('quickSaveState failed',e);toastMsg(e.name==='QuotaExceededError'?'พื้นที่เซฟเต็ม กรุณาเพิ่มพื้นที่ว่าง':'เซฟด่วนไม่สำเร็จ: '+e.message);}
   finally{quickBusy=false;}
 }
 async function quickLoadState(){
@@ -1585,38 +1624,80 @@ async function quickLoadState(){
   finally{quickBusy=false;}
 }
 
-// Translate mobile stylus gestures into the same mouse events used on desktop.
-// Capture coordinates in CSS pixels; the core handles viewport scaling and screen layout.
+// Use native absolute touch input. Do not intercept the core's touch events.
 function installNdsTouch(){
   const host=document.getElementById('ejsContainer');
-  let active=null, canvas=null;
-  function mouse(type,e){
-    canvas.dispatchEvent(new MouseEvent(type,{bubbles:true,cancelable:true,view:window,
-      clientX:e.clientX,clientY:e.clientY,button:0,buttons:type==='mouseup'?0:1}));
-  }
-  host.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='mouse'||active!==null||e.target.tagName!=='CANVAS') return;
-    canvas=e.target;active=e.pointerId;
-    e.preventDefault();e.stopImmediatePropagation();
-    canvas.setPointerCapture(e.pointerId);mouse('mousemove',e);mouse('mousedown',e);
-  },true);
-  host.addEventListener('pointermove',e=>{
-    if(e.pointerId!==active) return;
-    e.preventDefault();e.stopImmediatePropagation();mouse('mousemove',e);
-  },true);
-  const release=e=>{
-    if(e.pointerId!==active) return;
-    e.preventDefault();e.stopImmediatePropagation();mouse('mouseup',e);
-    if(canvas.hasPointerCapture(active)) canvas.releasePointerCapture(active);
-    active=null;
-  };
-  host.addEventListener('pointerup',release,true);
-  host.addEventListener('pointercancel',release,true);
-  // Avoid native touch listeners also sending a second stylus press.
-  for(const type of ['touchstart','touchmove','touchend','touchcancel']) host.addEventListener(type,e=>{
-    if(e.target.tagName==='CANVAS'){e.preventDefault();e.stopImmediatePropagation();}
-  },{capture:true,passive:false});
+  const enable=()=>host.querySelectorAll('canvas').forEach(c=>{if(c.classList.contains('ejs-canvas-no-pointer'))c.classList.remove('ejs-canvas-no-pointer');c.style.pointerEvents='auto';c.style.touchAction='none';});
+  enable();
+  new MutationObserver(enable).observe(host,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
 }
+let activePlayerCore='';
+function saveStatus(id,text,state=''){
+  const el=document.getElementById(id);if(el){el.textContent=text;el.dataset.state=state;}
+}
+function saveTime(at){return new Date(at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false});}
+let padPrefs={size:48,opacity:85,positions:{},layout:'Top/Bottom',perf:'light',show:matchMedia('(any-pointer: coarse)').matches};
+try{Object.assign(padPrefs,JSON.parse(localStorage.getItem('playerPrefsV2')||'{}'));}catch(e){}
+function persistPad(){try{localStorage.setItem('playerPrefsV2',JSON.stringify(padPrefs));}catch(e){}}
+const mobilePad=document.getElementById('mobilePad');
+const pressedPointers=new Map(),heldInputs=new Map();
+function sendInput(key,value){window.EJS_emulator?.gameManager?.simulateInput(0,Number(key),value);}
+function releaseButtons(){for(const key of heldInputs.keys())sendInput(key,0);heldInputs.clear();pressedPointers.clear();mobilePad.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));}
+function applyPad(){
+  mobilePad.hidden=!padPrefs.show;mobilePad.style.height=Math.max(240,padPrefs.size*4+60)+'px';mobilePad.style.setProperty('--pad-size',padPrefs.size+'px');mobilePad.style.setProperty('--pad-opacity',padPrefs.opacity/100);
+  document.getElementById('padShow').checked=padPrefs.show;
+  document.getElementById('padSize').value=padPrefs.size;document.getElementById('padOpacity').value=padPrefs.opacity;
+  const defaults={directions:[.03,.12],actions:[.70,.12],shoulders:[.36,.64]};
+  mobilePad.querySelectorAll('.pad-group').forEach(g=>{
+    const xy=padPrefs.positions[g.dataset.group]||defaults[g.dataset.group];
+    g.style.left=Math.max(0,Math.min(mobilePad.clientWidth-g.offsetWidth,xy[0]*mobilePad.clientWidth))+'px';
+    g.style.top=Math.max(0,Math.min(mobilePad.clientHeight-g.offsetHeight,xy[1]*mobilePad.clientHeight))+'px';
+  });
+}
+for(const id of ['padSize','padOpacity'])document.getElementById(id).addEventListener('input',e=>{padPrefs[id==='padSize'?'size':'opacity']=Number(e.target.value);applyPad();persistPad();});
+document.getElementById('padShow').onchange=e=>{releaseButtons();padPrefs.show=e.target.checked;applyPad();persistPad();};
+document.getElementById('padEdit').onchange=e=>{releaseButtons();mobilePad.classList.toggle('editing',e.target.checked);};
+document.getElementById('padReset').onclick=()=>{padPrefs.positions={};applyPad();persistPad();};
+window.addEventListener('resize',applyPad);window.addEventListener('blur',releaseButtons);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseButtons();});
+mobilePad.querySelectorAll('button').forEach(btn=>{
+  btn.addEventListener('pointerdown',e=>{
+    if(mobilePad.classList.contains('editing'))return;
+    if(!window.EJS_emulator?.gameManager)return;
+    e.preventDefault();btn.setPointerCapture(e.pointerId);
+    const key=btn.dataset.key;pressedPointers.set(e.pointerId,key);heldInputs.set(key,(heldInputs.get(key)||0)+1);sendInput(key,1);btn.classList.add('pressed');
+  });
+  const up=e=>{const key=pressedPointers.get(e.pointerId);if(key===undefined)return;e.preventDefault();pressedPointers.delete(e.pointerId);const n=(heldInputs.get(key)||1)-1;if(n)heldInputs.set(key,n);else{heldInputs.delete(key);sendInput(key,0);btn.classList.remove('pressed');}};
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(type,up);
+});
+mobilePad.querySelectorAll('.pad-group').forEach(g=>{
+  let drag;
+  g.addEventListener('pointerdown',e=>{if(!mobilePad.classList.contains('editing'))return;e.preventDefault();g.setPointerCapture(e.pointerId);drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:g.offsetLeft,top:g.offsetTop};});
+  g.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;g.style.left=Math.max(0,Math.min(mobilePad.clientWidth-g.offsetWidth,drag.left+e.clientX-drag.x))+'px';g.style.top=Math.max(0,Math.min(mobilePad.clientHeight-g.offsetHeight,drag.top+e.clientY-drag.y))+'px';});
+  for(const type of ['pointerup','pointercancel'])g.addEventListener(type,e=>{if(!drag||e.pointerId!==drag.id)return;padPrefs.positions[g.dataset.group]=[g.offsetLeft/mobilePad.clientWidth,g.offsetTop/mobilePad.clientHeight];drag=null;persistPad();});
+});
+function setCoreOption(key,value){
+  const gm=window.EJS_emulator?.gameManager;
+  if(!gm||typeof gm.setVariable!=='function')throw new Error('ตัวจำลองยังไม่พร้อม');
+  const opts=gm.getCoreOptions?.();
+  if(typeof opts==='string'&&!opts.includes(key))throw new Error('core รุ่นนี้ไม่รองรับ '+key);
+  gm.setVariable(key,value);
+}
+function applyNdsLayout(){
+  const layout=padPrefs.layout;
+  setCoreOption('melonds_screen_layout',layout);
+  setCoreOption('melonds_touch_mode','Touch');
+  document.getElementById('ejsContainer').style.aspectRatio=layout==='Left/Right'?'8/3':layout==='Bottom Only'?'4/3':'2/3';
+  window.dispatchEvent(new Event('resize'));
+}
+document.getElementById('ndsLayout').value=padPrefs.layout;
+document.getElementById('ndsLayout').onchange=e=>{
+  const old=padPrefs.layout;padPrefs.layout=e.target.value;
+  try{applyNdsLayout();persistPad();}catch(err){padPrefs.layout=old;e.target.value=old;toastMsg(err.message);}
+};
+document.getElementById('ndsPerf').value=padPrefs.perf;
+document.getElementById('ndsPerf').onchange=e=>{padPrefs.perf=e.target.value;persistPad();toastMsg('บันทึกโหมดแล้ว มีผลเมื่อเข้าเกมครั้งถัดไป');};
+document.getElementById('syncNowBtn').onclick=()=>flushSave();
 
 document.getElementById('quickSaveBtn').addEventListener('click', quickSaveState);
 document.getElementById('quickLoadBtn').addEventListener('click', quickLoadState);
@@ -1648,7 +1729,10 @@ async function bootPlayer(id){
   if(!rec){ sessionStorage.removeItem('playId'); return; }
   document.getElementById('libraryView').style.display='none';
   document.getElementById('playView').style.display='block';
-  document.body.classList.add('in-play');
+  document.body.classList.add('in-play','custom-pad');
+  activePlayerCore=rec.core;applyPad();
+  mobilePad.querySelectorAll('[data-key="9"],[data-key="1"]').forEach(b=>b.hidden=rec.core!=='nds');
+  for(const elId of ['ndsLayoutField','ndsPerfField','ndsRuntime'])document.getElementById(elId).hidden=rec.core!=='nds';
   playGbBootChime();
   setTimeout(()=>{ const ov=document.getElementById('gbBootOverlay'); if(ov) ov.classList.add('hide'); }, 1250);
   document.querySelector('.fab-zone').style.display='none';
@@ -1672,15 +1756,19 @@ async function bootPlayer(id){
     const {data:saveRow}=await sb.from('saves').select('sram,updated_at').eq('sync_code',code).eq('game_id',id).maybeSingle();
     if(saveRow && saveRow.sram){ saveBytes=base64ToBytes(saveRow.sram); saveBaselineAt=saveRow.updated_at||null; }
   }
-  if(saveBytes){
-    window.EJS_onGameStart=()=>{
+  window.EJS_onGameStart=()=>{
+    if(saveBytes){
       try{
         const gm=window.EJS_emulator.gameManager;
         gm.FS.writeFile(gm.getSaveFilePath(), saveBytes);
         if(typeof gm.loadSaveFiles==='function') gm.loadSaveFiles();
       }catch(e){ console.warn('restore save failed', e); }
-    };
-  }
+    }
+    if(rec.core==='nds'){try{applyNdsLayout();installNdsTouch();if(padPrefs.perf==='light'){try{setCoreOption('melonds_opengl_resolution','1x native (256x192)');}catch(e){}try{setCoreOption('melonds_threaded_renderer',window.EJS_threads?'enabled':'disabled');}catch(e){}}}catch(e){toastMsg(e.message);}}
+    applyPad();
+    if(saveBaselineAt)saveStatus('cloudSaveStatus','โหลดเซฟซิงก์ '+saveTime(saveBaselineAt),'ok');
+    else saveStatus('cloudSaveStatus','เซฟซิงก์: รอเซฟในเกม');
+  };
   setInterval(()=>{ if(document.visibilityState==='visible'&&!quickBusy) flushSave(); }, rec.core==='nds'?45000:15000);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
   // NDS's two stacked screens (256x384) are much taller/narrower than GB/GBA's landscape screen —
@@ -1697,9 +1785,14 @@ async function bootPlayer(id){
   window.EJS_backgroundColor='#000';
   // Use the standard mobile gamepad instead of replacing it with an empty layout.
   window.EJS_threads=rec.core==='nds' && window.crossOriginIsolated===true && typeof SharedArrayBuffer!=='undefined';
+  window.EJS_defaultOptions={'virtual-gamepad':'disabled'};
+  if(rec.core==='nds'){
+    Object.assign(window.EJS_defaultOptions,{melonds_touch_mode:'Touch',melonds_screen_layout:padPrefs.layout,melonds_screen_gap:'0'});
+    if(padPrefs.perf==='light')Object.assign(window.EJS_defaultOptions,{melonds_opengl_resolution:'1x native (256x192)',melonds_threaded_renderer:window.EJS_threads?'enabled':'disabled'});
+    document.getElementById('ndsRuntime').textContent=window.EJS_threads?'NDS: เปิด threads แล้ว':'NDS: ใช้เธรดเดียว — อุปกรณ์หรือการตั้งค่าเว็บยังไม่รองรับ threads';
+  }
   window.EJS_disableDatabases=false; // keep EmulatorJS's own local storage on — this is what remembers button mapping, volume, etc. between plays
   if(rec.core==='nds'){
-    installNdsTouch();
     // melonDS (the nds core) needs bios7.bin, bios9.bin and firmware.bin — built into the site, see ndsBiosUrl()
     const biosUrl=ndsBiosUrl();
     if(biosUrl) window.EJS_biosUrl=biosUrl;
