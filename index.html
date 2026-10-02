@@ -8,11 +8,15 @@
 <title>Gameboy Emulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://opceuxrvzwbzuwzmubsh.supabase.co" crossorigin>
+<link rel="preconnect" href="https://nds-rom-worker.natlego007.workers.dev" crossorigin>
+<link rel="preconnect" href="https://cdn.emulatorjs.org" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f4f1e8; --card:#ffffff; --text:#2b2b2b; --sub:#6b6b6b;
   --accent:#e3350d; --accent2:#3b4cca; --border:#ddd6c4; --shadow:rgba(0,0,0,.12);
+  --font-pixel:'Press Start 2P',monospace;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -20,9 +24,10 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ --bg:#181615; --card:#242120; --text:#f1ede4; --sub:#a89f92; --border:#3a352f; --shadow:rgba(0,0,0,.4);}
 }
+
 html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
 *{box-sizing:border-box;}
-body{margin:0; min-height:100%; background:var(--bg); color:var(--text); font-family:'Prompt',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; -webkit-tap-highlight-color:transparent; transition:background .25s ease,color .25s ease;}
+body{margin:0; min-height:100%; background:var(--bg); background-image:radial-gradient(circle at 1px 1px, rgba(127,127,127,.14) 1px, transparent 0); background-size:4px 4px; color:var(--text); font-family:'Prompt',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; -webkit-tap-highlight-color:transparent; transition:color .25s ease;}
 header{position:sticky; top:0; z-index:5; padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px; background:#2a2a2a; color:#e8e8e8; border-bottom:1px solid #3a3a3a; display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px;}
 .tl{display:flex; gap:7px; align-items:center;}
 .tl i{width:12px; height:12px; border-radius:50%; display:block;}
@@ -33,13 +38,77 @@ header h1{margin:0; font-size:13px; font-weight:500; color:#8e8e8e;}
 .headright{display:flex; align-items:center; gap:8px; margin-left:auto;}
 header h1{margin:0; font-size:17px;}
 .headright{display:flex; align-items:center; gap:10px;}
+.header-icon-group{display:flex; align-items:center; gap:10px;}
+body.authed .header-icon-group .iconbtn{cursor:grab;}
+.header-icon-group .iconbtn.dragging{opacity:.35;}
+.header-icon-group .iconbtn.drag-over{box-shadow:0 0 0 2px var(--accent);}
+@media (max-width:640px){
+  body.in-play #headerIconGroup{display:none;}
+}
 .iconbtn{border:none; background:#3a3a3a; color:#ddd; width:30px; height:30px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;}
 .iconbtn-mini{width:22px; height:22px; flex:0 0 auto;}
+#dashboardBtn{display:none;}
+body.authed #dashboardBtn{display:flex;}
+#summaryModalBg{z-index:25;}
+.summary-modal{max-width:560px;}
+.summary-search{width:100%; box-sizing:border-box; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:14px; margin-bottom:10px;}
+.summary-group-title{position:sticky; top:-20px; z-index:1; background:var(--card); font-size:13px; font-weight:800; padding:8px 0 6px; margin-top:6px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;}
+.summary-item{display:flex; gap:10px; padding:10px 4px; border-bottom:1px solid var(--border); cursor:pointer;}
+.summary-item:hover{background:var(--bg);}
+.summary-item img{width:52px; height:52px; border-radius:8px; object-fit:cover; flex:0 0 auto;}
+.summary-item .s-name{font-weight:700; font-size:14px; margin:0 0 3px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+.summary-item .s-desc{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:12.5px; color:var(--sub); margin:0; line-height:1.5; white-space:pre-wrap; word-break:break-word;}
+.summary-item .s-desc.empty-desc{font-style:italic; opacity:.7;}
+.dash-modal{max-width:620px;}
+.dash-summary{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin:10px 0;}
+.dash-summary .dash-card{background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
+.dash-summary .dash-card .n{font-size:19px; font-weight:800; color:var(--accent);}
+.dash-summary .dash-card .l{font-size:12px; color:var(--sub); margin-top:2px;}
+.dash-section-title{font-size:13px; font-weight:800; margin:16px 0 6px;}
+.dash-game-row{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid var(--border); font-size:13px;}
+.dash-game-row .g-name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.dash-game-row .g-meta{color:var(--sub); font-size:12px; flex:0 0 auto; white-space:nowrap;}
+.dash-user{border-bottom:1px solid var(--border);}
+.dash-user-head{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 4px; cursor:pointer;}
+.dash-user-head:hover{background:var(--bg);}
+.dash-user-head .u-code{font-weight:700; font-size:13.5px;}
+.dash-user-head .u-meta{font-size:12px; color:var(--sub); text-align:right;}
+.dash-user-body{display:none; padding:0 4px 10px 14px;}
+.dash-user.open .dash-user-body{display:block;}
+.dash-user.open .dash-chev{transform:rotate(180deg);}
+.dash-chev{transition:transform .2s ease; flex:0 0 auto;}
+.dash-empty{padding:20px 4px; color:var(--sub); font-size:13px; text-align:center;}
+.online-badge{position:absolute; top:-3px; right:-3px; min-width:15px; height:15px; padding:0 3px; border-radius:8px; background:#2ecc71; color:#fff; font-size:9px; font-weight:800; line-height:15px; text-align:center; box-shadow:0 0 0 2px var(--card);}
+.online-row{display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--border); font-size:13.5px;}
+.online-dot{width:8px; height:8px; border-radius:50%; background:#2ecc71; flex:0 0 auto; box-shadow:0 0 0 3px rgba(46,204,113,.18);}
+.online-row .o-name{font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.online-row .o-game{font-size:12px; color:var(--sub); flex:0 0 auto; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.storage-card{background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;}
+.storage-card .st-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:13px; font-weight:700;}
+.storage-card .st-head span:last-child{font-weight:600; font-size:12px; color:var(--sub); white-space:nowrap;}
+.storage-bar{height:8px; border-radius:6px; background:var(--border); overflow:hidden; margin:8px 0 6px;}
+.storage-bar i{display:block; height:100%; background:var(--accent); border-radius:6px; transition:width .4s ease;}
+.storage-bar i.warn{background:#f9a825;} .storage-bar i.crit{background:#e53935;}
+.storage-card .st-sub{font-size:11.5px; color:var(--sub); line-height:1.5;}
+.dash-chart-box{position:relative; height:170px; margin-bottom:8px;}
+.dash-chart-box canvas{max-width:100%;}
+#toastMsg{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(16px); background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:9px 16px; font-size:13px; box-shadow:0 6px 20px var(--shadow); opacity:0; pointer-events:none; transition:opacity .22s ease, transform .22s ease; z-index:10000; max-width:86vw; text-align:center;}
+#toastMsg.show{opacity:1; transform:translateX(-50%) translateY(0);}
+#quickLoadBtn.disabled{opacity:.35; pointer-events:none;}
+.theme-swatches{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 4px;}
+.theme-swatch{width:26px; height:26px; border-radius:50%; border:2px solid var(--border); cursor:pointer; padding:0;}
+.theme-swatch.active{border-color:var(--text); box-shadow:0 0 0 2px var(--card), 0 0 0 4px var(--text);}
+.theme-color-row{display:flex; align-items:center; gap:10px; margin-top:2px;}
+#customAccentPicker{width:38px; height:32px; border:1.5px solid var(--border); border-radius:8px; padding:2px; background:var(--bg); cursor:pointer;}
 .btn{border:none; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:700; cursor:pointer; letter-spacing:.3px; touch-action:manipulation;}
-.btn-outline{background:transparent; color:var(--accent); border:1.5px solid var(--accent); border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700;}
+.btn-outline{background:transparent; color:var(--accent); border:1.5px solid var(--accent); border-radius:8px; padding:6px 12px; font-size:11px; font-weight:700; font-family:var(--font-pixel); letter-spacing:.5px;}
 main{max-width:960px; margin:0 auto; padding:18px 18px 100px;}
 .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:14px;}
-.card{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 2px 8px var(--shadow); display:flex; flex-direction:column; cursor:pointer; transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;}
+.card{position:relative; background:var(--card); border:2px solid var(--border); border-radius:12px 12px 8px 8px; overflow:hidden; box-shadow:0 2px 8px var(--shadow); display:flex; flex-direction:column; cursor:pointer; transition:transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;}
+.card::before{content:''; display:block; height:9px; flex:0 0 auto; background:repeating-linear-gradient(90deg, var(--border) 0 3px, transparent 3px 6px); opacity:.6;}
+.card::after{content:''; position:absolute; top:0; left:0; right:0; height:9px; pointer-events:none;
+  background-image:radial-gradient(circle, var(--card) 2px, transparent 2.5px), radial-gradient(circle, var(--card) 2px, transparent 2.5px);
+  background-position:8px center, calc(100% - 8px) center; background-repeat:no-repeat;}
 .card:hover, .card:active{transform:translateY(-6px) scale(1.045) rotate(-.5deg); box-shadow:0 14px 26px var(--shadow), 0 0 0 2px var(--accent);}
 body.authed .card{cursor:grab;}
 .card.dragging{opacity:.4;}
@@ -51,19 +120,34 @@ body.authed .card{cursor:grab;}
 .card-body{padding:10px 10px 2px;}
 .card-body .name{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-weight:700; font-size:15.5px; letter-spacing:-.1px; margin:0 0 3px; line-height:1.28;}
 .card-body .desc{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:12px; font-weight:400; color:var(--sub); margin:0 0 6px; line-height:1.48;}
-.tag{display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; color:#fff; margin-bottom:6px;}
+.tag{display:inline-block; font-family:var(--font-pixel); font-size:8px; font-weight:400; padding:4px 7px 3px; border-radius:20px; color:#fff; margin-bottom:6px; letter-spacing:.5px;}
 .tag-row{display:flex; align-items:center; gap:5px; margin-bottom:6px; flex-wrap:wrap;}
 .tag-row .tag{margin-bottom:0;}
 .tag-row .thai-flag-inline{margin:0;}
-.tag-gb{background:#8bac0f}.tag-gbc{background:#3b4cca}.tag-gba{background:#e3350d}
+.tag-gb{background:#8bac0f}.tag-gbc{background:#3b4cca}.tag-gba{background:#e3350d}.tag-nds{background:#0e9aa7}
 .version-chip{display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; color:#fff; background:var(--sub);}
-.tag-row .thai-flag-inline{margin-left:auto;}
-/* the detail popup keeps the flag right next to the system tag — only the library
-   grid cards push it out to the row's far edge */
 .detail-tag-row .thai-flag-inline{margin-left:0;}
 .card-actions{display:flex; gap:6px; padding:4px 10px 10px; margin-top:auto;}
+.card.kbd-focus{outline:3px solid var(--accent); outline-offset:2px;}
+.library-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+.filter-chips{display:flex; gap:6px; flex-wrap:wrap;}
+#viewToggleBtn{background:var(--card); color:var(--text); border:1.5px solid var(--border);}
+.chip{border:1.5px solid var(--border); background:transparent; color:var(--sub); font-size:12px; font-weight:700; padding:5px 12px; border-radius:20px; cursor:pointer; font-family:'Prompt',sans-serif;}
+.chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+.grid.list-view{display:flex; flex-direction:column; gap:8px;}
+.grid.list-view .card{flex-direction:row; align-items:center; border-radius:10px;}
+.grid.list-view .card::before, .grid.list-view .card::after{display:none;}
+.grid.list-view .cover-wrap{width:58px; flex:0 0 58px;}
+.grid.list-view .cover{aspect-ratio:1/1; width:58px; height:58px;}
+.grid.list-view .card-body{padding:6px 10px; flex:1; min-width:0;}
+.grid.list-view .card-body .name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.grid.list-view .card-body .desc{display:none;}
+.grid.list-view .card-actions{flex:0 0 auto; padding:8px 10px;}
+.played-by-row{display:flex; align-items:center; gap:8px; padding:6px 2px; border-bottom:1px solid var(--border); font-size:12.5px;}
+.played-by-row .pb-name{font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.played-by-row .pb-time{color:var(--sub); font-size:12px; flex:0 0 auto;}
 .card-actions button{flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text); font-size:12px; cursor:pointer; touch-action:manipulation;}
-.card-actions button[data-act=play]{color:var(--accent); border-color:var(--accent); font-weight:700;}
+.card-actions button[data-act=play]{background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; display:flex; align-items:center; justify-content:center; gap:5px;}
 .card-actions button[data-act=edit],.card-actions button[data-act=del]{display:none;}
 body.authed .card-actions button[data-act=edit],body.authed .card-actions button[data-act=del]{display:inline-block;}
 .empty{text-align:center; color:var(--sub); padding:60px 20px;}
@@ -79,7 +163,7 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 @keyframes modalPopIn{0%{transform:scale(.86); opacity:0;} 65%{transform:scale(1.03); opacity:1;} 100%{transform:scale(1); opacity:1;}}
 .modal-bg.show .modal{animation:modalPopIn .32s cubic-bezier(.34,1.56,.64,1);}
 .input-minimal{border:none!important; border-bottom:1.5px solid var(--border)!important; border-radius:0!important; background:transparent!important; padding:8px 2px!important; text-align:center; letter-spacing:6px; font-size:18px;}
-.input-minimal:focus{outline:none; border-bottom-color:#a855f7!important;}
+.input-minimal:focus{outline:none; border-bottom-color:var(--accent)!important;}
 .pass-box{width:100%; padding:8px 10px; border-radius:9px; border:1.5px solid var(--border); background:var(--bg); color:var(--text); text-align:center; letter-spacing:4px; font-size:15px; font-family:inherit;}
 .pass-box:focus{outline:none; border-color:#ffffff;}
 .pass-box::placeholder{letter-spacing:1px;}
@@ -92,17 +176,29 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 .field input[type=text], .field select, .field textarea{width:100%; padding:9px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:14px; font-family:inherit; resize:vertical;}
 .field input[type=file]{width:100%; font-size:12px; color:var(--text);}
 .field input[type=file]::file-selector-button{ margin-right:10px; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text); font-size:12px; font-family:inherit; cursor:pointer; transition:background .2s ease, border-color .2s ease; }
-.field input[type=file]::file-selector-button:hover{ background:var(--bg); border-color:#8b5cf6; }
+.field input[type=file]::file-selector-button:hover{ background:var(--bg); border-color:var(--accent); }
 .modal-actions{display:flex; gap:8px; margin-top:6px;}
 .modal-actions button{flex:1; padding:10px; border-radius:8px; border:none; font-weight:700; cursor:pointer; touch-action:manipulation;}
 #playView{display:none;}
 /* ---------- intro 3D marquee splash ---------- */
+#bootLoadingView{position:fixed; inset:0; z-index:60; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; transition:opacity .4s ease; padding:20px; box-sizing:border-box;}
+#bootLoadingView.hide{opacity:0; pointer-events:none;}
+.boot-load-hint{font-family:'Prompt',sans-serif; color:#8e8e96; font-size:13px; opacity:0; transition:opacity .3s ease; min-height:18px;}
+.boot-load-hint.show{opacity:1;}
+.boot-load-label{font-family:var(--font-pixel); color:var(--accent); font-size:clamp(20px,5vw,32px); text-align:center; letter-spacing:4px;}
+.boot-load-bar-track{width:min(520px,88vw); height:clamp(36px,8vw,56px); display:flex; gap:clamp(4px,1vw,8px); padding:clamp(5px,1.2vw,9px); border:clamp(3px,.8vw,5px) solid var(--accent); border-radius:6px; background:#000; box-sizing:border-box;}
+.boot-load-seg{flex:1; background:#201f1d; border-radius:2px; transition:background-color .05s ease;}
+.boot-load-seg.on{background:var(--accent);}
+.boot-load-pct{font-family:var(--font-pixel); color:var(--accent); font-size:clamp(16px,4vw,24px); letter-spacing:2px;}
 #introView{position:fixed; inset:0; z-index:50; background:#000; cursor:pointer; overflow:hidden;}
 .intro-stage{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; perspective:1400px;}
 .intro-plane{width:170%; aspect-ratio:1/1; transform:scale(1.15);}
 .intro-grid{width:100%; height:100%; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; transform:rotateX(55deg) rotateZ(45deg); transform-style:preserve-3d;}
+.intro-grid{opacity:0; transition:opacity .5s ease;}
+.intro-grid.ready{opacity:1;}
 .intro-col{display:flex; flex-direction:column; gap:14px; will-change:transform;}
-.intro-col img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; display:block; filter:brightness(.75);}
+.intro-col img{width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; display:block;}
+.intro-stage::after{content:''; position:absolute; inset:0; background:rgba(0,0,0,.25); pointer-events:none;} /* replaces the per-image brightness(.75) filter — same look, far cheaper to draw */
 .intro-col.c1{animation:marqueeUp 14s ease-in-out infinite alternate;}
 .intro-col.c2{animation:marqueeDown 18s ease-in-out infinite alternate;}
 .intro-col.c3{animation:marqueeUp 22s ease-in-out infinite alternate;}
@@ -114,7 +210,7 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 .intro-overlay p{margin:0; color:#d9c7f0; font-size:13px; letter-spacing:.5px; animation:pulseHint 1.8s ease-in-out infinite;}
 @keyframes pulseHint{0%,100%{opacity:.55} 50%{opacity:1}}
 @media (max-width:420px){ .intro-overlay h1{font-size:20px;} }
-.intro-title{font-family:'Prompt',sans-serif; font-weight:800; font-size:64px; letter-spacing:1px; color:#ffffff; cursor:pointer; transition:color .25s ease, opacity .2s ease; pointer-events:auto; opacity:0;}
+.intro-title{font-family:var(--font-pixel); font-weight:400; font-size:64px; line-height:1.5; letter-spacing:1px; color:#ffffff; cursor:pointer; transition:color .25s ease, opacity .2s ease; pointer-events:auto; opacity:0;}
 .intro-title.ready{opacity:1;}
 .intro-title:hover{color:var(--accent);}
 @media (max-width:420px){ .intro-title{font-size:42px;} }
@@ -164,22 +260,35 @@ label.checkline.checkline-lg input:checked::after{
 .file-picker{display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-radius:8px; transition:outline-color .15s ease;}
 .file-picker.drag-over{outline:2px dashed var(--accent); outline-offset:4px;}
 .file-picker-btn{flex:0 0 auto; margin:0; padding:6px 12px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text); font-size:12px; font-family:inherit; cursor:pointer; touch-action:manipulation; transition:background .2s ease, border-color .2s ease;}
-.file-picker-btn:hover{background:var(--bg); border-color:#8b5cf6;}
+.file-picker-btn:hover{background:var(--bg); border-color:var(--accent);}
+.file-picker-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.file-picker-btn:focus{outline-color:var(--accent);}
 .file-picker-name{flex:1 1 auto; min-width:0; font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; user-select:none;}
 .title-resize-box{position:relative; background:#111; border-radius:10px; padding:18px 30px 18px 14px; min-height:64px; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid var(--border);}
-.title-resize-box span{font-family:'Prompt',sans-serif; font-weight:800; color:#fff; white-space:nowrap; user-select:none; line-height:1;}
+.title-resize-box span{font-family:var(--font-pixel); font-weight:400; color:#fff; white-space:nowrap; user-select:none; line-height:1;}
 .title-resize-handle{position:absolute; right:4px; bottom:4px; width:16px; height:16px; border-radius:4px; background:var(--accent); cursor:nwse-resize; touch-action:none; box-shadow:0 0 0 2px rgba(255,255,255,.5);}
 #ejsContainer{width:100%; max-width:720px; margin:0 auto; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden;}
+.ejs-wrap{position:relative; width:100%; max-width:720px; margin:0 auto;}
+.ejs-wrap #ejsContainer{max-width:none;}
+.gb-boot{position:absolute; inset:0; background:#000; border-radius:8px; display:flex; align-items:center; justify-content:center; z-index:50; opacity:1; transition:opacity .45s ease; pointer-events:none; overflow:hidden;}
+.gb-boot.hide{opacity:0;}
+.gb-boot-logo{font-family:var(--font-pixel); color:var(--accent); font-size:15px; text-align:center; line-height:1.9; letter-spacing:1px; opacity:0; transform:scale(.25) translateY(50px); animation:gbBootIn 1.05s cubic-bezier(.22,1.15,.4,1) forwards .12s;}
+@keyframes gbBootIn{
+  0%{opacity:0; transform:scale(.2) translateY(60px);}
+  55%{opacity:1; transform:scale(1.18) translateY(0);}
+  75%{transform:scale(.9);}
+  100%{opacity:1; transform:scale(1);}
+}
 .hint{color:var(--sub); font-size:12px; margin-top:10px; text-align:center; padding:0 10px; line-height:1.55;}
 .hint-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
 .hint-list li{margin:0;}
 .hint b{color:var(--text); font-weight:700;}
 .hint-area{margin-top:14px; text-align:center; max-width:720px; margin-left:auto; margin-right:auto;}
 .hint-toggle{display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--border); color:var(--sub); font-family:inherit; font-size:12px; font-weight:600; padding:6px 14px; border-radius:20px; cursor:pointer; touch-action:manipulation; transition:color .2s ease, border-color .2s ease;}
-.hint-toggle:hover{color:var(--text); border-color:var(--accent2);}
+.hint-toggle:hover{color:var(--text); border-color:var(--accent);}
 .hint-toggle svg{flex-shrink:0;}
 .hint-toggle .chev{transition:transform .25s ease;}
-.hint-toggle[aria-expanded="true"]{color:var(--accent2); border-color:var(--accent2);}
+.hint-toggle[aria-expanded="true"]{color:var(--accent); border-color:var(--accent);}
 .hint-toggle[aria-expanded="true"] .chev{transform:rotate(180deg);}
 .hint-collapse{display:grid; grid-template-rows:0fr; transition:grid-template-rows .28s ease;}
 .hint-collapse.open{grid-template-rows:1fr;}
@@ -187,9 +296,32 @@ label.checkline.checkline-lg input:checked::after{
 @media (max-width:420px){
   header h1{font-size:15px;} .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px;}
 }
+/* --- fit the delete buttons inside their boxes --- */
+.modal{overflow-x:hidden;}
+.marquee-thumbs{grid-template-columns:repeat(auto-fill,minmax(62px,1fr)); gap:6px;}
+.marquee-thumb{min-width:0;}
+.marquee-thumb button{top:2px; right:2px; width:16px; height:16px; min-width:0; padding:0; font-size:11px; line-height:1; box-sizing:border-box; z-index:2;}
+.card-actions button{min-width:0; white-space:nowrap; padding:7px 4px;}
+.grid.list-view .card-actions{gap:4px; padding:6px 6px; max-width:62%;}
+.grid.list-view .card-actions button{flex:0 1 auto; padding:7px 9px;}
+/* search / favourites */
+#gameSearchInput{flex:1 1 130px; min-width:0; max-width:240px; padding:7px 12px; border-radius:20px; border:1.5px solid var(--border); background:var(--card); color:var(--text); font-size:13px; font-family:inherit;}
+#gameSearchInput:focus{outline:none; border-color:var(--accent);}
 </style>
 </head>
 <body>
+<div id="bootLoadingView">
+  <div class="boot-load-label">LOADING</div>
+  <div class="boot-load-bar-track" id="bootLoadTrack"></div>
+  <div class="boot-load-pct" id="bootLoadPct">0%</div>
+</div>
+<script>
+// failsafe: if the page script crashes or something never finishes, the loading screen must not trap the visitor
+setTimeout(function(){
+  var v=document.getElementById('bootLoadingView');
+  if(v && v.style.display!=='none'){ v.classList.add('hide'); setTimeout(function(){ v.style.display='none'; },450); }
+},8000);
+</script>
 <div id="introView">
   <div class="intro-stage">
     <div class="intro-plane">
@@ -260,9 +392,61 @@ label.checkline.checkline-lg input:checked::after{
         <span id="titleResizeSizeLabel"></span>
       </div>
     </div>
+    <div class="field">
+      <label>สีธีมที่ชอบ (ส่วนตัว)</label>
+      <div class="theme-swatches" id="accentSwatches"></div>
+      <div class="theme-color-row">
+        <input type="color" id="customAccentPicker" value="#e3350d" title="เลือกสีเอง">
+        <button type="button" class="iconbtn iconbtn-mini" id="accentResetBtn" title="รีเซ็ตเป็นสีเริ่มต้นของเว็บ"></button>
+      </div>
+      <div class="field-hint">เลือกสีที่ชอบเก็บไว้เฉพาะเบราว์เซอร์นี้ ไม่กระทบคนอื่น กดปุ่มรีเซ็ตเพื่อกลับไปใช้สีปกติของเว็บ</div>
+    </div>
     <div class="modal-actions">
       <button id="imgCancelBtn" style="background:var(--border);color:var(--text)">ปิด</button>
       <button id="imgSaveBtn" style="background:var(--accent);color:#fff">เสร็จสิ้น</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="onlineModalBg">
+  <div class="modal">
+    <h2>ผู้ใช้งาน</h2>
+    <div class="modal-sub" id="onlineCount"></div>
+    <div id="onlineList"></div>
+    <div class="modal-actions">
+      <button id="onlineCloseBtn" style="background:var(--accent);color:#fff">ปิด</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="summaryModalBg">
+  <div class="modal summary-modal">
+    <h2>สรุปทุกภาค / ทุกเกม</h2>
+    <div class="modal-sub" id="summaryCount"></div>
+    <input type="search" id="summarySearch" class="summary-search" placeholder="ค้นหาชื่อเกมหรือเนื้อหา...">
+    <div id="summaryList"></div>
+    <div class="modal-actions">
+      <button id="summaryCloseBtn" style="background:var(--accent);color:#fff">ปิด</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="dashboardModalBg">
+  <div class="modal dash-modal">
+    <h2>แดชบอร์ดผู้เล่น</h2>
+    <div class="modal-sub">อิงจากรหัสซิงก์เซฟที่แต่ละคนตั้งเอง — คนที่ไม่เคยตั้งรหัสซิงก์จะไม่ถูกนับแยกราย และจะไม่ถูกนับเวลาเล่นเลย เพราะไม่มีอะไรผูกไว้ว่าเป็นคนเดียวกัน</div>
+    <div class="dash-summary" id="dashSummary"></div>
+    <div class="dash-section-title" style="margin-top:6px;">พื้นที่เก็บข้อมูล</div>
+    <div id="dashStorage"><div class="dash-empty">กำลังโหลด...</div></div>
+    <div class="dash-section-title" style="margin-top:14px;">เวลาเล่นรวมรายวัน (14 วันล่าสุด)</div>
+    <div class="dash-chart-box"><canvas id="dashDailyChart"></canvas></div>
+    <div class="dash-section-title">เกมยอดนิยม (รวมทุกคน)</div>
+    <div class="dash-chart-box"><canvas id="dashGamesChart"></canvas></div>
+
+    <div class="dash-section-title">รายละเอียดเกมยอดนิยม</div>
+    <div id="dashTopGames"></div>
+    <div class="dash-section-title">ผู้เล่นรายคน</div>
+    <div id="dashUsers"></div>
+    <div class="modal-actions">
+      <button id="dashRefreshBtn" style="background:var(--border);color:var(--text)">รีเฟรชข้อมูล</button>
+      <button id="dashCloseBtn" style="background:var(--accent);color:#fff">ปิด</button>
     </div>
   </div>
 </div>
@@ -270,21 +454,57 @@ label.checkline.checkline-lg input:checked::after{
   <div class="tl"><i class="r"></i><i class="y"></i><i class="g"></i></div>
   <div class="brand" id="headerGameName" style="display:none;"><span id="headerGameNameText"></span></div>
   <div class="headright">
+    <div class="header-icon-group" id="headerIconGroup">
+    <button class="iconbtn" id="onlineBtn" title="ผู้ใช้งาน" style="position:relative;">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span id="onlineBadge" class="online-badge" style="display:none;"></span>
+    </button>
     <button class="iconbtn" id="syncBtn" title="รหัสซิงก์เซฟส่วนตัว">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H7a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18 9.06 4.5 4.5 0 0 1 17.5 19Z"/><path d="m9 13 2 2 4-4"/></svg>
     </button>
+    <button class="iconbtn" id="summaryBtn" title="สรุปทุกภาคทุกเกม">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H19v-3"/><path d="M9 8h6M9 12h6"/></svg>
+    </button>
+    <button class="iconbtn" id="dashboardBtn" title="แดชบอร์ดผู้เล่น">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="13" y="8" width="3" height="10" rx="1"/><rect x="19" y="5" width="1" height="13"/></svg>
+    </button>
     <button class="iconbtn" id="loginBtn" title="เข้าสู่ระบบ"></button>
     <button class="iconbtn" id="themeBtn" title="สลับโหมดสว่าง/มืด"></button>
+    </div>
+    <button class="iconbtn" id="quickSaveBtn" title="เซฟด่วน" style="display:none">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+    </button>
+    <button class="iconbtn" id="quickLoadBtn" title="โหลดด่วน" style="display:none">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
     <button class="btn btn-outline" id="backBtn" style="display:none">BACK</button>
   </div>
 </header>
 <main>
   <div id="libraryView">
+    <div class="library-toolbar" id="libraryToolbar">
+      <div class="filter-chips" id="filterChips">
+        <button type="button" class="chip active" data-filter="all">ทั้งหมด</button>
+        <button type="button" class="chip" data-filter="gb">GB</button>
+        <button type="button" class="chip" data-filter="gbc">GBC</button>
+        <button type="button" class="chip" data-filter="gba">GBA</button>
+        <button type="button" class="chip" data-filter="nds">NDS</button>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; margin-left:auto; min-width:0; flex:1 1 150px; justify-content:flex-end;">
+        <input type="search" id="gameSearchInput" placeholder="ค้นหาเกม" autocomplete="off">
+        <button class="iconbtn" id="viewToggleBtn" title="สลับมุมมอง"></button>
+      </div>
+    </div>
     <div class="grid" id="grid"></div>
     <div class="empty" id="emptyMsg" style="display:none">ยังไม่มีเกมในคลัง แตะปุ่ม + มุมล่างขวาเพื่ออัปโหลด ROM (ต้องใส่รหัสผ่าน)</div>
   </div>
   <div id="playView">
-    <div id="ejsContainer"></div>
+    <div class="ejs-wrap" id="ejsWrap">
+      <div id="ejsContainer"></div>
+      <div class="gb-boot" id="gbBootOverlay">
+        <div class="gb-boot-logo">GAMEBOY<br>EMULATOR</div>
+      </div>
+    </div>
     <div class="hint-area">
       <button type="button" class="hint-toggle" id="hintToggleBtn" aria-expanded="false" aria-controls="hintCollapse">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16.5"></line><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"></circle></svg>
@@ -297,7 +517,7 @@ label.checkline.checkline-lg input:checked::after{
             <ul class="hint-list">
               <li><b>ปุ่มควบคุม:</b> <b>Z</b>, <b>X</b> และปุ่มทิศทาง — ใช้คีย์บอร์ดหรือปุ่มบนหน้าจอที่มากับตัวจำลอง</li>
               <li><b>ระบบบันทึกเกม:</b> เล่นเครื่องไหนก็ได้ เซฟจะตามไปด้วยเสมอ แต่ต้องใส่ <b>"รหัสซิงก์เซฟส่วนตัว"</b> ทุกครั้งที่เล่น</li>
-              <li><b>เล่นบนมือถือ:</b> กด 3 ขีดมุมขวาบนเลือก Enter Fullscreen — จะมีปุ่มควบคุมขึ้นมาให้ (แนะนำเล่นแบบเอียงจอ)</li>
+              <li><b>เล่นบนมือถือ:</b> เล่นได้ปกติ แนะนำหมุนจอเป็นแนวนอนสำหรับเกม GBA — กดปุ่มขยายจอจะมีปุ่มควบคุมขึ้นมาให้</li>
             </ul>
           </div>
         </div>
@@ -306,17 +526,18 @@ label.checkline.checkline-lg input:checked::after{
   </div>
 </main>
 <div class="fab-zone"><button class="fab" id="addBtn">+</button></div>
+<div id="toastMsg"></div>
 
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h2 id="modalTitle">เพิ่มเกมใหม่</h2>
     <div class="field">
-      <label id="romFileLabel">ไฟล์ ROM (.gb / .gbc / .gba)</label>
+      <label id="romFileLabel">ไฟล์ ROM (.gb / .gbc / .gba / .nds)</label>
       <div class="file-picker">
         <button type="button" class="file-picker-btn" data-for="romFile">เลือกไฟล์</button>
         <span class="file-picker-name" id="romFileName">ยังไม่ได้เลือกไฟล์</span>
       </div>
-      <input type="file" id="romFile" accept=".gb,.gbc,.gba,.zip" hidden>
+      <input type="file" id="romFile" accept=".gb,.gbc,.gba,.nds,.zip" hidden>
     </div>
     <div class="field">
       <label>ชื่อเกม</label>
@@ -340,7 +561,9 @@ label.checkline.checkline-lg input:checked::after{
         <option value="gb">Game Boy (GB)</option>
         <option value="gbc">Game Boy Color (GBC)</option>
         <option value="gba" selected>Game Boy Advance (GBA)</option>
+        <option value="nds">Nintendo DS (NDS)</option>
       </select>
+      <div class="field-hint" id="romSystemHint">เลือกให้อัตโนมัติจากนามสกุลไฟล์ (.gb .gbc .gba .nds) แก้เองได้</div>
     </div>
     <div class="field">
       <label>รูปปก (ไม่บังคับ)</label>
@@ -368,9 +591,13 @@ label.checkline.checkline-lg input:checked::after{
     <h2 id="detailName" style="margin:6px 0 6px;"></h2>
     <p id="detailVersion" style="font-size:11px;color:var(--sub);margin:0 0 6px;display:none;"></p>
     <p id="detailDesc" style="font-size:13px;color:var(--sub);line-height:1.55;white-space:pre-wrap;margin:0 0 6px;"></p>
+    <div id="detailPlayedBySection" style="display:none;">
+      <div class="dash-section-title" style="margin:10px 0 2px;">ใครเล่นเกมนี้ไปบ้าง</div>
+      <div id="detailPlayedBy"></div>
+    </div>
     <div class="modal-actions">
       <button id="detailCloseBtn" style="background:var(--border);color:var(--text)">ปิด</button>
-      <button id="detailPlayBtn" style="background:var(--accent);color:#fff">▶ เล่น</button>
+      <button id="detailPlayBtn" style="background:var(--accent);color:#fff; display:flex; align-items:center; justify-content:center; gap:6px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play</button>
     </div>
   </div>
 </div>
@@ -391,6 +618,7 @@ label.checkline.checkline-lg input:checked::after{
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
 // ---------- theme ----------
 const themeBtn=document.getElementById('themeBtn');
@@ -418,6 +646,7 @@ function updateAuthUI(){
   document.body.classList.toggle('authed', marqueeAuthorized);
   loginBtn.innerHTML = marqueeAuthorized ? ICON_LOCK_OPEN : ICON_LOCK_CLOSED;
   loginBtn.title = marqueeAuthorized ? 'ออกจากระบบ' : 'เข้าสู่ระบบ';
+  if(typeof setHeaderDraggable==='function') setHeaderDraggable(marqueeAuthorized);
 }
 loginBtn.onclick=()=>{
   if(marqueeAuthorized){ marqueeAuthorized=false; updateAuthUI(); return; }
@@ -454,8 +683,90 @@ async function uploadToLibrary(fileOrBlob, folder, extHint){
   if(error) throw error;
   return path;
 }
+// ---------- Cloudflare R2 (ROM storage) ----------
+// ROM files go to a Cloudflare R2 bucket through a small Worker (see worker.js) so big NDS games fit.
+// 1) deploy worker.js  2) paste its URL below. Until then uploads fall back to Supabase (small files only).
+// Old games already stored in Supabase keep working — a path starting with "r2:" means R2, anything else is Supabase.
+const R2_WORKER_URL='https://nds-rom-worker.natlego007.workers.dev';
+const R2_TOKEN_KEY='r2UploadToken';
+// ---------- NDS BIOS (built in — no settings field) ----------
+// melonDS needs bios7.bin + bios9.bin + firmware.bin zipped together. Two ways to supply them, no UI needed:
+//  A) (default) upload that zip to the R2 bucket as  roms/nds-bios.zip  — the site loads it from the Worker automatically.
+//  B) paste the zip as base64 into NDS_BIOS_BASE64 below to embed it right inside this HTML file (makes the page ~1 MB bigger).
+const NDS_BIOS_R2_KEY='roms/nds-bios.zip';
+const NDS_BIOS_BASE64='';
+function ndsBiosUrl(){
+  if(NDS_BIOS_BASE64){
+    try{
+      const bin=atob(NDS_BIOS_BASE64); const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes],{type:'application/zip'}));
+    }catch(e){ console.warn('NDS_BIOS_BASE64 is not valid base64', e); }
+  }
+  if(r2Enabled()) return r2Base()+'/rom/'+NDS_BIOS_R2_KEY;
+  return null;
+}
+function r2Enabled(){ return /^https?:\/\//.test(R2_WORKER_URL) && !/YOUR-/.test(R2_WORKER_URL); }
+function r2Base(){ return R2_WORKER_URL.replace(/\/$/,''); }
+function isR2Path(p){ return typeof p==='string' && p.startsWith('r2:'); }
+function romUrlFor(path){
+  if(isR2Path(path)) return r2Base()+'/rom/'+path.slice(3).split('/').map(encodeURIComponent).join('/');
+  return publicUrl(path);
+}
+function getR2Token(){
+  // Same password as the admin login: nothing extra to type. Set the Worker's UPLOAD_TOKEN secret to this same value.
+  return MARQUEE_PASSWORD;
+}
+function r2Request(method, url, body, onProgress){
+  return new Promise((resolve,reject)=>{
+    const x=new XMLHttpRequest();
+    x.open(method, url);
+    x.setRequestHeader('Authorization','Bearer '+getR2Token());
+    if(onProgress && x.upload) x.upload.onprogress=(e)=>{ if(e.lengthComputable) onProgress(e.loaded); };
+    x.onload=()=>{
+      if(x.status>=200 && x.status<300) resolve(x.responseText);
+      else {
+                reject(new Error('Cloudflare '+x.status+': '+(x.responseText||'').slice(0,140)));
+      }
+    };
+    x.onerror=()=>reject(new Error('เชื่อมต่อ Cloudflare Worker ไม่ได้ (ตรวจ R2_WORKER_URL / CORS)'));
+    x.send(body||null);
+  });
+}
+async function uploadRomToR2(file, onProgress){
+  const prefix=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const safeName=file.name.replace(/[^A-Za-z0-9._-]+/g,'_');
+  const key='roms/'+prefix+'__'+safeName; // original filename stays inside the path, same as the Supabase scheme
+  const SINGLE_MAX=90*1024*1024, CHUNK=50*1024*1024; // a Worker request body is capped at 100 MB, so bigger files go up in parts
+  if(file.size<=SINGLE_MAX){
+    await r2Request('PUT', r2Base()+'/upload/'+key, file, (l)=>onProgress&&onProgress(l/file.size));
+  } else {
+    const {uploadId}=JSON.parse(await r2Request('POST', r2Base()+'/mpu/create/'+key));
+    const parts=[]; let done=0, n=1;
+    try{
+      for(let i=0;i<file.size;i+=CHUNK,n++){
+        const blob=file.slice(i,i+CHUNK);
+        const res=await r2Request('PUT', r2Base()+'/mpu/part/'+key+'?uploadId='+encodeURIComponent(uploadId)+'&partNumber='+n, blob, (l)=>onProgress&&onProgress((done+l)/file.size));
+        parts.push(JSON.parse(res)); done+=blob.size;
+      }
+      await r2Request('POST', r2Base()+'/mpu/complete/'+key+'?uploadId='+encodeURIComponent(uploadId), JSON.stringify({parts}));
+    }catch(err){
+      try{ await r2Request('POST', r2Base()+'/mpu/abort/'+key+'?uploadId='+encodeURIComponent(uploadId)); }catch(e){}
+      throw err;
+    }
+  }
+  return 'r2:'+key;
+}
+async function uploadRom(file){
+  if(!r2Enabled()) return uploadToLibrary(file,'roms');
+  return uploadRomToR2(file, (f)=>{ saveBtn.textContent='กำลังอัปโหลด '+Math.round(f*100)+'%'; });
+}
 async function deleteFromLibrary(path){
   if(!path) return;
+  if(isR2Path(path)){
+    try{ await r2Request('DELETE', r2Base()+'/rom/'+path.slice(3)); }catch(e){ console.warn('r2 delete failed', e); }
+    return;
+  }
   try{ await sb.storage.from(BUCKET).remove([path]); }catch(e){ console.warn('storage delete failed', e); }
 }
 async function fetchGames(){
@@ -476,6 +787,76 @@ async function getSiteSetting(key, fallback){
     return Number.isNaN(num) ? fallback : num;
   }catch(e){ console.warn('getSiteSetting failed', e); return fallback; }
 }
+async function getSiteSettingRaw(key, fallback){
+  try{
+    const {data,error}=await sb.from('site_settings').select('value').eq('key',key).order('updated_at',{ascending:false}).limit(1);
+    if(error){ console.warn('getSiteSettingRaw error', error); return fallback; }
+    if(!data || !data.length) return fallback;
+    return data[0].value;
+  }catch(e){ console.warn('getSiteSettingRaw failed', e); return fallback; }
+}
+
+// ---------- header icon reordering (admin-only drag, order shared with everyone via Supabase — not per-browser) ----------
+const HEADER_ORDER_KEY='headerIconOrder';
+const HEADER_ICON_IDS=['onlineBtn','syncBtn','summaryBtn','dashboardBtn','loginBtn','themeBtn'];
+const headerIconGroup=document.getElementById('headerIconGroup');
+function applyHeaderOrder(ids){
+  if(!Array.isArray(ids)) return;
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el && el.parentElement===headerIconGroup) headerIconGroup.appendChild(el);
+  });
+}
+async function loadHeaderOrder(){
+  const raw=await getSiteSettingRaw(HEADER_ORDER_KEY, null);
+  if(!raw) return;
+  try{ applyHeaderOrder(JSON.parse(raw)); }catch(e){ console.warn('invalid headerIconOrder', e); }
+}
+async function saveHeaderOrder(){
+  const ids=[...headerIconGroup.children].map(el=>el.id).filter(Boolean);
+  try{ await setSiteSetting(HEADER_ORDER_KEY, JSON.stringify(ids)); }catch(e){ console.warn('saveHeaderOrder failed', e); }
+}
+let draggedIconBtn=null;
+HEADER_ICON_IDS.forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('dragstart', (e)=>{
+    if(!document.body.classList.contains('authed')){ e.preventDefault(); return; }
+    draggedIconBtn=el;
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    try{ e.dataTransfer.setData('text/plain', id); }catch(err){}
+  });
+  el.addEventListener('dragend', ()=>{
+    el.classList.remove('dragging');
+    headerIconGroup.querySelectorAll('.iconbtn.drag-over').forEach(x=>x.classList.remove('drag-over'));
+    draggedIconBtn=null;
+  });
+  el.addEventListener('dragover', (e)=>{
+    if(!draggedIconBtn || draggedIconBtn===el) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='move';
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', ()=>{ el.classList.remove('drag-over'); });
+  el.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    if(!draggedIconBtn || draggedIconBtn===el) return;
+    const children=[...headerIconGroup.children];
+    const fromIdx=children.indexOf(draggedIconBtn);
+    const toIdx=children.indexOf(el);
+    if(fromIdx<toIdx) el.after(draggedIconBtn); else el.before(draggedIconBtn);
+    saveHeaderOrder();
+  });
+});
+function setHeaderDraggable(enabled){
+  HEADER_ICON_IDS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.draggable=!!enabled;
+  });
+}
+loadHeaderOrder();
 async function setSiteSetting(key, value){
   try{
     const payload={key, value:String(value), updated_at:new Date().toISOString()};
@@ -539,37 +920,55 @@ function formatVersionLabel(v){
   return /^\d/.test(v) ? 'v'+v : v;
 }
 const THAI_FLAG_SVG='<svg width="15" height="10" viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg"><rect width="30" height="20" fill="#A51931"/><rect y="3.33" width="30" height="13.34" fill="#F4F5F8"/><rect y="6.67" width="30" height="6.66" fill="#2D2A4A"/></svg>';
+const placeholderCoverCache={};
 function placeholderCover(name,sys){
+  const cacheKey=String(sys||'?');
+  if(placeholderCoverCache[cacheKey]) return placeholderCoverCache[cacheKey];
   const c=document.createElement('canvas'); c.width=200; c.height=200;
   const ctx=c.getContext('2d');
-  const colors={gb:'#8bac0f',gbc:'#3b4cca',gba:'#e3350d'};
+  const colors={gb:'#8bac0f',gbc:'#3b4cca',gba:'#e3350d',nds:'#0e9aa7'};
   ctx.fillStyle=colors[sys]||'#888'; ctx.fillRect(0,0,200,200);
-  ctx.fillStyle='#fff'; ctx.font='bold 90px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText((name||'?').trim().charAt(0).toUpperCase(),100,110);
-  ctx.font='bold 16px sans-serif'; ctx.fillText(sys.toUpperCase(),100,175);
-  return c.toDataURL('image/png');
+  const label=String(sys||'?').toUpperCase();
+  const fs=label.length<=2 ? 96 : label.length===3 ? 72 : 52;
+  ctx.fillStyle='#fff'; ctx.font='bold '+fs+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label,100,104);
+  return (placeholderCoverCache[cacheKey]=c.toDataURL('image/png')); // only 4 variants exist, so draw each once
 }
 
 // ---------- library UI (shared, from Supabase) ----------
 const grid=document.getElementById('grid'), emptyMsg=document.getElementById('emptyMsg');
 let currentGames=[]; // kept in display order so cards can be dragged to reorder
+let libraryFilter='all';
+let librarySearch='';
+function visibleGames(){
+  let list=currentGames;
+  if(libraryFilter!=='all'){ list=list.filter(g=>g.core===libraryFilter); }
+  const q=librarySearch.trim().toLowerCase();
+  if(q) list=list.filter(g=>(g.name||'').toLowerCase().includes(q) || (g.description||'').toLowerCase().includes(q));
+  return list;
+}
 function renderGridFromCurrent(){
   grid.innerHTML='';
-  emptyMsg.style.display=currentGames.length?'none':'block';
-  currentGames.forEach((item,idx)=>{
+  const list = visibleGames();
+  emptyMsg.style.display = list.length ? 'none' : 'block';
+  emptyMsg.textContent = currentGames.length && !list.length
+    ? (librarySearch.trim() ? 'ไม่พบเกมที่ตรงกับคำค้นหา' : 'ไม่มีเกมระบบนี้ในคลัง')
+    : 'ยังไม่มีเกมในคลัง แตะปุ่ม + มุมล่างขวาเพื่ออัปโหลด ROM (ต้องใส่รหัสผ่าน)';
+  list.forEach((item)=>{
+    const idx=currentGames.indexOf(item); // real index in currentGames, not the filtered position — needed for correct drag-reorder/splice
     const coverSrc = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
     const card=document.createElement('div'); card.className='card';
     card.draggable=true;
     card.dataset.idx=idx;
     card.innerHTML=`
-      <div class="cover-wrap"><img class="cover" src="${coverSrc}"></div>
+      <div class="cover-wrap"><img class="cover" src="${escapeHtml(coverSrc)}" loading="lazy" decoding="async"></div>
       <div class="card-body">
-        <div class="tag-row"><span class="tag tag-${item.core}">${item.core.toUpperCase()}</span>${getDisplayVersion(item) ? `<span class="version-chip">${formatVersionLabel(getDisplayVersion(item))}</span>` : ''}${getDisplayHasThai(item) ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</div>
-        <p class="name">${item.name}</p>
-        ${item.description ? `<p class="desc">${item.description}</p>` : ''}
+        <div class="tag-row"><span class="tag tag-${escapeHtml(item.core)}">${escapeHtml(String(item.core||"").toUpperCase())}</span>${getDisplayVersion(item) ? `<span class="version-chip">${formatVersionLabel(getDisplayVersion(item))}</span>` : ''}${getDisplayHasThai(item) ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</div>
+        <p class="name">${escapeHtml(item.name)}</p>
+        ${item.description ? `<p class="desc">${escapeHtml(item.description)}</p>` : ''}
       </div>
       <div class="card-actions">
-        <button data-act="play">▶ เล่น</button>
+        <button data-act="play"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Play</button>
         <button data-act="edit">แก้ไข</button>
         <button data-act="del">ลบ</button>
       </div>`;
@@ -630,6 +1029,64 @@ async function renderLibrary(){
   currentGames=await fetchGames();
   renderGridFromCurrent();
 }
+document.querySelectorAll('#filterChips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#filterChips .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    libraryFilter=chip.dataset.filter;
+    renderGridFromCurrent();
+  });
+});
+const ICON_VIEW_LIST='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>';
+const ICON_VIEW_GRID='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>';
+let libraryViewMode='grid';
+try{ libraryViewMode=localStorage.getItem('libraryViewMode')||'grid'; }catch(e){}
+function applyLibraryViewMode(){
+  grid.classList.toggle('list-view', libraryViewMode==='list');
+  const btn=document.getElementById('viewToggleBtn');
+  if(btn){ btn.innerHTML = libraryViewMode==='list' ? ICON_VIEW_GRID : ICON_VIEW_LIST; btn.title = libraryViewMode==='list' ? 'สลับเป็นมุมมองตาราง' : 'สลับเป็นมุมมองรายการ'; }
+}
+document.getElementById('gameSearchInput').addEventListener('input', (e)=>{ librarySearch=e.target.value; renderGridFromCurrent(); });
+document.getElementById('viewToggleBtn').addEventListener('click', ()=>{
+  libraryViewMode = libraryViewMode==='list' ? 'grid' : 'list';
+  try{ localStorage.setItem('libraryViewMode', libraryViewMode); }catch(e){}
+  applyLibraryViewMode();
+});
+applyLibraryViewMode();
+
+// ---------- keyboard navigation for the library grid (arrow keys to move, Enter to open) ----------
+function vibrateShort(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+let kbFocusIdx=-1;
+function kbSetFocus(idx){
+  const cards=[...grid.children];
+  cards.forEach(c=>c.classList.remove('kbd-focus'));
+  if(idx<0 || idx>=cards.length){ kbFocusIdx=-1; return; }
+  kbFocusIdx=idx;
+  cards[idx].classList.add('kbd-focus');
+  cards[idx].scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+function kbColumnCount(cards){
+  if(cards.length<2) return 1;
+  const firstTop=cards[0].offsetTop;
+  let count=0;
+  for(const c of cards){ if(c.offsetTop===firstTop) count++; else break; }
+  return count||1;
+}
+document.addEventListener('keydown',(e)=>{
+  const tag=(document.activeElement && document.activeElement.tagName) || '';
+  if(['INPUT','TEXTAREA','SELECT'].includes(tag)) return; // don't hijack typing
+  if(document.getElementById('libraryView').style.display==='none') return; // only while browsing the library
+  if(document.querySelector('.modal-bg.show')) return; // a popup/modal is open — let it handle its own keys
+  const cards=[...grid.children];
+  if(!cards.length) return;
+  const cols=kbColumnCount(cards); // list view naturally comes out to 1, so Up/Down behave like Left/Right there
+  if(e.key==='ArrowRight'){ e.preventDefault(); kbSetFocus(Math.min((kbFocusIdx<0?-1:kbFocusIdx)+1, cards.length-1)); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); kbSetFocus(Math.max((kbFocusIdx<0?0:kbFocusIdx)-1, 0)); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); kbSetFocus(Math.min((kbFocusIdx<0?0:kbFocusIdx)+cols, cards.length-1)); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); kbSetFocus(Math.max((kbFocusIdx<0?0:kbFocusIdx)-cols, 0)); }
+  else if(e.key==='Enter'){ if(kbFocusIdx>=0 && cards[kbFocusIdx]){ e.preventDefault(); cards[kbFocusIdx].click(); } }
+  else if(e.key==='Escape'){ kbSetFocus(-1); }
+});
 
 // ---------- detail popup (tap a card to see full info; only the Play button starts the game) ----------
 const detailModalBg=document.getElementById('detailModalBg');
@@ -657,6 +1114,33 @@ function openDetailModal(item){
   else { detailVersion.style.display='none'; detailVersion.textContent=''; }
   detailDesc.textContent=item.description || 'ไม่มีคำอธิบายเพิ่มเติม';
   detailModalBg.classList.add('show');
+  loadPlayedBy(item);
+}
+async function loadPlayedBy(item){
+  const section=document.getElementById('detailPlayedBySection');
+  const listEl=document.getElementById('detailPlayedBy');
+  section.style.display='none';
+  try{
+    const {data,error}=await sb.from('play_sessions').select('sync_code,seconds').eq('game_id', item.id).limit(5000);
+    if(error || !data || !data.length) return; // quietly hide the section if there's no data (or the table doesn't exist yet)
+    const totals=new Map(); // sync_code -> seconds
+    data.forEach(r=>{
+      const code=(r.sync_code||'').trim();
+      if(!code) return; // skip sessions with no sync code — nothing to attribute them to
+      totals.set(code, (totals.get(code)||0)+(r.seconds||0));
+    });
+    if(!totals.size) return;
+    const sorted=[...totals.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
+    listEl.innerHTML='';
+    sorted.forEach(([code,secs])=>{
+      const row=document.createElement('div'); row.className='played-by-row';
+      const nm=document.createElement('span'); nm.className='pb-name'; nm.textContent=code;
+      const tm=document.createElement('span'); tm.className='pb-time'; tm.textContent=fmtDuration(secs);
+      row.appendChild(nm); row.appendChild(tm);
+      listEl.appendChild(row);
+    });
+    section.style.display='block';
+  }catch(e){ console.warn('loadPlayedBy failed', e); }
 }
 document.getElementById('detailCloseBtn').onclick=()=>{ detailModalBg.classList.remove('show'); detailItem=null; };
 document.getElementById('detailPlayBtn').onclick=()=>{
@@ -717,9 +1201,38 @@ const marqueeImgFileNameEl=wireFilePicker('marqueeImgFile','marqueeImgFileName')
 
 // auto-fill "มีแปลไทย" and "เวอร์ชัน" from the picked ROM's filename — still fully
 // editable by hand afterwards, this is just a head start
-romFileInput.addEventListener('change', ()=>{
+const EXT_TO_SYSTEM={gb:'gb',gbc:'gbc',gba:'gba',nds:'nds',srl:'nds'};
+const SYSTEM_LABELS={gb:'Game Boy (GB)',gbc:'Game Boy Color (GBC)',gba:'Game Boy Advance (GBA)',nds:'Nintendo DS (NDS)'};
+function systemFromFilename(name){
+  const m=String(name||'').toLowerCase().match(/\.([a-z0-9]+)$/);
+  return (m && EXT_TO_SYSTEM[m[1]]) || '';
+}
+// .zip: peek at the first entry's filename inside the archive to find the real extension
+async function detectSystemFromFile(f){
+  const direct=systemFromFilename(f.name);
+  if(direct) return direct;
+  if(/\.zip$/i.test(f.name)){
+    try{
+      const b=new Uint8Array(await f.slice(0,1024).arrayBuffer());
+      if(b[0]===0x50 && b[1]===0x4b && b[2]===3 && b[3]===4){
+        const nl=b[26]|(b[27]<<8);
+        return systemFromFilename(new TextDecoder().decode(b.subarray(30,30+nl)));
+      }
+    }catch(e){}
+  }
+  return '';
+}
+romFileInput.addEventListener('change', async ()=>{
   const f=romFileInput.files[0];
   if(!f) return;
+  const hintEl=document.getElementById('romSystemHint');
+  const sys=await detectSystemFromFile(f);
+  if(sys){
+    romSystemInput.value=sys;
+    if(hintEl) hintEl.textContent='ตรวจพบจากนามสกุลไฟล์: '+SYSTEM_LABELS[sys]+' (แก้เองได้)';
+  } else if(hintEl){
+    hintEl.textContent='ไม่รู้จักนามสกุลไฟล์นี้ กรุณาเลือกเครื่องเอง';
+  }
   if(filenameLooksThai(f.name)) romHasThaiInput.checked=true;
   const ver=extractVersionFromFilename(f.name);
   if(ver) romVersionInput.value=ver;
@@ -736,12 +1249,13 @@ coverFileInput.addEventListener('change', ()=>{
 function resetModalToAdd(){
   editingItem=null;
   modalTitleEl.textContent='เพิ่มเกมใหม่';
-  romFileLabelEl.textContent='ไฟล์ ROM (.gb / .gbc / .gba)';
+  romFileLabelEl.textContent='ไฟล์ ROM (.gb / .gbc / .gba / .nds)';
   romNameInput.value='';
   romDescInput.value='';
   romHasThaiInput.checked=false;
   romVersionInput.value='';
   romSystemInput.value='gba';
+  { const h=document.getElementById('romSystemHint'); if(h) h.textContent='เลือกให้อัตโนมัติจากนามสกุลไฟล์ (.gb .gbc .gba .nds) แก้เองได้'; }
   romFileInput.value='';
   coverFileInput.value='';
   romFileNameEl.textContent=FILE_PICKER_EMPTY;
@@ -786,7 +1300,7 @@ saveBtn.onclick=async()=>{
     if(editingItem){
       const updateData={ name, core:system, description, has_thai:hasThai, version };
       if(romFile){
-        updateData.rom_path=await uploadToLibrary(romFile,'roms');
+        updateData.rom_path=await uploadRom(romFile);
         if(editingItem.rom_path) await deleteFromLibrary(editingItem.rom_path);
       }
       if(coverFile){
@@ -796,7 +1310,7 @@ saveBtn.onclick=async()=>{
       const {error}=await sb.from('games').update(updateData).eq('id', editingItem.id);
       if(error) throw error;
     } else {
-      const romPath=await uploadToLibrary(romFile,'roms');
+      const romPath=await uploadRom(romFile);
       let coverPath=null;
       if(coverFile){ coverPath=await uploadToLibrary(coverFile,'covers'); }
       const nextOrder = currentGames.length ? Math.max(...currentGames.map(g=>g.sort_order||0))+1 : 0;
@@ -808,7 +1322,8 @@ saveBtn.onclick=async()=>{
     renderLibrary();
   }catch(err){
     console.error(err);
-    alert((editingItem?'บันทึกการแก้ไข':'อัปโหลด')+'ไม่สำเร็จ: '+(err.message||err));
+    const hint=(romFile && !r2Enabled()) ? '\n\n(ถ้าไฟล์ใหญ่เกินที่ Supabase รับ ให้ตั้งค่า R2_WORKER_URL ในสคริปต์เพื่อเก็บ ROM ที่ Cloudflare R2)' : '';
+    alert((editingItem?'บันทึกการแก้ไข':'อัปโหลด')+'ไม่สำเร็จ: '+(err.message||err)+hint);
   }finally{
     saveBtn.disabled=false; saveBtn.textContent=editingItem?'บันทึกการแก้ไข':'บันทึก';
   }
@@ -816,6 +1331,53 @@ saveBtn.onclick=async()=>{
 
 // ---------- sync code (personal, follows the player across devices) ----------
 function getSyncCode(){ return localStorage.getItem('syncCode') || ''; }
+
+// ---------- who's-online (Supabase Realtime Presence — ephemeral, no database table needed) ----------
+const ONLINE_PRESENCE_KEY=(function(){ try{ return crypto.randomUUID(); }catch(e){ return 'p-'+Date.now()+'-'+Math.random().toString(36).slice(2); } })();
+const onlineChannel=sb.channel('site-presence', { config:{ presence:{ key:ONLINE_PRESENCE_KEY } } });
+function renderOnlineList(){
+  const state=onlineChannel.presenceState();
+  const entries=[];
+  Object.values(state).forEach(metas=>metas.forEach(m=>entries.push(m)));
+  entries.sort((a,b)=>(a.game?0:1)-(b.game?0:1)); // people actively playing a game float to the top
+  const badge=document.getElementById('onlineBadge');
+  if(badge){ if(entries.length){ badge.textContent=String(entries.length); badge.style.display='flex'; } else badge.style.display='none'; }
+  const listEl=document.getElementById('onlineList');
+  const countEl=document.getElementById('onlineCount');
+  if(!listEl) return;
+  countEl.textContent = entries.length ? ('ผู้ใช้งานออนไลน์ '+entries.length+' คน') : 'ยังไม่มีผู้ใช้งานออนไลน์ตอนนี้';
+  listEl.innerHTML='';
+  if(!entries.length){ listEl.innerHTML='<div class="dash-empty">ยังไม่มีผู้ใช้งานออนไลน์ตอนนี้</div>'; return; }
+  entries.forEach(m=>{
+    const row=document.createElement('div'); row.className='online-row';
+    const dot=document.createElement('span'); dot.className='online-dot';
+    const nm=document.createElement('span'); nm.className='o-name'; nm.textContent=m.name||'ผู้เยี่ยมชม';
+    const gm=document.createElement('span'); gm.className='o-game'; gm.textContent=m.game ? ('🎮 '+m.game) : 'อยู่หน้าแรก';
+    row.appendChild(dot); row.appendChild(nm); row.appendChild(gm);
+    listEl.appendChild(row);
+  });
+}
+onlineChannel.on('presence', {event:'sync'}, renderOnlineList);
+let onlinePresenceReady=null;
+function ensureOnlinePresence(){
+  if(!onlinePresenceReady){
+    onlinePresenceReady=new Promise(resolve=>{ onlineChannel.subscribe(status=>{ if(status==='SUBSCRIBED') resolve(); }); });
+  }
+  return onlinePresenceReady;
+}
+async function trackPresence(gameName){
+  try{
+    await ensureOnlinePresence();
+    await onlineChannel.track({ name:getSyncCode()||null, game:gameName||null });
+  }catch(e){ console.warn('presence track failed', e); }
+}
+window.addEventListener('pagehide', ()=>{ try{ onlineChannel.untrack(); }catch(e){} });
+document.getElementById('onlineBtn').addEventListener('click', ()=>{
+  document.getElementById('onlineModalBg').classList.add('show');
+  renderOnlineList();
+});
+document.getElementById('onlineCloseBtn').onclick=()=>document.getElementById('onlineModalBg').classList.remove('show');
+document.getElementById('onlineModalBg').addEventListener('click',(e)=>{ if(e.target===e.currentTarget) e.currentTarget.classList.remove('show'); });
 function setSyncCode(code){ if(code) localStorage.setItem('syncCode', code); else localStorage.removeItem('syncCode'); }
 const syncModalBg=document.getElementById('syncModalBg');
 const syncCodeInput=document.getElementById('syncCodeInput');
@@ -870,6 +1432,11 @@ async function grabSave(){
     return bytes ? new Uint8Array(bytes) : null;
   }catch(e){ console.warn('grabSave failed', e); return null; }
 }
+// tracks the updated_at of the save version we last knew about (loaded at boot, or written by us) — used to
+// detect if someone else on the same sync code saved from another device in the meantime, so we can warn
+// instead of silently overwriting their progress.
+let saveBaselineAt=null;
+let saveConflictWarned=false;
 async function flushSave(){
   const id = sessionStorage.getItem('playId');
   if(!id) return;
@@ -877,16 +1444,114 @@ async function flushSave(){
   if(!code) return; // no personal code set yet — nothing to sync to
   const bytes = await grabSave();
   if(!bytes) return;
+  const sig=saveSignature(bytes);
+  if(sig===lastSavedSig) return; // nothing changed since the last successful upload — skip the work and the network call
   try{
-    await sb.from('saves').upsert({ sync_code:code, game_id:id, sram:bytesToBase64(bytes), updated_at:new Date().toISOString() });
-  }catch(e){ console.warn('flushSave failed', e); }
+    if(saveBaselineAt && !saveConflictWarned){
+      const {data:cur}=await sb.from('saves').select('updated_at').eq('sync_code',code).eq('game_id',id).maybeSingle();
+      if(cur && cur.updated_at && new Date(cur.updated_at).getTime() > new Date(saveBaselineAt).getTime()+2000){
+        saveConflictWarned=true;
+        toastMsg('⚠️ มีคนเล่นเกมนี้ด้วยรหัสซิงก์เดียวกันจากเครื่องอื่น เซฟอาจถูกเขียนทับ');
+      }
+    }
+    const nowIso=new Date().toISOString();
+    const {error:upErr}=await sb.from('saves').upsert({ sync_code:code, game_id:id, sram:bytesToBase64(bytes), updated_at:nowIso });
+    if(upErr) throw upErr;
+    saveBaselineAt=nowIso;
+    lastSavedSig=sig;
+    saveFailNotifiedAt=0;
+  }catch(e){
+    console.warn('flushSave failed', e);
+    // supabase-js returns errors instead of throwing, so this used to fail silently. Warn the player (at most once a minute).
+    if(Date.now()-saveFailNotifiedAt>60000){
+      saveFailNotifiedAt=Date.now();
+      try{ toastMsg('⚠️ บันทึกเซฟขึ้นเซิร์ฟเวอร์ไม่สำเร็จ ลองเซฟในเกมซ้ำ หรือตรวจอินเทอร์เน็ต'); }catch(_){}
+    }
+  }
 }
+let saveFailNotifiedAt=0;
+let lastSavedSig=null;
+function saveSignature(b){ let h=2166136261>>>0; for(let i=0;i<b.length;i++){ h^=b[i]; h=Math.imul(h,16777619)>>>0; } return b.length+':'+h; }
+// ---- play-time tracking for the admin dashboard: logs one row per play session to "play_sessions" ----
+async function logPlaySession(){
+  const startTs = sessionStorage.getItem('playStartTs');
+  const gid = sessionStorage.getItem('playId');
+  const gname = sessionStorage.getItem('playGameName');
+  if(!startTs || !gid) return;
+  const seconds = Math.round((Date.now()-Number(startTs))/1000);
+  sessionStorage.removeItem('playStartTs'); // stop the clock so a stray extra call can't double-count
+  if(seconds<5) return; // ignore accidental taps
+  try{
+    await sb.from('play_sessions').insert({ sync_code:getSyncCode()||null, game_id:gid, game_name:gname||'', seconds, ended_at:new Date().toISOString() });
+  }catch(e){ console.warn('logPlaySession failed', e); }
+}
+// ---- lightweight toast, so quick-save/load feedback doesn't block the game like alert() would ----
+let toastTimer=null;
+function toastMsg(msg){
+  const el=document.getElementById('toastMsg');
+  if(!el) return;
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'), 2200);
+}
+// ---- quick save/load: a full emulator save-state (not just SRAM), kept per-device in localStorage.
+// This is separate from the cross-device SRAM sync above — it's a fast mid-session checkpoint, e.g. right before a boss fight.
+function quickSaveKey(id){ return id ? 'quickSave:'+id : null; }
+function quickSaveAtKey(id){ return id ? 'quickSaveAt:'+id : null; }
+function updateQuickLoadAvailability(){
+  const id=sessionStorage.getItem('playId');
+  const btn=document.getElementById('quickLoadBtn');
+  if(!btn || !id) return;
+  const ts=localStorage.getItem(quickSaveAtKey(id));
+  const has=!!localStorage.getItem(quickSaveKey(id));
+  btn.classList.toggle('disabled', !has);
+  if(has && ts){
+    try{ btn.title='โหลดด่วน (บันทึกไว้ '+new Date(Number(ts)).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})+')'; }
+    catch(e){ btn.title='โหลดด่วน'; }
+  } else btn.title='ยังไม่มีเซฟด่วนสำหรับเกมนี้';
+}
+async function quickSaveState(){
+  const id=sessionStorage.getItem('playId');
+  const gm=window.EJS_emulator && window.EJS_emulator.gameManager;
+  if(!id || !gm){ toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง'); return; }
+  try{
+    let state=null;
+    if(typeof gm.getState==='function') state=await gm.getState();
+    else if(typeof gm.saveState==='function') state=await gm.saveState();
+    if(!state){ toastMsg('เซฟด่วนไม่สำเร็จ'); return; }
+    const bytes=state instanceof Uint8Array ? state : new Uint8Array(state);
+    localStorage.setItem(quickSaveKey(id), bytesToBase64(bytes));
+    localStorage.setItem(quickSaveAtKey(id), String(Date.now()));
+    toastMsg('เซฟด่วนแล้ว ✅');
+    vibrateShort(20);
+    updateQuickLoadAvailability();
+  }catch(e){ console.warn('quickSaveState failed', e); toastMsg('เซฟด่วนไม่สำเร็จ — เกมนี้อาจยังไม่รองรับ'); }
+}
+async function quickLoadState(){
+  const id=sessionStorage.getItem('playId');
+  const gm=window.EJS_emulator && window.EJS_emulator.gameManager;
+  if(!id || !gm){ toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง'); return; }
+  const b64=localStorage.getItem(quickSaveKey(id));
+  if(!b64){ toastMsg('ยังไม่มีเซฟด่วนสำหรับเกมนี้'); return; }
+  try{
+    const bytes=base64ToBytes(b64);
+    if(typeof gm.loadState==='function'){ await gm.loadState(bytes); toastMsg('โหลดด่วนแล้ว ✅'); vibrateShort(20); }
+    else{ toastMsg('อุปกรณ์นี้ไม่รองรับโหลดด่วน'); }
+  }catch(e){ console.warn('quickLoadState failed', e); toastMsg('โหลดด่วนไม่สำเร็จ'); }
+}
+document.getElementById('quickSaveBtn').addEventListener('click', quickSaveState);
+document.getElementById('quickLoadBtn').addEventListener('click', quickLoadState);
+
 document.getElementById('backBtn').onclick=async()=>{
   await flushSave();
+  await logPlaySession();
   sessionStorage.removeItem('playId');
+  sessionStorage.removeItem('playGameName');
+  sessionStorage.setItem('skipIntro','1'); // go straight back to the game-selection library — skip the intro splash and loading screen
   location.reload();
 };
-window.addEventListener('pagehide', ()=>{ if(sessionStorage.getItem('playId')) flushSave(); });
+window.addEventListener('pagehide', ()=>{ if(sessionStorage.getItem('playId')){ flushSave(); logPlaySession(); } });
 
 // ---------- collapsible "how to play" hint under the emulator — starts tucked away so ----------
 // the play screen looks clean, but stays one tap away for anyone new who needs it
@@ -898,27 +1563,36 @@ hintToggleBtn.addEventListener('click', ()=>{
   hintToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
 });
 
-function coreFor(system){ return system==='gba' ? 'gba' : 'gb'; } // gb core (Gambatte) handles GB + GBC
+function coreFor(system){ if(system==='nds') return 'nds'; return system==='gba' ? 'gba' : 'gb'; } // gb core (Gambatte) handles GB + GBC; nds uses the melonDS-based 'nds' core
 
 async function bootPlayer(id){
   const {data:rec}=await sb.from('games').select('*').eq('id',id).maybeSingle();
   if(!rec){ sessionStorage.removeItem('playId'); return; }
   document.getElementById('libraryView').style.display='none';
   document.getElementById('playView').style.display='block';
+  document.body.classList.add('in-play');
+  playGbBootChime();
+  setTimeout(()=>{ const ov=document.getElementById('gbBootOverlay'); if(ov) ov.classList.add('hide'); }, 1250);
   document.querySelector('.fab-zone').style.display='none';
   document.getElementById('backBtn').style.display='inline-block';
+  document.getElementById('quickSaveBtn').style.display='inline-flex';
+  document.getElementById('quickLoadBtn').style.display='inline-flex';
+  updateQuickLoadAvailability();
   document.title='เล่น: '+rec.name;
   headerGameNameText.textContent=rec.name;
   headerGameName.style.display='flex';
+  sessionStorage.setItem('playStartTs', String(Date.now()));
+  sessionStorage.setItem('playGameName', rec.name);
+  trackPresence(rec.name);
 
   let code=getSyncCode();
   if(!code){ code=await openSyncModal(); }
 
-  const romUrl=publicUrl(rec.rom_path);
+  const romUrl=romUrlFor(rec.rom_path);
   let saveBytes=null;
   if(code){
-    const {data:saveRow}=await sb.from('saves').select('sram').eq('sync_code',code).eq('game_id',id).maybeSingle();
-    if(saveRow && saveRow.sram){ saveBytes=base64ToBytes(saveRow.sram); }
+    const {data:saveRow}=await sb.from('saves').select('sram,updated_at').eq('sync_code',code).eq('game_id',id).maybeSingle();
+    if(saveRow && saveRow.sram){ saveBytes=base64ToBytes(saveRow.sram); saveBaselineAt=saveRow.updated_at||null; }
   }
   if(saveBytes){
     window.EJS_onGameStart=()=>{
@@ -930,6 +1604,11 @@ async function bootPlayer(id){
     };
   }
   setInterval(flushSave, 15000);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
+  // NDS's two stacked screens (256x384) are much taller/narrower than GB/GBA's landscape screen —
+  // swap the player's aspect ratio to fit, and leave every other system exactly as before.
+  const ejsContainerEl=document.getElementById('ejsContainer');
+  if(ejsContainerEl) ejsContainerEl.style.aspectRatio = rec.core==='nds' ? '2/3' : '4/3';
   window.EJS_player='#ejsContainer';
   window.EJS_core=coreFor(rec.core);
   window.EJS_gameUrl=romUrl;
@@ -939,6 +1618,13 @@ async function bootPlayer(id){
   window.EJS_startOnLoaded=true;
   window.EJS_backgroundColor='#000';
   window.EJS_VirtualGamepadSettings=[];
+  window.EJS_disableDatabases=false; // keep EmulatorJS's own local storage on — this is what remembers button mapping, volume, etc. between plays
+  if(rec.core==='nds'){
+    // melonDS (the nds core) needs bios7.bin, bios9.bin and firmware.bin — built into the site, see ndsBiosUrl()
+    const biosUrl=ndsBiosUrl();
+    if(biosUrl) window.EJS_biosUrl=biosUrl;
+    else console.warn('No NDS BIOS available — upload roms/nds-bios.zip to R2 or fill NDS_BIOS_BASE64.');
+  }
   const s=document.createElement('script');
   s.src='https://cdn.emulatorjs.org/stable/data/loader.js';
   document.body.appendChild(s);
@@ -962,23 +1648,31 @@ async function fetchMarqueeRows(){
 async function buildIntroMarquee(){
   const grid=document.getElementById('introGrid');
   grid.innerHTML='';
+  grid.classList.remove('ready');
   const rows=await fetchMarqueeRows();
   const urls = [...(rows.length ? rows.map(r=>publicUrl(r.image_path)) : DEFAULT_MARQUEE_IMAGES)];
   // random order on every page load (Fisher–Yates) — only the display is shuffled; the saved sort_order in the admin panel is untouched
   for(let i=urls.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [urls[i],urls[j]]=[urls[j],urls[i]]; }
   const cols=[[],[],[]];
   urls.forEach((src,i)=>cols[i%3].push(src));
+  const loadPromises=[];
   cols.forEach((list,i)=>{
     const col=document.createElement('div');
     col.className='intro-col c'+(i+1);
     // duplicate list so the loop feels continuous
     [...list,...list].forEach(src=>{
       const img=document.createElement('img');
-      img.src=src; img.alt=''; img.draggable=false;
+      img.alt=''; img.draggable=false;
+      loadPromises.push(new Promise(resolve=>{ img.onload=resolve; img.onerror=resolve; }));
+      img.src=src;
       col.appendChild(img);
     });
     grid.appendChild(col);
   });
+  // wait for every image to finish (or a 2.5s cap, in case one is slow/unreachable) before fading the
+  // whole grid in together, instead of each image popping in on its own as it happens to finish loading
+  await Promise.race([ Promise.all(loadPromises), new Promise(r=>setTimeout(r,2500)) ]);
+  grid.classList.add('ready');
 }
 
 // ---------- shared audio context ----------
@@ -1073,6 +1767,62 @@ function playPop(){
     osc.stop(now+0.17);
   }catch(e){ /* ignore audio errors */ }
 }
+// short rising-pitch "blip" played each time a segment of the loading bar lights up
+function playLoadBlip(freq){
+  try{
+    const ctx=getAudioCtx();
+    if(!ctx) return;
+    const go=()=>{
+      const now=ctx.currentTime;
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type='square';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.07, now+0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now+0.07);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now); osc.stop(now+0.08);
+    };
+    if(ctx.state==='running') go(); // if still locked, stay silent (a blip after the unlock would sound wrong)
+  }catch(e){ /* ignore audio errors */ }
+}
+const BOOT_LOAD_SEGMENTS=10;
+// fake 0-100% loading bar shown on a real fresh visit/refresh, purely cosmetic — it masks the brief
+// moment the page needs to set itself up and ends with a little chime, then reveals the intro splash.
+function runBootLoadingScreen(){
+  return new Promise(resolve=>{
+    const view=document.getElementById('bootLoadingView');
+    const track=document.getElementById('bootLoadTrack');
+    const pct=document.getElementById('bootLoadPct');
+    track.innerHTML='';
+    for(let i=0;i<BOOT_LOAD_SEGMENTS;i++){ const seg=document.createElement('div'); seg.className='boot-load-seg'; track.appendChild(seg); }
+    const segs=[...track.children];
+    let filled=0, p=0;
+    // browsers keep audio locked until the visitor's first tap/click/key — unlock then, and hint if still locked
+    const hint=document.getElementById('bootLoadHint');
+    const unlock=()=>{ try{ const c=getAudioCtx(); if(c && c.state==='running' && hint) hint.classList.remove('show'); }catch(e){} };
+    ['pointerdown','touchstart','keydown'].forEach(ev=>window.addEventListener(ev, unlock, {passive:true}));
+    const timer=setInterval(()=>{
+      p=Math.min(100, p + 4 + Math.random()*10); // uneven steps so it doesn't look mechanically linear
+      const shouldFill=Math.floor(p/100*BOOT_LOAD_SEGMENTS);
+      while(filled<shouldFill){
+        segs[filled].classList.add('on');
+        playLoadBlip(320+filled*34);
+        filled++;
+      }
+      pct.textContent=Math.floor(p)+'%';
+      if(p>=100){
+        clearInterval(timer);
+        try{ const c=getAudioCtx(); if(c && c.state==='running') playDing(); }catch(e){} // skip if audio is still locked, so it can't fire late
+        setTimeout(()=>{
+          view.classList.add('hide');
+          setTimeout(()=>{ view.style.display='none'; resolve(); }, 420);
+        }, 260);
+      }
+    }, 110);
+  });
+}
 // clicking the title zooms into the site, then reveals the library
 function enterFromIntro(){
   const introEl=document.getElementById('introView');
@@ -1115,6 +1865,31 @@ function playTitleHover(){
   window.addEventListener(evt, ()=>{ getAudioCtx(); }, {once:true, passive:true});
 });
 document.getElementById('introTitle').addEventListener('mouseenter', playTitleHover);
+
+// short ascending chime for the Game Boy-style boot animation when entering a game
+function playGbBootChime(){
+  try{
+    const ctx=getAudioCtx();
+    if(!ctx) return;
+    const go=()=>{
+      const now=ctx.currentTime;
+      [[659.25,0],[830.61,0.09],[987.77,0.18]].forEach(([freq,delay])=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+        osc.type='square';
+        osc.frequency.setValueAtTime(freq, now+delay);
+        gain.gain.setValueAtTime(0.0001, now+delay);
+        gain.gain.exponentialRampToValueAtTime(0.08, now+delay+0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now+delay+0.22);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(now+delay);
+        osc.stop(now+delay+0.24);
+      });
+    };
+    if(ctx.state==='running') go();
+    else ctx.resume().then(()=>{ if(ctx.state==='running') go(); }).catch(()=>{});
+  }catch(e){ /* ignore audio errors */ }
+}
 
 // ---------- key button: password gate for editing the shared library (games + marquee images) ----------
 const keyModalBg=document.getElementById('keyModalBg');
@@ -1244,6 +2019,581 @@ document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>
   marqueeImgFileNameEl.textContent=FILE_PICKER_EMPTY;
 });
 
+// ---------- summary button: list every game (grouped by system) with its description, for quick reference ----------
+const summaryModalBg=document.getElementById('summaryModalBg');
+const summaryListEl=document.getElementById('summaryList');
+const summarySearchEl=document.getElementById('summarySearch');
+const summaryCountEl=document.getElementById('summaryCount');
+
+// ---------- built-in story summaries (matched to a game by name; shown in the summary popup) ----------
+// full:true  = premise/setting confirmed from public sources.  full:false = only the basics could be confirmed.
+const BUILTIN_SUMMARIES=[
+{keys:['morefriendsofmineraltown'], full:false, text:
+`Harvest Moon: More Friends of Mineral Town (GBA) — ภาคปรับปรุงของ Friends of Mineral Town (ข้อมูลนี้มาจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้)
+
+แนวเกม: เกมทำฟาร์มจำลองชีวิต ผู้เล่นเป็นเจ้าของฟาร์มที่เมือง Mineral Town ปลูกพืช เลี้ยงสัตว์ ตกปลา ขุดเหมือง ผูกมิตรกับชาวเมือง และเข้าร่วมเทศกาลตลอดปี
+
+ต่างจากภาคก่อน: เลือกเล่นเป็นชายหรือหญิงได้ และมีผู้มีสิทธิ์แต่งงานทั้งสองเพศ
+
+เป้าหมาย: ไม่มีตอนจบเดียว ผู้เล่นตั้งเป้าเอง เช่นพัฒนาฟาร์ม แต่งงาน มีลูก ฟื้นสถานที่ในเมือง และสะสมความสัมพันธ์กับชาวเมือง`},
+{keys:['friendsofmineraltown'], full:false, text:
+`Harvest Moon: Friends of Mineral Town (GBA) — ข้อมูลนี้มาจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้
+
+แนวเกม: เกมทำฟาร์มจำลองชีวิต ผู้เล่นรับช่วงฟาร์มเก่าในเมือง Mineral Town ปลูกพืช เลี้ยงสัตว์ ตกปลา ขุดเหมือง สานสัมพันธ์กับชาวเมือง และเข้าร่วมเทศกาลตามฤดูกาล
+
+เป้าหมาย: ไม่มีเส้นเรื่องบังคับหรือตอนจบเดียว ผู้เล่นพัฒนาฟาร์ม หาเงิน เลือกแต่งงานกับตัวละครในเมือง และมีลูก โดยมี Harvest Goddess และ Harvest Sprites เป็นส่วนหนึ่งของโลกเกม`},
+{keys:['harvestmoon'], full:false, text:
+`Harvest Moon — ซีรีส์เกมทำฟาร์มจำลองชีวิต (ข้อมูลนี้เป็นภาพรวมจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้ และไม่ทราบว่าพี่มีภาคไหนของ Harvest Moon)
+
+แนวเกม: ผู้เล่นรับช่วงและบริหารฟาร์ม ปลูกพืช เลี้ยงสัตว์ ขายผลผลิตหาเงิน ผูกมิตรกับชาวเมือง เข้าร่วมเทศกาล และในหลายภาคแต่งงานมีครอบครัวได้
+
+เป้าหมาย: ส่วนใหญ่ไม่มีเรื่องราวบังคับหรือตอนจบเดียว ผู้เล่นกำหนดเป้าหมายเอง ถ้าบอกผมว่าเป็นภาคไหน (GB, GBC ภาค 2/3, Friends of Mineral Town ฯลฯ) ผมจะเขียนแยกให้เฉพาะภาคได้`},
+{keys:['unbound'], full:true, text:
+`Pokémon Unbound — ฐาน FireRed, สร้างโดย Skeli, ฉากหลังคือแคว้น Borrius
+
+ปูมหลัง: Borrius เคยเป็นแคว้นรุ่งเรือง แต่ตกอยู่ในสงครามยาวนานกับแคว้น Kalos ฝั่ง Kalos ใช้ "อาวุธสุดท้าย" ของกษัตริย์ AZ (เกี่ยวกับ Floette) เพื่อยุติสงคราม ฝั่ง Borrius กษัตริย์ไม่ช่วยเหลือผู้รอดชีวิตที่ขอค่าชดเชย ผู้รอดชีวิตจึงหันไปใช้พลังมืดนั้นโจมตีอาณาจักรเอง
+
+เริ่มเรื่อง: ผู้เล่นเริ่มต้นที่ Bellin Town ทางตะวันตกของ Borrius (เขตหิมะ) หลังปรับแต่งตัวละครเอง เรื่องราวเชื่อมกับเมือง Dresco ซึ่งเป็นยิมแรก จากนั้นเดินทางข้ามเมืองต่างๆ ของ West และ East Borrius เก็บ 8 แบดจ์ โดยยิมแต่ละแห่งมีกติกาพิเศษเฉพาะตัว (เช่นยิมแรกที่ท่าแรกสองท่าของโปเกมอนจะกำหนดธาตุหลัก/รอง)
+
+กลางเรื่อง: องค์กร Team Shadow (แชโดว์) ทำงานลับเพื่อปลดปล่อยพลังมืดที่เป็นภัยต่อทั้งภูมิภาค ผู้เล่นต้องขัดขวางแผนการ ผ่านภารกิจต่างๆ เช่นการตามหา Successor Maxima ที่ Thundercap Mountain / Tarmigan Town และเผชิญกับ "Shadow" กับ "Light of Ruin"
+
+ปิดเรื่อง: หลังชนะทั้ง 8 ยิมและกำจัดภัยคุกคาม ผู้เล่นได้ท้าชิง Borrius Pokémon League ที่ตำแหน่งแชมป์ว่างอยู่ ต้องชนะ Elite Four ห้าคนต่อเนื่องโดยไม่กลับล็อบบี้ เมื่อได้เป็นแชมป์ เรื่องหลักจบ แต่เกมพาเข้าสู่เนื้อหาหลังจบทันที
+
+หลังจบเกม: Hoopa ที่ Crystal Peak เสียการควบคุม ทำให้เกิดโปเกมอนประหลาด 25 ตัวทั่ว Borrius ที่ต้องปราบเพื่อปิดพอร์ทัล และมีเควสต์ตอนท้ายเกมอีกมาก`},
+{keys:['gaia'], full:true, text:
+`Pokémon Gaia — ฐาน FireRed, สร้างโดย Spherical Ice, ฉากหลังคือภูมิภาค Orbtus
+
+ปูมหลัง: Orbtus เคยมีอารยธรรมรุ่งเรืองที่สร้างอนุสรณ์ถึงเทพเจ้าและผู้พิทักษ์ แต่ล่มสลายจากแผ่นดินไหวครั้งใหญ่ เหลือเพียงวิหาร เสา และตำนาน ปัจจุบัน ศาสตราจารย์ Redwood นักโบราณคดีและศาสตราจารย์โปเกมอน สังเกตว่าแผ่นดินไหวในภูมิภาคเริ่มถี่ขึ้น
+
+เริ่มเรื่อง: ผู้เล่นเป็นเด็กที่อาศัยอยู่ใน Celanto Town เมืองริมทะเลใกล้เสาโทเท็มปริศนา ศาสตราจารย์ขอให้เทรนเนอร์รุ่นใหม่ช่วยตรวจสอบและป้องกันไม่ให้แผ่นดินกลืนภูมิภาคอีกครั้ง โดยมีคู่แข่ง (rival) ร่วมเดินทาง
+
+กลางเรื่อง: ผู้เล่นเก็บ 8 แบดจ์ สำรวจซากปรักหักพังและดันเจี้ยนที่ผูกกับเนื้อเรื่อง องค์กร Team Epoch ซึ่งไม่ได้ต้องการเงินหรือครองโลกแบบทั่วไป แต่เคลื่อนไหวอยู่ตามสถานที่โบราณเหล่านี้ ทำให้ฉากและเรื่องเชื่อมโยงกัน
+
+ปิดเรื่อง: เรื่องหลักครบทั้ง 8 ยิม เนื้อเรื่อง Elite Four และแชมป์ พร้อมเนื้อหาหลังจบเกม เกมได้รางวัล PokéCommunity หลายสาขา เช่น Best Storyline และ Best Mapping`},
+{keys:['glazed'], full:true, text:
+`Pokémon Glazed — ฐาน Emerald, สร้างโดย Lucbui (ต่อมา TrainerX493 ดูแลต่อ), เปิดตัว 30 พ.ย. 2012, ฉากหลังคือทวีป Tunod
+
+เริ่มเรื่อง: ผู้เล่นเป็นเด็กอายุ 12 ปีที่เกิดในเมืองเล็กๆ ของ Tunod วันเกิดปีนี้เป็นวันที่ได้รับโปเกมอนตัวแรกตามธรรมเนียมของเมือง ชื่อตัวละครมาตรฐานคือ Brant หรือ Alexa
+
+กลางเรื่อง: ระหว่างเดินทางผ่าน Tunod จะพบคู่แข่ง โปเกมอนป่า และองค์กรใหม่ที่มีแผนการซึ่งคุกคามโลก ทีมลึกลับนี้เคลื่อนไหวอยู่รอบซากโบราณของ Tunod เกมมีโปเกมอนถึงเจน 5 และมีตัวละครจากเกมหลักปรากฏในบทบาทใหม่ เช่น Pryce ที่เคยเป็นสมาชิก Rocket
+
+ปิดเรื่อง: ผู้เล่นเอาชนะองค์กรและท้าชิงลีก หมายเหตุ: มีเวอร์ชันรีเมค Blazed Glazed ที่ปรับด่านและระดับความยาก ผมยืนยันได้เฉพาะโครงเรื่องกว้างๆ ข้างต้น รายละเอียดแต่ละฉากไม่พบในแหล่งที่ตรวจสอบได้`},
+{keys:['lazarus'], full:true, text:
+`Pokémon Lazarus — ฐาน Emerald, สร้างโดย Nemo622 (คนเดียวกับ Emerald Seaglass), ออกเต็มรูปแบบ 14 พ.ย. 2025, ฉากหลังคือภูมิภาค Ilios
+
+แนวคิด: ภูมิภาคอิงจากกรีซแผ่นดินใหญ่และเกาะโดยรอบ ชื่อเกมมาจาก Lazarus taxa คือสิ่งมีชีวิตที่เคยคิดว่าสูญพันธุ์แต่พบว่ายังมีชีวิต (เช่นปลาซีลาแคนท์ ต้นแบบของ Relicanth) ผู้สร้างจึงใส่โปเกมอนฟอสซิลไว้มาก
+
+เนื้อเรื่อง: มีเรื่องราวต้นฉบับ ตัวละครใหม่ และเควสต์แบบวีรบุรุษกรีก มีดันเจี้ยนวิหารและเจอโปเกมอนตำนานที่ออกแบบใหม่ตามเทพปกรณัม เกมยาวราว 30 ชั่วโมงขึ้นไป มีเควสต์ข้างเกิน 60 อัน สไตล์ภาพและเพลงคล้าย Game Boy Color
+
+ปิดเรื่อง: ผมยืนยันได้เฉพาะโครงและธีมเรื่อง ไม่พบบทสรุปฉากจบที่ตรวจสอบได้ในแหล่งสาธารณะ`},
+{keys:['beyondhoenn'], full:false, text:
+`Pokémon Emerald Beyond Hoenn — ฐาน Emerald, สร้างโดย Narfloflo
+
+สิ่งที่ยืนยันได้: มี 3 ภูมิภาคให้สำรวจ (ออกนอก Hoenn), มี Kanto Victory Road และลีก Kanto เพิ่ม, มีคาสิโนในสนามบิน, Pokédex ใหม่ NPC ใหม่ ระบบสี/พาเลตแบบไดนามิก การแยกฟิสิคอล/สเปเชียล และความยากที่เพิ่มขึ้น
+
+โครงเรื่อง: ตามเส้นเรื่องของ Emerald ใน Hoenn ก่อน แล้วขยายไปยังภูมิภาคอื่น ผมไม่พบสรุปเนื้อเรื่องฉากต่อฉากที่ตรวจสอบได้`},
+{keys:['fireredrocketedition','rocketedition'], full:false, text:
+`Pokémon FireRed Rocket Edition — ฐาน FireRed/LeafGreen
+
+สิ่งที่ยืนยันได้: เรื่องอ้างอิงเส้นเรื่องของ FireRed/LeafGreen โดยเล่าจากมุมของทีม Rocket (แฟนเกมอื่นอย่าง Team Magma Edition อ้างถึงเกมนี้เป็นต้นแบบของแนว "เล่นเป็นฝ่ายร้าย") ตัวเอกไต่ระดับในองค์กรและเกี่ยวข้องกับ Giovanni
+
+ผมไม่พบสรุปเนื้อเรื่องเต็มที่ตรวจสอบได้ จึงไม่เขียนรายละเอียดฉากที่อาจคลาดเคลื่อน`},
+{keys:['radicalred'], full:true, text:
+`Pokémon Radical Red — ฐาน FireRed, สร้างโดย soupercell และ koala4 (ได้แรงบันดาลใจจากแฮ็กของ Drayano), เวอร์ชันล่าสุดที่อ้างถึงคือ 4.1 (มีนาคม 2024)
+
+แนวเกม: แฮ็กเน้นความยาก ทำใหม่ทั้งการผจญภัยในภูมิภาค Kanto ให้ยากขึ้นมาก เพิ่มโปเกมอนถึงเจน 9, Mega Evolution และ Dynamax ปรับความสามารถของโปเกมอนหลายตัว เทรนเนอร์มีทีมที่วางกลยุทธ์มาแล้ว และโปเกมอนสำคัญๆ ในเนื้อเรื่องก็แข็งขึ้น
+
+เนื้อเรื่อง: ไม่ได้เพิ่มเนื้อเรื่องใหม่ ใช้เส้นเรื่องเดิมของ FireRed คือเริ่มที่ Pallet Town รับโปเกมอนตัวแรกจากศาสตราจารย์ Oak แข่งกับ rival เก็บ 8 แบดจ์ ขัดขวาง Team Rocket และ Giovanni แล้วท้าชิง Elite Four กับแชมป์ ต่างที่ความยากและระบบเกม`},,
+{keys:['emeraldrogue'], full:false, text:
+`Pokémon Emerald Rogue — ฐาน Emerald (ข้อมูลส่วนนี้มาจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้)
+
+เป็นแนว roguelike ไม่มีเนื้อเรื่องต่อเนื่องแบบเกมปกติ แต่ละรอบสุ่มเส้นทาง ทีม และไอเทม ต้องผ่านเส้นทางและบอสให้ได้ ตายแล้วเริ่มใหม่`},,
+{keys:['rowe'], full:false, text:
+`Pokémon R.O.W.E. — ในรายการรวมแฮ็กที่ตรวจสอบ ติดแท็ก Open World, Feature Rich และ Physical/Special Split ผมไม่พบเนื้อเรื่องที่ยืนยันได้`},
+{keys:['emeraldseaglass','seaglass'], full:false, text:
+`Pokémon Emerald Seaglass — ฐาน Emerald สร้างโดย Nemo622 (ผู้สร้าง Lazarus) ผมยืนยันได้แค่ผู้สร้างและฐานเกม ไม่พบสรุปเนื้อเรื่องที่ตรวจสอบได้`},
+{keys:['quetzal'], full:false, text:
+`Pokémon Quetzal — ฐาน Emerald ต้องแพตช์กับรอม Emerald ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['inclement'], full:true, text:
+`Pokémon Inclement Emerald — ฐาน Emerald (สร้างใหม่บน pokeemerald decompilation) โดย Buffel Saft
+
+แนวเกม: แฮ็กเน้นความยากและสายสะสมโปเกมอน (catch 'em all) ได้แรงบันดาลใจจากแฮ็กของ Drayano เริ่มเป็นแฮ็กแบบ binary ตั้งแต่ปี 2018 ก่อนถูกสร้างใหม่ทั้งหมด จุดมุ่งหมายคือเวอร์ชันสมัยใหม่ที่ท้าทายขึ้นของ Hoenn เต็มไปด้วยการปรับปรุงความสะดวก (QoL) ระบบช่วยเทรนโปเกมอน และอีเวนต์เสริม
+
+รายละเอียดที่ยืนยันได้: โปเกมอนไม่ใช่ตำนานส่วนใหญ่ของเจน 1–7 จับได้ (เวอร์ชัน 1.13 มีแผนเจน 8 ในอนาคต) แต่ละเส้นทางมีโปเกมอนในหญ้าประมาณ 8 ชนิด มีชนิดอื่นในต้นไม้ที่ตัดได้ กองทราย และต้นเบอร์รี่ ผู้ฝึกฉลาดขึ้นและทีมสมดุลกว่าเดิม
+
+เนื้อเรื่อง: ยึดเส้นเรื่อง Emerald เดิมใน Hoenn (Team Aqua/Magma, Kyogre/Groudon/Rayquaza) เพิ่มอีเวนต์ใหม่ ไม่ใช่เรื่องราวใหม่`},,
+{keys:['modern'], full:false, text:
+`Pokémon Modern — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['eliteredux'], full:true, text:
+`Pokémon Elite Redux — ฐาน Emerald สร้างโดย Darky (พัฒนาต่อยอดจาก Inclement Emerald / Yda patch โดยได้รับอนุญาตจาก Buffel Saft และ Yda)
+
+แนวเกม: แฮ็กเน้นความยากแบบ "ไม่ต้องเก็บเลเวล" เน้นการสร้างทีมและการต่อสู้ ผู้สร้างเล่นแฮ็กอย่าง Gaia, Unbound, Radical Red และ Inclement Emerald มาแล้วอยากปรับสมดุลให้สนุกขึ้น ลดการเก็บเลเวล มีโหมดง่ายด้วย
+
+จุดขาย: โปเกมอนแต่ละตัวมีความสามารถได้พร้อมกันหลายอย่าง คือสลับได้ 3 อย่างบวกความสามารถติดตัวถาวรได้อีกสูงสุด 3 ตัว (innates) สลับ Nature และ EV ได้ในเมนู เข้าถึง Egg move, Tutor move และ TM ได้ทันที จำกัดด้วยเลเวลแคปเท่านั้น
+
+เนื้อเรื่อง: ยึดโครงเรื่อง Emerald/Hoenn เป็นหลัก จุดเด่นอยู่ที่ระบบเกม ไม่ใช่เนื้อเรื่องใหม่`},,
+{keys:['wishesoftomorrow'], full:false, text:
+`Pokémon Wishes of Tomorrow — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['redchapter'], full:false, text:
+`Pokémon Red Chapter — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['soulgold'], full:false, text:
+`Pokémon SoulGold — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['heartsoul'], full:false, text:
+`Pokémon HeartSoul — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['superdarkworship','darkworship'], full:false, text:
+`Pokémon Super Dark Worship — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['emeraldimperium','imperium'], full:true, text:
+`Pokémon Emerald Imperium — ฐาน Emerald สร้างโดย iriv24
+
+แนวเกม: แฮ็กความยากสูงและมีฟีเจอร์เยอะ ได้แรงบันดาลใจด้านสมดุลและความสะดวกจาก Radical Red ทำ Hoenn ใหม่ให้ท้าทายขึ้นพร้อมกลไกยุคใหม่
+
+รายละเอียดที่ยืนยันได้: โปเกมอนเกือบทั้งหมดของเจน 1–9 หาได้, ใช้ระบบต่อสู้สมัยใหม่, มี Mega Evolution รวมถึง Mega ใหม่ที่เพิ่มเอง (เช่นสตาร์ทเตอร์เจน 4 และ Gigantamax บางตัวที่แปลงเป็น Mega), มีตัวละครเจน 4 เพิ่ม เช่น Dawn เป็น rival อีกคน และ Gym Leader ต่างๆ, ผู้ฝึกสำคัญ (ยิม, Elite 4, rival, Team Aqua/Magma, มินิบอสตามเส้นทาง) ยากขึ้น มีตู้ GameCube ในห้องตัวเองไว้ใส่โค้ดโกง
+
+เนื้อเรื่อง: ยึดเส้นเรื่อง Emerald เดิมใน Hoenn (Team Aqua/Magma) เพิ่มตัวละครและการต่อสู้ ไม่ใช่เนื้อเรื่องใหม่ทั้งหมด`},
+{keys:['evolved'], full:false, text:
+`Pokémon Evolved — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`}
+];
+function findBuiltinSummary(name){
+  const n=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  let best=null, bestLen=0;
+  BUILTIN_SUMMARIES.forEach(b=>b.keys.forEach(k=>{ if(n.includes(k) && k.length>bestLen){ best=b; bestLen=k.length; } }));
+  return best;
+}
+let summaryGames=[];
+// admin-edited story summaries live in site_settings under "gameSummary:<game id>" (shared with every visitor).
+// An empty value means "use the built-in text again".
+const SUMMARY_KEY_PREFIX='gameSummary:';
+let summaryOverrides={};
+async function loadSummaryOverrides(){
+  summaryOverrides={};
+  try{
+    const {data,error}=await sb.from('site_settings').select('key,value,updated_at').like('key', SUMMARY_KEY_PREFIX+'%');
+    if(error){ console.warn('loadSummaryOverrides error', error); return; }
+    (data||[]).sort((a,b)=>String(a.updated_at||'').localeCompare(String(b.updated_at||''))) // newest row wins
+      .forEach(r=>{ summaryOverrides[r.key.slice(SUMMARY_KEY_PREFIX.length)]=r.value; });
+  }catch(e){ console.warn('loadSummaryOverrides failed', e); }
+}
+function openSummaryEditor(item, box, rawStory, hasOv){
+  if(box.querySelector('.summary-editor')) return;
+  const wrap=document.createElement('div'); wrap.className='summary-editor';
+  wrap.style.cssText='margin-top:8px; display:flex; flex-direction:column; gap:5px;';
+  wrap.onclick=(e)=>e.stopPropagation();
+  const mk=(label,val,rows)=>{
+    const l=document.createElement('label'); l.style.cssText='font-size:11px; color:var(--sub); font-weight:600;'; l.textContent=label;
+    const ta=document.createElement('textarea'); ta.className='summary-search'; ta.rows=rows; ta.value=val;
+    ta.style.cssText='resize:vertical; font-size:13px; line-height:1.5; font-family:inherit; margin:0;';
+    wrap.appendChild(l); wrap.appendChild(ta); return ta;
+  };
+  const descTa=mk('คำอธิบายสั้น (แสดงในการ์ดเกม)', item.description||'', 2);
+  const storyTa=mk('บทสรุปเรื่อง / เนื้อหา (เว้นว่าง = ใช้ข้อความเดิมของระบบ)', rawStory||'', 8);
+  const row=document.createElement('div'); row.style.cssText='display:flex; gap:6px; margin-top:2px;';
+  const btn=(txt,css)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=txt; b.style.cssText='flex:1; padding:8px; border-radius:8px; border:none; font-weight:700; font-size:12px; cursor:pointer; '+css; return b; };
+  const cancel=btn('ยกเลิก','background:var(--border); color:var(--text);');
+  const save=btn('บันทึก','background:var(--accent); color:#fff;');
+  const reset=hasOv ? btn('คืนค่าเดิม','background:transparent; color:var(--text); border:1px solid var(--border);') : null;
+  row.appendChild(cancel); if(reset) row.appendChild(reset); row.appendChild(save);
+  wrap.appendChild(row); box.appendChild(wrap);
+  const refresh=()=>{
+    const sc=summaryModalBg.querySelector('.modal'); const top=sc?sc.scrollTop:0;
+    renderSummaryList(); if(sc) sc.scrollTop=top;
+    try{ if(typeof renderGridFromCurrent==='function') renderGridFromCurrent(); }catch(e){}
+  };
+  cancel.onclick=()=>wrap.remove();
+  if(reset) reset.onclick=async()=>{
+    reset.disabled=true;
+    await setSiteSetting(SUMMARY_KEY_PREFIX+item.id, '');
+    summaryOverrides[String(item.id)]='';
+    toastMsg('คืนเป็นข้อความเดิมแล้ว'); refresh();
+  };
+  save.onclick=async()=>{
+    save.disabled=true; save.textContent='กำลังบันทึก...';
+    try{
+      const newDesc=descTa.value.trim();
+      if(newDesc!==(item.description||'')){
+        const {error}=await sb.from('games').update({description:newDesc}).eq('id', item.id);
+        if(error) throw error;
+        item.description=newDesc;
+      }
+      const newStory=storyTa.value.trim();
+      if(newStory!==(rawStory||'').trim()){
+        await setSiteSetting(SUMMARY_KEY_PREFIX+item.id, newStory);
+        summaryOverrides[String(item.id)]=newStory;
+      }
+      toastMsg('บันทึกสรุปเกมแล้ว'); refresh();
+    }catch(err){
+      console.error(err); alert('บันทึกไม่สำเร็จ: '+(err.message||err));
+      save.disabled=false; save.textContent='บันทึก';
+    }
+  };
+  storyTa.focus();
+}
+const SUMMARY_SYSTEMS=[['gb','Game Boy (GB)'],['gbc','Game Boy Color (GBC)'],['gba','Game Boy Advance (GBA)'],['nds','Nintendo DS (NDS)']];
+function renderSummaryList(){
+  const q=summarySearchEl.value.trim().toLowerCase();
+  const list=summaryGames.filter(g=>!q || (g.name||'').toLowerCase().includes(q) || (g.description||'').toLowerCase().includes(q));
+  summaryListEl.innerHTML='';
+  summaryCountEl.textContent = q ? `พบ ${list.length} จากทั้งหมด ${summaryGames.length} เกม` : `ทั้งหมด ${summaryGames.length} เกม — แตะที่เกมเพื่อดูรายละเอียดและเล่น`;
+  if(!list.length){
+    const e=document.createElement('div'); e.className='empty'; e.style.padding='30px 10px';
+    e.textContent = summaryGames.length ? 'ไม่พบเกมที่ค้นหา' : 'ยังไม่มีเกมในคลัง';
+    summaryListEl.appendChild(e); return;
+  }
+  const known=SUMMARY_SYSTEMS.map(x=>x[0]);
+  const groups=[...SUMMARY_SYSTEMS, ...[...new Set(list.map(g=>g.core).filter(c=>!known.includes(c)))].map(c=>[c,(c||'อื่นๆ').toUpperCase()])];
+  groups.forEach(([core,label])=>{
+    const items=list.filter(g=>g.core===core);
+    if(!items.length) return;
+    const h=document.createElement('div'); h.className='summary-group-title';
+    const tag=document.createElement('span'); tag.className='tag tag-'+core; tag.textContent=String(core).toUpperCase();
+    h.appendChild(tag); h.appendChild(document.createTextNode(label+' · '+items.length+' เกม'));
+    summaryListEl.appendChild(h);
+    items.forEach(item=>{
+      const row=document.createElement('div'); row.className='summary-item';
+      const img=document.createElement('img');
+      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
+      img.alt=''; img.loading='lazy';
+      const box=document.createElement('div'); box.style.minWidth='0';
+      const nm=document.createElement('p'); nm.className='s-name';
+      nm.appendChild(document.createTextNode(item.name||''));
+      const ver=getDisplayVersion(item);
+      if(ver){ const v=document.createElement('span'); v.className='version-chip'; v.textContent=formatVersionLabel(ver); nm.appendChild(v); }
+      if(getDisplayHasThai(item)){ const t=document.createElement('span'); t.className='thai-flag-inline'; t.title='มีแปลไทย'; t.innerHTML=THAI_FLAG_SVG; nm.appendChild(t); }
+      const ds=document.createElement('p'); ds.className='s-desc'+(item.description?'':' empty-desc');
+      ds.textContent = item.description || 'ยังไม่มีคำอธิบาย';
+      box.appendChild(nm); box.appendChild(ds);
+      const bs=findBuiltinSummary(item.name);
+      const ovRaw=summaryOverrides[String(item.id)];
+      const hasOv=typeof ovRaw==='string' && ovRaw.trim()!=='';
+      const rawStory = hasOv ? ovRaw : (bs ? bs.text : '');
+      const storyText = hasOv ? ovRaw : (bs ? bs.text + (bs.full ? '' : '\n\n(ข้อมูลส่วนนี้ยังไม่ครบ)') : '');
+      if(storyText){
+        const tg=document.createElement('button'); tg.type='button';
+        tg.style.cssText='margin-top:6px; border:1px solid var(--accent); color:var(--accent); background:transparent; border-radius:20px; padding:3px 10px; font-size:12px; cursor:pointer;';
+        tg.textContent='อ่านบทสรุปเรื่อง';
+        const body=document.createElement('div'); body.className='s-desc'; body.style.cssText='display:none; margin-top:8px;';
+        body.textContent=storyText;
+        tg.onclick=(e)=>{ e.stopPropagation(); const open=body.style.display==='none'; body.style.display=open?'block':'none'; tg.textContent=open?'ซ่อนบทสรุป':'อ่านบทสรุปเรื่อง'; };
+        body.onclick=(e)=>e.stopPropagation();
+        box.appendChild(tg); box.appendChild(body);
+      }
+      if(marqueeAuthorized){
+        const ed=document.createElement('button'); ed.type='button';
+        ed.style.cssText='margin:6px 0 0 6px; border:1px solid var(--border); color:var(--text); background:transparent; border-radius:20px; padding:3px 10px; font-size:12px; cursor:pointer;';
+        ed.textContent='✎ แก้ไขสรุป';
+        ed.onclick=(e)=>{ e.stopPropagation(); openSummaryEditor(item, box, rawStory, hasOv); };
+        box.appendChild(ed);
+      }
+      row.appendChild(img); row.appendChild(box);
+      row.onclick=()=>{ summaryModalBg.classList.remove('show'); openDetailModal(item); };
+      summaryListEl.appendChild(row);
+    });
+  });
+}
+async function openSummary(){
+  summarySearchEl.value='';
+  summaryModalBg.classList.add('show');
+  summaryCountEl.textContent='กำลังโหลด...';
+  summaryListEl.innerHTML='';
+  summaryGames = (typeof currentGames!=='undefined' && currentGames.length) ? currentGames : await fetchGames();
+  await loadSummaryOverrides();
+  renderSummaryList();
+}
+document.getElementById('summaryBtn').addEventListener('click', ()=>{ try{ playClick(); }catch(e){} openSummary(); });
+summarySearchEl.addEventListener('input', renderSummaryList);
+document.getElementById('summaryCloseBtn').onclick=()=>summaryModalBg.classList.remove('show');
+summaryModalBg.addEventListener('click',(e)=>{ if(e.target===summaryModalBg) summaryModalBg.classList.remove('show'); });
+
+// ---------- player dashboard (admin only): aggregated from play_sessions, keyed by each visitor's own sync code ----------
+const dashboardModalBg=document.getElementById('dashboardModalBg');
+const dashSummaryEl=document.getElementById('dashSummary');
+const dashTopGamesEl=document.getElementById('dashTopGames');
+const dashUsersEl=document.getElementById('dashUsers');
+let dashRows=[];
+function escapeHtml(str){ const d=document.createElement('div'); d.textContent=str==null?'':str; return d.innerHTML; }
+function fmtDuration(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60);
+  if(h<=0 && m<=0) return sec+' วิ';
+  if(h<=0) return m+' นาที';
+  return h+' ชม '+m+' นาที';
+}
+function fmtWhen(iso){
+  try{ return new Date(iso).toLocaleString('th-TH',{dateStyle:'medium', timeStyle:'short'}); }catch(e){ return iso||''; }
+}
+function cssVar(name){ return getComputedStyle(document.body||document.documentElement).getPropertyValue(name).trim(); }
+let dashDailyChart=null, dashGamesChart=null;
+function renderDashCharts(){
+  if(typeof Chart==='undefined') return; // Chart.js failed to load (e.g. offline) — the text lists below still work fine
+  const accent=cssVar('--accent')||'#e3350d';
+  const textColor=cssVar('--text')||'#333';
+  const subColor=cssVar('--sub')||'#888';
+  const gridColor=cssVar('--border')||'#ddd';
+  // --- daily playtime, last 14 days (minutes) ---
+  const days=[]; const dayKeys=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-i);
+    dayKeys.push(d.toISOString().slice(0,10));
+    days.push(d.toLocaleDateString('th-TH',{day:'numeric',month:'short'}));
+  }
+  const dayMinutes=dayKeys.map(k=>0);
+  dashRows.forEach(r=>{
+    if(!r.ended_at) return;
+    const k=String(r.ended_at).slice(0,10);
+    const idx=dayKeys.indexOf(k);
+    if(idx>=0) dayMinutes[idx]+=(r.seconds||0)/60;
+  });
+  const dailyCtx=document.getElementById('dashDailyChart');
+  if(dashDailyChart) dashDailyChart.destroy();
+  if(dailyCtx){
+    dashDailyChart=new Chart(dailyCtx,{
+      type:'line',
+      data:{ labels:days, datasets:[{ label:'นาทีที่เล่น', data:dayMinutes.map(m=>Math.round(m*10)/10), borderColor:accent, backgroundColor:accent+'33', fill:true, tension:.3, pointRadius:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.y+' นาที'}} },
+        scales:{ x:{ ticks:{color:subColor,font:{size:10}}, grid:{color:gridColor} },
+                 y:{ beginAtZero:true, ticks:{color:subColor,font:{size:10}}, grid:{color:gridColor} } } }
+    });
+  }
+  // --- top games bar chart (minutes), matches the "เกมยอดนิยม" list below ---
+  const gameTotalsForChart=new Map();
+  dashRows.forEach(r=>{
+    const gname=r.game_name||'(ไม่ทราบชื่อเกม)';
+    gameTotalsForChart.set(gname,(gameTotalsForChart.get(gname)||0)+(r.seconds||0));
+  });
+  const topForChart=[...gameTotalsForChart.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const gamesCtx=document.getElementById('dashGamesChart');
+  if(dashGamesChart) dashGamesChart.destroy();
+  if(gamesCtx){
+    dashGamesChart=new Chart(gamesCtx,{
+      type:'bar',
+      data:{ labels:topForChart.map(([n])=>n.length>16?n.slice(0,15)+'…':n),
+        datasets:[{ label:'นาทีที่เล่น', data:topForChart.map(([,s])=>Math.round(s/60*10)/10), backgroundColor:accent, borderRadius:5, maxBarThickness:26 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.x+' นาที'}} },
+        scales:{ x:{ beginAtZero:true, ticks:{color:subColor,font:{size:10}}, grid:{color:gridColor} },
+                 y:{ ticks:{color:textColor,font:{size:11}}, grid:{display:false} } } }
+    });
+  }
+}
+function renderDashboard(){
+  const totalSessions=dashRows.length;
+  const totalSeconds=dashRows.reduce((a,r)=>a+(r.seconds||0),0);
+  const users=new Map();      // sync_code -> {seconds, sessions, lastAt, games:Map(name->{seconds,sessions})}
+  const gameTotals=new Map(); // game_name -> {seconds, sessions}
+  dashRows.forEach(r=>{
+    const code=(r.sync_code||'').trim() || '(ไม่ระบุรหัสซิงก์)';
+    const gname=r.game_name || '(ไม่ทราบชื่อเกม)';
+    if(!users.has(code)) users.set(code,{seconds:0,sessions:0,lastAt:null,games:new Map()});
+    const u=users.get(code);
+    u.seconds+=r.seconds||0; u.sessions+=1;
+    if(!u.lastAt || new Date(r.ended_at)>new Date(u.lastAt)) u.lastAt=r.ended_at;
+    if(!u.games.has(gname)) u.games.set(gname,{seconds:0,sessions:0});
+    const ug=u.games.get(gname); ug.seconds+=r.seconds||0; ug.sessions+=1;
+    if(!gameTotals.has(gname)) gameTotals.set(gname,{seconds:0,sessions:0});
+    const gt=gameTotals.get(gname); gt.seconds+=r.seconds||0; gt.sessions+=1;
+  });
+  dashSummaryEl.innerHTML='';
+  const namedUsers=[...users.keys()].filter(k=>k!=='(ไม่ระบุรหัสซิงก์)').length;
+  const topGameName = gameTotals.size ? [...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds)[0][0] : '-';
+  [['ผู้เล่นทั้งหมด (ตามรหัสซิงก์)', namedUsers],
+   ['เซสชันที่บันทึกได้', totalSessions],
+   ['เวลาเล่นรวมทั้งหมด', fmtDuration(totalSeconds)],
+   ['เกมยอดนิยม', topGameName]
+  ].forEach(([l,n])=>{
+    const c=document.createElement('div'); c.className='dash-card';
+    c.innerHTML='<div class="n">'+escapeHtml(n)+'</div><div class="l">'+l+'</div>';
+    dashSummaryEl.appendChild(c);
+  });
+  dashTopGamesEl.innerHTML='';
+  const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,15);
+  if(!topGames.length){ dashTopGamesEl.innerHTML='<div class="dash-empty">ยังไม่มีข้อมูลการเล่น</div>'; }
+  topGames.forEach(([name,g])=>{
+    const row=document.createElement('div'); row.className='dash-game-row';
+    row.innerHTML='<span class="g-name">'+escapeHtml(name)+'</span><span class="g-meta">'+fmtDuration(g.seconds)+' · '+g.sessions+' ครั้ง</span>';
+    dashTopGamesEl.appendChild(row);
+  });
+  dashUsersEl.innerHTML='';
+  let userList=[...users.entries()].sort((a,b)=>b[1].seconds-a[1].seconds);
+  if(!userList.length){ dashUsersEl.innerHTML='<div class="dash-empty">ยังไม่มีข้อมูลผู้เล่น</div>'; return; }
+  userList.forEach(([code,u],idx)=>{
+    const wrap=document.createElement('div'); wrap.className='dash-user';
+    const head=document.createElement('div'); head.className='dash-user-head';
+    head.innerHTML='<span class="u-code">'+escapeHtml(code)+'</span>'+
+      '<span class="u-meta">'+fmtDuration(u.seconds)+' · '+u.sessions+' เซสชัน<br>เล่นล่าสุด '+(u.lastAt?fmtWhen(u.lastAt):'-')+' '+
+      '<svg class="dash-chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg></span>';
+    const body=document.createElement('div'); body.className='dash-user-body';
+    [...u.games.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).forEach(([gname,g])=>{
+      const r=document.createElement('div'); r.className='dash-game-row';
+      r.innerHTML='<span class="g-name">'+escapeHtml(gname)+'</span><span class="g-meta">'+fmtDuration(g.seconds)+' · '+g.sessions+' ครั้ง</span>';
+      body.appendChild(r);
+    });
+    head.onclick=()=>wrap.classList.toggle('open');
+    wrap.appendChild(head); wrap.appendChild(body);
+    dashUsersEl.appendChild(wrap);
+  });
+}
+async function cleanupOldSessions(){
+  // opportunistic housekeeping: drop sessions older than ~18 months so the table doesn't grow forever.
+  // Runs quietly in the background whenever the dashboard is opened — not urgent for a small group, just tidy.
+  try{
+    const cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-18);
+    await sb.from('play_sessions').delete().lt('ended_at', cutoff.toISOString());
+  }catch(e){ console.warn('cleanupOldSessions failed', e); }
+}
+async function openDashboard(){
+  dashboardModalBg.classList.add('show');
+  dashSummaryEl.innerHTML=''; dashTopGamesEl.innerHTML='';
+  dashUsersEl.innerHTML='<div class="dash-empty">กำลังโหลด...</div>';
+  cleanupOldSessions();
+  renderStorageUsage();
+  try{
+    const {data,error}=await sb.from('play_sessions').select('sync_code,game_id,game_name,seconds,ended_at').order('ended_at',{ascending:false}).limit(20000);
+    if(error){ dashUsersEl.innerHTML='<div class="dash-empty">โหลดข้อมูลไม่สำเร็จ: '+escapeHtml(error.message)+'<br>(น่าจะยังไม่ได้สร้างตาราง play_sessions ใน Supabase)</div>'; return; }
+    dashRows=data||[];
+  }catch(e){ dashUsersEl.innerHTML='<div class="dash-empty">โหลดข้อมูลไม่สำเร็จ</div>'; return; }
+  renderDashCharts();
+  renderDashboard();
+}
+// ---------- storage usage (Supabase Storage + Cloudflare R2) ----------
+// Limits below are the FREE-plan numbers; change them if you are on a paid plan.
+const SUPABASE_STORAGE_LIMIT=1*1024*1024*1024;   // 1 GB
+const R2_STORAGE_LIMIT=10*1024*1024*1024;        // 10 GB
+function fmtBytes(n){
+  n=Number(n)||0;
+  if(n<1024) return n+' B';
+  const u=['KB','MB','GB','TB']; let i=-1;
+  do{ n/=1024; i++; }while(n>=1024 && i<u.length-1);
+  return n.toFixed(n>=100?0:n>=10?1:2)+' '+u[i];
+}
+async function getSupabaseUsage(){
+  const folders={roms:0,covers:0,marquee:0}; let files=0;
+  for(const folder of Object.keys(folders)){
+    let offset=0;
+    while(true){
+      const {data,error}=await sb.storage.from(BUCKET).list(folder,{limit:1000,offset});
+      if(error) throw error;
+      if(!data || !data.length) break;
+      data.forEach(o=>{ if(o.id){ folders[folder]+=Number(o.metadata && o.metadata.size)||0; files++; } });
+      if(data.length<1000) break;
+      offset+=1000;
+    }
+  }
+  return {folders, files, total:Object.values(folders).reduce((a,b)=>a+b,0)};
+}
+async function getR2Usage(){
+  if(!r2Enabled()) return null;
+  return JSON.parse(await r2Request('GET', r2Base()+'/usage'));
+}
+function storageCardHtml(title, used, limit, subHtml){
+  const pct=limit ? Math.min(100, used/limit*100) : 0;
+  const cls=pct>=90?'crit':pct>=70?'warn':'';
+  return '<div class="storage-card"><div class="st-head"><span>'+escapeHtml(title)+'</span><span>'+fmtBytes(used)+' / '+fmtBytes(limit)+' ('+pct.toFixed(pct<10?1:0)+'%)</span></div>'+
+    '<div class="storage-bar"><i class="'+cls+'" style="width:'+pct.toFixed(1)+'%"></i></div>'+
+    '<div class="st-sub">'+subHtml+'</div></div>';
+}
+async function renderStorageUsage(){
+  const el=document.getElementById('dashStorage');
+  el.innerHTML='<div class="dash-empty">กำลังโหลด...</div>';
+  const [sbRes,r2Res]=await Promise.allSettled([getSupabaseUsage(), getR2Usage()]);
+  let html='';
+  if(sbRes.status==='fulfilled'){
+    const u=sbRes.value;
+    html+=storageCardHtml('Supabase Storage', u.total, SUPABASE_STORAGE_LIMIT,
+      'ROM (เกมเก่า) '+fmtBytes(u.folders.roms)+' · รูปปก '+fmtBytes(u.folders.covers)+' · รูปหน้าแรก '+fmtBytes(u.folders.marquee)+' · รวม '+u.files+' ไฟล์');
+  } else {
+    html+='<div class="storage-card"><div class="st-head"><span>Supabase Storage</span></div><div class="st-sub">โหลดไม่สำเร็จ: '+escapeHtml((sbRes.reason&&sbRes.reason.message)||String(sbRes.reason))+'</div></div>';
+  }
+  if(r2Res.status==='fulfilled'){
+    if(r2Res.value){
+      const u=r2Res.value;
+      html+=storageCardHtml('Cloudflare R2 (ไฟล์เกม)', u.bytes, R2_STORAGE_LIMIT, 'ไฟล์เกมทั้งหมด '+u.objects+' ไฟล์');
+    } else {
+      html+='<div class="storage-card"><div class="st-head"><span>Cloudflare R2</span></div><div class="st-sub">ยังไม่ได้ตั้งค่า R2_WORKER_URL</div></div>';
+    }
+  } else {
+    html+='<div class="storage-card"><div class="st-head"><span>Cloudflare R2</span></div><div class="st-sub">โหลดไม่สำเร็จ: '+escapeHtml((r2Res.reason&&r2Res.reason.message)||String(r2Res.reason))+' (ต้องอัปเดต worker.js ให้เป็นเวอร์ชันล่าสุดที่มี /usage)</div></div>';
+  }
+  try{
+    const bu=ndsBiosUrl();
+    let biosOk=false, biosStatus='';
+    if(bu){ const r=await fetch(bu,{method:'HEAD'}); biosOk=r.ok; biosStatus=' ('+r.status+')'; }
+    html+='<div class="storage-card"><div class="st-head"><span>BIOS สำหรับ NDS</span><span style="color:'+(biosOk?'#2e9e5b':'#e53935')+'">'+(biosOk?'พร้อมใช้งาน ✓':'ไม่พบไฟล์ ✕'+biosStatus)+'</span></div>'+(biosOk?'':'<div class="st-sub">เว็บมองหาไฟล์ที่ '+escapeHtml(NDS_BIOS_R2_KEY)+' ใน R2 (โฟลเดอร์ roms ชื่อไฟล์ nds-bios.zip) ตรวจว่าไฟล์อยู่ที่ตำแหน่งและชื่อนี้เป๊ะ</div>')+'</div>';
+  }catch(e){ html+='<div class="storage-card"><div class="st-head"><span>BIOS สำหรับ NDS</span><span style="color:#e53935">ตรวจไม่ได้</span></div></div>'; }
+  const oldRoms=(typeof currentGames!=='undefined'?currentGames:[]).filter(g=>g.rom_path && !isR2Path(g.rom_path));
+  if(oldRoms.length && r2Enabled()) html+='<button class="btn btn-outline" id="migrateBtn" style="width:100%; margin-bottom:8px;">ย้ายเกมเก่า '+oldRoms.length+' เกมจาก Supabase ไป R2</button>';
+  el.innerHTML=html;
+  const mb=document.getElementById('migrateBtn');
+  if(mb) mb.onclick=()=>requireAuth(()=>migrateOldRoms(mb, oldRoms));
+}
+// moves ROMs still stored in Supabase over to R2, one game at a time (keep this tab open while it runs)
+async function migrateOldRoms(btn, list){
+  if(!confirm('ย้ายเกมเก่า '+list.length+' เกมไป R2 ตอนนี้? ใช้เวลาตามขนาดไฟล์ และต้องเปิดหน้านี้ค้างไว้')) return;
+  btn.disabled=true; let ok=0, fail=[], lastErr='';
+  for(let i=0;i<list.length;i++){
+    const g=list[i];
+    btn.textContent='กำลังย้าย '+(i+1)+'/'+list.length+': '+g.name;
+    try{
+      const res=await fetch(publicUrl(g.rom_path)); if(!res.ok) throw new Error('ดาวน์โหลดจาก Supabase ไม่ได้ ('+res.status+')');
+      const base=(g.rom_path.split('/').pop()||'rom.bin').replace(/^[a-z0-9]+__/i,'');
+      const key=await uploadRomToR2(new File([await res.blob()], base));
+      const {error}=await sb.from('games').update({rom_path:key}).eq('id', g.id);
+      if(error) throw error;
+      await deleteFromLibrary(g.rom_path); g.rom_path=key; ok++;
+    }catch(err){ console.warn('migrate failed', g.name, err); fail.push(g.name); lastErr=(err&&err.message)||String(err); }
+  }
+  toastMsg('ย้ายสำเร็จ '+ok+' เกม'+(fail.length?(' · ไม่สำเร็จ: '+fail.join(', ')):''));
+  if(fail.length) alert('ย้ายไม่สำเร็จ '+fail.length+' เกม\nสาเหตุล่าสุด: '+lastErr+'\n\n(ถ้าเป็นเรื่องเชื่อมต่อ Cloudflare ให้ตรวจ ALLOWED_ORIGIN ของ Worker)');
+  try{ await renderLibrary(); }catch(e){}
+  renderStorageUsage();
+}
+document.getElementById('dashboardBtn').addEventListener('click', ()=>{ requireAuth(openDashboard); });
+document.getElementById('dashRefreshBtn').onclick=openDashboard;
+document.getElementById('dashCloseBtn').onclick=()=>dashboardModalBg.classList.remove('show');
+dashboardModalBg.addEventListener('click',(e)=>{ if(e.target===dashboardModalBg) dashboardModalBg.classList.remove('show'); });
+
+// ---------- personal accent-color theme (local to this browser only) ----------
+const ACCENT_KEY='customAccent';
+const ACCENT_PRESETS=['#e3350d','#3b4cca','#1e88e5','#43a047','#f9a825','#8e24aa','#e0457b','#00acc1'];
+function applyCustomAccent(){
+  let val=null;
+  try{ val=localStorage.getItem(ACCENT_KEY); }catch(e){}
+  if(val){ document.body.style.setProperty('--accent', val); document.body.style.setProperty('--accent2', val); }
+  else{ document.body.style.removeProperty('--accent'); document.body.style.removeProperty('--accent2'); }
+  return val;
+}
+function buildAccentSwatches(){
+  const wrap=document.getElementById('accentSwatches');
+  if(!wrap) return;
+  let current=null;
+  try{ current=localStorage.getItem(ACCENT_KEY); }catch(e){}
+  wrap.innerHTML='';
+  ACCENT_PRESETS.forEach(hex=>{
+    const b=document.createElement('button'); b.type='button';
+    b.className='theme-swatch'+(current && current.toLowerCase()===hex.toLowerCase() ? ' active':'');
+    b.style.background=hex; b.title=hex;
+    b.onclick=()=>{
+      try{ localStorage.setItem(ACCENT_KEY,hex); }catch(e){}
+      applyCustomAccent(); buildAccentSwatches();
+      const picker=document.getElementById('customAccentPicker'); if(picker) picker.value=hex;
+    };
+    wrap.appendChild(b);
+  });
+}
+const customAccentPickerEl=document.getElementById('customAccentPicker');
+customAccentPickerEl.addEventListener('input', ()=>{
+  try{ localStorage.setItem(ACCENT_KEY, customAccentPickerEl.value); }catch(e){}
+  applyCustomAccent(); buildAccentSwatches();
+});
+document.getElementById('accentResetBtn').innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 4v5h5"/></svg>';
+document.getElementById('accentResetBtn').addEventListener('click', ()=>{
+  try{ localStorage.removeItem(ACCENT_KEY); }catch(e){}
+  applyCustomAccent(); buildAccentSwatches();
+  customAccentPickerEl.value='#e3350d';
+});
+applyCustomAccent();
+buildAccentSwatches();
+try{ const cur=localStorage.getItem(ACCENT_KEY); if(cur) customAccentPickerEl.value=cur; }catch(e){}
+
 // ---------- drag-to-resize the "GAMEBOY EMULATOR" intro title (shared via Supabase site_settings, same as the marquee images — everyone sees the size you set) ----------
 const TITLE_SIZE_KEY='introTitleSize';
 const introTitleEl=document.getElementById('introTitle');
@@ -1332,12 +2682,24 @@ localStorage.removeItem('marqueeAuth'); // เอาสถานะ "จำร�
 updateAuthUI();
 applyIntroTitleSize();
 const playingId=sessionStorage.getItem('playId');
+const skipIntro=sessionStorage.getItem('skipIntro');
 if(playingId){
+  document.getElementById('bootLoadingView').style.display='none';
   document.getElementById('introView').style.display='none';
   bootPlayer(playingId);
-} else {
+} else if(skipIntro){
+  sessionStorage.removeItem('skipIntro');
+  document.getElementById('bootLoadingView').style.display='none';
+  document.getElementById('introView').style.display='none';
   buildIntroMarquee();
   renderLibrary();
+  trackPresence(null);
+} else {
+  // genuine fresh visit or manual refresh — run the fake loading screen, then reveal the intro splash underneath
+  buildIntroMarquee();
+  renderLibrary();
+  trackPresence(null);
+  runBootLoadingScreen();
 }
 </script>
 </body>
