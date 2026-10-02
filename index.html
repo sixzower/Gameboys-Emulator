@@ -574,7 +574,7 @@ setTimeout(function(){
         <span class="file-picker-name" id="coverFileName">ยังไม่ได้เลือกไฟล์</span>
       </div>
       <input type="file" id="coverFile" accept="image/*" hidden>
-      <img id="coverPreview" class="cover-preview" alt="ตัวอย่างรูปปก">
+      <img crossorigin="anonymous" id="coverPreview" class="cover-preview" alt="ตัวอย่างรูปปก">
     </div>
     <div class="modal-actions">
       <button id="cancelBtn" style="background:var(--border);color:var(--text)">ยกเลิก</button>
@@ -585,7 +585,7 @@ setTimeout(function(){
 
 <div class="modal-bg" id="detailModalBg">
   <div class="modal">
-    <img id="detailCover" alt="" style="display:block;width:100%;max-height:220px;object-fit:contain;background:var(--bg);border-radius:10px;margin-bottom:10px;">
+    <img crossorigin="anonymous" id="detailCover" alt="" style="display:block;width:100%;max-height:220px;object-fit:contain;background:var(--bg);border-radius:10px;margin-bottom:10px;">
     <div class="tag-row detail-tag-row">
       <span class="tag" id="detailTag"></span>
       <span class="thai-flag-inline" id="detailThaiFlag" title="มีแปลไทย" style="display:none;"></span>
@@ -980,7 +980,7 @@ function renderGridFromCurrent(){
     card.draggable=true;
     card.dataset.idx=idx;
     card.innerHTML=`
-      <div class="cover-wrap"><img class="cover" src="${escapeHtml(coverSrc)}" loading="lazy" decoding="async"></div>
+      <div class="cover-wrap"><img crossorigin="anonymous" class="cover" src="${escapeHtml(coverSrc)}" loading="lazy" decoding="async"></div>
       <div class="card-body">
         <div class="tag-row"><span class="tag tag-${escapeHtml(item.core)}">${escapeHtml(String(item.core||"").toUpperCase())}</span>${getDisplayVersion(item) ? `<span class="version-chip">${formatVersionLabel(getDisplayVersion(item))}</span>` : ''}${getDisplayHasThai(item) ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</div>
         <p class="name">${escapeHtml(item.name)}</p>
@@ -1119,7 +1119,7 @@ let detailItem=null;
 function openDetailModal(item){
   playPop();
   detailItem=item;
-  detailCover.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
+  detailCover.crossOrigin='anonymous'; detailCover.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
   detailTag.textContent=item.core.toUpperCase();
   detailTag.className='tag tag-'+item.core;
   if(getDisplayHasThai(item)){ detailThaiFlag.innerHTML=THAI_FLAG_SVG; detailThaiFlag.style.display='inline-flex'; }
@@ -1295,7 +1295,7 @@ function openEditModal(item){
   coverFileInput.value='';
   romFileNameEl.textContent=FILE_PICKER_EMPTY;
   coverFileNameEl.textContent=FILE_PICKER_EMPTY;
-  if(item.cover_path){ coverPreview.src=publicUrl(item.cover_path); coverPreview.style.display='block'; }
+  if(item.cover_path){ coverPreview.crossOrigin='anonymous'; coverPreview.src=publicUrl(item.cover_path); coverPreview.style.display='block'; }
   else { coverPreview.style.display='none'; coverPreview.src=''; }
   saveBtn.textContent='บันทึกการแก้ไข';
   modalBg.classList.add('show');
@@ -1742,7 +1742,7 @@ async function buildIntroMarquee(){
     col.className='intro-col c'+(i+1);
     // duplicate list so the loop feels continuous
     [...list,...list].forEach(src=>{
-      const img=document.createElement('img');
+      const img=document.createElement('img'); img.crossOrigin='anonymous';
       img.alt=''; img.draggable=false;
       loadPromises.push(new Promise(resolve=>{ img.onload=resolve; img.onerror=resolve; }));
       img.src=src;
@@ -2021,7 +2021,7 @@ function renderThumbs(){
     cell.className='marquee-thumb';
     cell.draggable=true;
     cell.dataset.idx=idx;
-    const img=document.createElement('img'); img.src=publicUrl(row.image_path); img.alt=''; img.draggable=false;
+    const img=document.createElement('img'); img.crossOrigin='anonymous'; img.src=publicUrl(row.image_path); img.alt=''; img.draggable=false;
     const rm=document.createElement('button'); rm.textContent='×'; rm.title='ลบรูปนี้';
     rm.onclick=async()=>{
       rm.disabled=true;
@@ -2067,7 +2067,7 @@ function resizeImageFileToBlob(file,maxW=900,quality=0.82){
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onload=(e)=>{
-      const img=new Image();
+      const img=new Image(); img.crossOrigin='anonymous';
       img.onload=()=>{
         const scale=Math.min(1, maxW/img.width);
         const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
@@ -2330,7 +2330,7 @@ function renderSummaryList(){
     summaryListEl.appendChild(h);
     items.forEach(item=>{
       const row=document.createElement('div'); row.className='summary-item';
-      const img=document.createElement('img');
+      const img=document.createElement('img'); img.crossOrigin='anonymous';
       img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);
       img.alt=''; img.loading='lazy';
       const box=document.createElement('div'); box.style.minWidth='0';
