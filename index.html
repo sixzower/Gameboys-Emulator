@@ -1,4 +1,14 @@
 <!DOCTYPE html>
+<!--
+  Single-file maintenance map
+  UI: shared theme CSS and library/player markup.
+  Data: Supabase games, ROM storage, SRAM sync, dashboard (existing contracts).
+  Checkpoints: local save-state store, atomic single checkpoint, legacy migration.
+  Player: native EmulatorJS input/fullscreen/control skins (keep geometry separate).
+  NDS: lightweight defaults; never changes touch/layout/core release.
+  Loading: instance-only ROM download callbacks; percentages are ROM transfer only.
+  No credentials, ROM bytes or save-state bytes belong in HTML source.
+-->
 <html lang="th">
 <head>
 <meta charset="UTF-8">
@@ -98,6 +108,8 @@ body.authed #dashboardBtn{display:flex;}
 .dash-chart-box{position:relative; height:170px; margin-bottom:8px;}
 .dash-chart-box canvas{max-width:100%;}
 #toastMsg{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(16px); background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:9px 16px; font-size:13px; box-shadow:0 6px 20px var(--shadow); opacity:0; pointer-events:none; transition:opacity .22s ease, transform .22s ease; z-index:10000; max-width:86vw; text-align:center;}
+#toastMsg.action-toast{display:flex;align-items:center;justify-content:center;gap:7px;font-weight:700;}
+#toastMsg.action-toast svg{width:14px;height:14px;flex:0 0 14px;}
 #toastMsg.show{opacity:1; transform:translateX(-50%) translateY(0);}
 #quickLoadBtn.disabled{opacity:.35; pointer-events:none;}
 .theme-swatches{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 4px;}
@@ -136,6 +148,15 @@ body.authed .card{cursor:grab;}
 .card.kbd-focus{outline:3px solid var(--accent); outline-offset:2px;}
 .library-toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
 .filter-chips{display:flex; gap:6px; flex-wrap:wrap;}
+@media(max-width:640px){
+  #libraryToolbar{flex-wrap:nowrap;gap:6px;align-items:center;}
+  #filterChips{flex:0 1 54%;min-width:0;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;scrollbar-width:none;touch-action:pan-x;}
+  #filterChips::-webkit-scrollbar{display:none}
+  #filterChips .chip{flex:0 0 auto;padding:5px 8px;font-size:11px;}
+  #libraryToolbar>div:last-child{flex:1 1 0!important;min-width:0;gap:5px!important;}
+  #gameSearchInput{width:0;min-width:0;max-width:none;flex:1 1 auto;padding:7px 9px;}
+  #viewToggleBtn{width:32px;height:32px;flex:0 0 32px;}
+}
 #viewToggleBtn{background:var(--card); color:var(--text); border:1.5px solid var(--border);}
 .chip{border:1.5px solid var(--border); background:transparent; color:var(--sub); font-size:12px; font-weight:700; padding:5px 12px; border-radius:20px; cursor:pointer; font-family:'Prompt',sans-serif;}
 .chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
@@ -188,13 +209,13 @@ body.authed .card-actions button[data-act=edit],body.authed .card-actions button
 /* ---------- intro 3D marquee splash ---------- */
 #bootLoadingView{position:fixed; inset:0; z-index:60; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; transition:opacity .4s ease; padding:20px; box-sizing:border-box;}
 #bootLoadingView.hide{opacity:0; pointer-events:none;}
-.boot-load-hint{font-family:'Prompt',sans-serif; color:#8e8e96; font-size:13px; opacity:0; transition:opacity .3s ease; min-height:18px;}
+.boot-load-hint{font-family:'Prompt',sans-serif; color:#fff; font-size:13px; opacity:0; transition:opacity .3s ease; min-height:18px;}
 .boot-load-hint.show{opacity:1;}
-.boot-load-label{font-family:var(--font-pixel); color:var(--accent); font-size:clamp(20px,5vw,32px); text-align:center; letter-spacing:4px;}
-.boot-load-bar-track{width:min(520px,88vw); height:clamp(36px,8vw,56px); display:flex; gap:clamp(4px,1vw,8px); padding:clamp(5px,1.2vw,9px); border:clamp(3px,.8vw,5px) solid var(--accent); border-radius:6px; background:#000; box-sizing:border-box;}
+.boot-load-label{font-family:var(--font-pixel); color:#fff; font-size:clamp(20px,5vw,32px); text-align:center; letter-spacing:4px;}
+.boot-load-bar-track{width:min(520px,88vw); height:clamp(36px,8vw,56px); display:flex; gap:clamp(4px,1vw,8px); padding:clamp(5px,1.2vw,9px); border:clamp(3px,.8vw,5px) solid #fff; border-radius:6px; background:#000; box-sizing:border-box;}
 .boot-load-seg{flex:1; background:#201f1d; border-radius:2px; transition:background-color .05s ease;}
-.boot-load-seg.on{background:var(--accent);}
-.boot-load-pct{font-family:var(--font-pixel); color:var(--accent); font-size:clamp(16px,4vw,24px); letter-spacing:2px;}
+.boot-load-seg.on{background:#fff;}
+.boot-load-pct{font-family:var(--font-pixel); color:#fff; font-size:clamp(16px,4vw,24px); letter-spacing:2px;}
 #introView{position:fixed; inset:0; z-index:50; background:#000; cursor:pointer; overflow:hidden;}
 .intro-stage{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; perspective:1400px;}
 .intro-plane{width:170%; aspect-ratio:1/1; transform:scale(1.15);}
@@ -275,9 +296,127 @@ label.checkline.checkline-lg input:checked::after{
 #ejsContainer{width:100%; max-width:720px; margin:0 auto; aspect-ratio:4/3; background:#000; border-radius:8px; overflow:hidden;}
 .ejs-wrap{position:relative; width:100%; max-width:720px; margin:0 auto;}
 .ejs-wrap #ejsContainer{max-width:none;}
+/* Fullscreen belongs to EmulatorJS's own game surface. The canvas is contained
+   inside the viewport, preserving its intrinsic ratio and keeping its toolbar active. */
+#ejsContainer:fullscreen, #ejsContainer:-webkit-full-screen{box-sizing:border-box!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;border-radius:0!important;background:#000!important;overflow:hidden!important;}
+#ejsContainer:fullscreen canvas, #ejsContainer:-webkit-full-screen canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;object-position:center!important;}
+#ejsContainer:fullscreen, #ejsContainer:-webkit-full-screen{touch-action:none!important;}
+#ejsWrap:fullscreen, #ejsWrap:-webkit-full-screen{box-sizing:border-box!important;width:100vw!important;height:100vh!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;overflow:hidden!important;background:#000!important;}
+#ejsWrap:fullscreen #ejsContainer, #ejsWrap:-webkit-full-screen #ejsContainer{box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;border-radius:0!important;}
+#ejsWrap:fullscreen #ejsContainer canvas, #ejsWrap:-webkit-full-screen #ejsContainer canvas{width:100%!important;height:100%!important;max-width:100vw!important;max-height:100dvh!important;object-fit:contain!important;object-position:center!important;}
+#ejsWrap:fullscreen .gb-boot, #ejsWrap:-webkit-full-screen .gb-boot{border-radius:0!important;}
+
+/* Fullscreen actions occupy their own strip. Only the video surface is resized;
+   EmulatorJS's parent and bottom controls retain their original dimensions. */
+.has-player-toolbar{--player-toolbar-space:calc(44px + env(safe-area-inset-top,0px));}
+.fullscreen-player-toolbar{position:absolute;top:0;left:0;right:0;height:var(--player-toolbar-space);padding:env(safe-area-inset-top,0px) max(8px,env(safe-area-inset-right,0px)) 0 max(8px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:6px;background:#2a2a2a;border-bottom:1px solid #3a3a3a;color:#e8e8e8;z-index:10001;}
+.fullscreen-player-toolbar[hidden]{display:none!important;}
+.player-toolbar-hidden .fullscreen-player-toolbar{visibility:hidden;pointer-events:none;}
+.fullscreen-toolbar-reveal{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:max(8px,env(safe-area-inset-left,0px));right:auto;z-index:10001;width:30px;height:30px;opacity:.7;}
+.fullscreen-toolbar-reveal[hidden]{display:none!important;}
+
+.fullscreen-player-toolbar,.fullscreen-player-toolbar *{font-family:'Prompt',sans-serif!important;}
+.fullscreen-game-title{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:600;line-height:1.4;text-align:center;margin:0 2px;}
+.fullscreen-player-actions{display:flex;align-items:center;gap:5px;flex:0 0 auto;}
+.fullscreen-player-toolbar .iconbtn{width:30px;min-width:30px;height:30px;padding:0;border-radius:50%;font-size:16px;}
+.fullscreen-player-toolbar .tl{flex:0 0 auto;}
+.fullscreen-player-toolbar #backBtn{width:50px;min-width:50px;height:32px;padding:0 5px;font-size:10px;border-radius:8px;}
+.has-player-toolbar .ejs_canvas_parent{height:calc(100% - var(--player-toolbar-space))!important;margin-top:var(--player-toolbar-space)!important;}
+.has-player-toolbar .ejs_virtualGamepad_open{top:calc(var(--player-toolbar-space) + 5px)!important;}
+/* Reclaim the hidden toolbar strip in landscape without moving gamepad controls. */
+@media (orientation:landscape){
+  .has-player-toolbar.player-toolbar-hidden .ejs_canvas_parent{height:100%!important;margin-top:0!important;}
+  .has-player-toolbar.player-toolbar-hidden .ejs_virtualGamepad_open{top:5px!important;}
+}
+#ejsContainer .site-fast-active,#ejsContainer .site-slow-active{color:var(--accent)!important;border-color:var(--accent)!important;background:rgba(230,52,8,.2)!important;}
+
+
+/* Purple console skin is opt-in and scoped to a fullscreen GBA root only. */
+.gba-skin-art{display:none;pointer-events:none!important;}
+.gba-console-skin{isolation:isolate;background:#09080c!important;}
+.gba-console-skin>.gba-skin-art{display:block;position:absolute;inset:0;z-index:0;overflow:hidden;}
+.gba-console-skin>.gba-skin-art svg{display:block;width:100%;height:100%;}
+body[data-emu-core="gba"] .gba-console-skin .ejs_canvas_parent{position:absolute!important;left:var(--skin-screen-x)!important;top:var(--skin-screen-y)!important;width:var(--skin-screen-w)!important;height:var(--skin-screen-h)!important;margin:0!important;z-index:1!important;border-radius:3px;overflow:hidden;background:#000!important;}
+body[data-emu-core="gba"] .gba-console-skin .ejs_canvas_parent canvas{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;}
+.gba-console-skin .control-layout-panel{left:calc(var(--skin-screen-x) + 8px);top:calc(var(--skin-screen-y) + 8px);right:auto;width:calc(var(--skin-screen-w) - 16px);box-sizing:border-box;}
+.gba-console-skin .ejs_virtualGamepad_parent{z-index:5!important;overflow:visible!important;}
+.gba-console-skin .ejs_virtualGamepad_left,.gba-console-skin .ejs_virtualGamepad_right,.gba-console-skin .ejs_virtualGamepad_top,.gba-console-skin .ejs_virtualGamepad_bottom{overflow:visible!important;}
+.gba-console-skin .ejs_virtualGamepad_button{box-sizing:border-box!important;background:linear-gradient(145deg,#fff 0%,#e8e7eb 40%,#b6b5c0 100%)!important;border:2px solid #48404f!important;color:#676170!important;text-shadow:0 1px 1px #fff!important;box-shadow:inset 0 2px 3px #fff,inset 0 -3px 4px #92909c,0 3px 0 #261d3c,0 4px 7px #1c123b!important;font-family:'Prompt',sans-serif!important;opacity:1!important;align-items:center!important;justify-content:center!important;padding:0!important;}
+.gba-console-skin .ejs_virtualGamepad_button[data-skin-role]{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:center!important;line-height:1!important;text-align:center!important;text-indent:0!important;letter-spacing:0!important;white-space:nowrap!important;}
+.gba-console-skin [data-skin-role="a"],.gba-console-skin [data-skin-role="b"]{width:var(--skin-action-size)!important;height:var(--skin-action-size)!important;border-radius:50%!important;font-size:clamp(18px,4vh,28px)!important;}
+.gba-console-skin [data-skin-role="l"],.gba-console-skin [data-skin-role="r"]{width:var(--skin-shoulder-w)!important;height:var(--skin-shoulder-h)!important;border-radius:15px 15px 22px 22px!important;font-size:18px!important;}
+.gba-console-skin [data-skin-role="start"],.gba-console-skin [data-skin-role="select"],.gba-console-skin [data-skin-role="fast"],.gba-console-skin [data-skin-role="slow"]{width:var(--skin-small-w)!important;height:var(--skin-small-h)!important;border-radius:20px!important;font-size:11px!important;}
+.gba-console-skin .ejs_dpad_main{background:transparent!important;opacity:1!important;filter:drop-shadow(0 3px 2px #211634);}
+.gba-console-skin .ejs_dpad_main::before{content:'';position:absolute;inset:0;background:linear-gradient(145deg,#fff,#dfdfe6 45%,#a7a5b3);clip-path:polygon(34% 0,66% 0,66% 34%,100% 34%,100% 66%,66% 66%,66% 100%,34% 100%,34% 66%,0 66%,0 34%,34% 34%);pointer-events:none;}
+.gba-console-skin .ejs_dpad_main>div{background:transparent!important;}
+.gba-console-skin .ejs_virtualGamepad_button:active{filter:brightness(.88);}
+
+
+
+
+.gba-console-skin.gba-gameboy-light-skin .ejs_virtualGamepad_button{background:linear-gradient(145deg,#515151,#252525 45%,#101010)!important;border-color:#111!important;color:#dedede!important;text-shadow:0 1px 2px #000!important;box-shadow:inset 0 2px 3px #777,inset 0 -3px 4px #080808,0 3px 0 #171717,0 4px 7px #0006!important;}
+.gba-console-skin.gba-gameboy-light-skin .ejs_dpad_main{filter:drop-shadow(0 3px 2px #0008);}
+.gba-console-skin.gba-gameboy-light-skin .ejs_dpad_main::before{background:linear-gradient(145deg,#494949,#242424 45%,#111);}
+
+.gba-console-skin.gba-dark-knight-skin .ejs_virtualGamepad_button{background:linear-gradient(145deg,#4f5257,#282b30 45%,#14171b)!important;border-color:#121418!important;color:#f1f0f2!important;text-shadow:0 1px 2px #000!important;box-shadow:inset 0 2px 3px #81848a,inset 0 -3px 4px #090a0d,0 3px 0 #111316,0 4px 7px #0006!important;}
+.gba-console-skin.gba-dark-knight-skin [data-skin-role="a"],.gba-console-skin.gba-dark-knight-skin [data-skin-role="b"]{background:linear-gradient(145deg,#b54f6a,#86213f 50%,#59102a)!important;border-color:#35131f!important;color:#fff0f4!important;box-shadow:inset 0 2px 3px #da839c,inset 0 -3px 4px #490c21,0 3px 0 #26121a,0 4px 7px #0006!important;}
+.gba-console-skin.gba-dark-knight-skin .ejs_dpad_main{filter:drop-shadow(0 3px 2px #0008);}
+.gba-console-skin.gba-dark-knight-skin .ejs_dpad_main::before{background:linear-gradient(145deg,#494c51,#24262b 45%,#101217);}
+
+
+.gba-console-skin.gba-pokedex-skin .ejs_virtualGamepad_button{background:linear-gradient(145deg,#2b5159,#12343c 45%,#062027)!important;border-color:#031c23!important;color:#eff4f5!important;text-shadow:0 1px 2px #00151c!important;box-shadow:inset 0 2px 3px #67838b,inset 0 -3px 4px #001820,0 3px 0 #071e24,0 4px 7px #41041480!important;}
+.gba-console-skin.gba-pokedex-skin .ejs_dpad_main{filter:drop-shadow(0 3px 2px #40031390);}
+.gba-console-skin.gba-pokedex-skin .ejs_dpad_main::before{background:linear-gradient(145deg,#2b5159,#12343c 45%,#062027);}
+
+
+.gba-console-skin.gba-cyan-red-skin .ejs_virtualGamepad_button{background:linear-gradient(145deg,#51555a,#292d32 45%,#14171c)!important;border-color:#11151b!important;color:#f1f4f7!important;text-shadow:0 1px 2px #000!important;box-shadow:inset 0 2px 3px #7b828b,inset 0 -3px 4px #090c11,0 3px 0 #10151b,0 4px 7px #0005!important;}
+.gba-console-skin.gba-cyan-red-skin .ejs_dpad_main{filter:drop-shadow(0 3px 2px #0006);}
+.gba-console-skin.gba-cyan-red-skin .ejs_dpad_main::before{background:linear-gradient(145deg,#454b52,#252a30 45%,#12171d);}
+
+
+.gba-console-skin.gba-retro-skin .ejs_virtualGamepad_button{border-color:#3f3c3e!important;box-shadow:inset 0 2px 3px #fff,inset 0 -3px 4px #99979a,0 3px 0 #373337,0 4px 7px #0005!important;color:#56535a!important;}
+.gba-console-skin.gba-retro-skin [data-skin-role="a"],.gba-console-skin.gba-retro-skin [data-skin-role="b"]{background:linear-gradient(145deg,#bd2867,#970447 50%,#69032d)!important;border-color:#382330!important;color:#fff0f5!important;text-shadow:0 1px 2px #500120!important;box-shadow:inset 0 2px 3px #df679b,inset 0 -3px 4px #540324,0 3px 0 #372630,0 4px 7px #0005!important;}
+.gba-console-skin.gba-retro-skin [data-skin-role="start"],.gba-console-skin.gba-retro-skin [data-skin-role="select"],.gba-console-skin.gba-retro-skin [data-skin-role="fast"],.gba-console-skin.gba-retro-skin [data-skin-role="slow"]{background:linear-gradient(145deg,#77737a,#49464e 55%,#333139)!important;color:#f4f0ec!important;text-shadow:0 1px 1px #222!important;box-shadow:inset 0 1px 2px #a09aa3,inset 0 -2px 3px #232127,0 2px 0 #302d33,0 3px 5px #0004!important;}
+.gba-console-skin.gba-retro-skin .ejs_dpad_main{filter:drop-shadow(0 3px 2px #0006);}
+.gba-console-skin.gba-retro-skin .ejs_dpad_main::before{background:linear-gradient(145deg,#393a3e,#17181b 45%,#07080b);}
+
+
+.control-appearance-options select{appearance:none;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:7px 30px 7px 10px;font-family:inherit;font-size:12px;min-width:0;flex:1;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+.control-appearance-options select:focus-visible,.control-appearance-options input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.control-appearance-options .control-check{padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--bg);cursor:pointer;color:var(--text);line-height:1.4;}
+.control-appearance-options input[type="checkbox"]{appearance:none;box-sizing:border-box;width:17px;height:17px;margin:0;flex:0 0 17px;border:1.5px solid var(--border);border-radius:5px;background:var(--card);cursor:pointer;}
+.control-appearance-options input[type="checkbox"]:checked{border-color:var(--accent);background-color:var(--accent);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 4 4L19 6'/%3E%3C/svg%3E");background-position:center;background-repeat:no-repeat;}
+.control-appearance-options #gbaSkinOption{flex-basis:100%;color:var(--sub);}
+.control-layout-panel>.control-panel-title{flex:1 1 130px;text-align:left;font-size:12px;font-weight:600;color:var(--text);}
+.control-layout-panel .btn-accent{background:var(--accent);color:#fff;}
+
+
+.control-layout-editor{position:absolute;inset:0;z-index:10002;pointer-events:auto;}
+.control-layout-editor[hidden]{display:none!important;}
+.control-layout-panel{z-index:2;position:absolute;top:calc(var(--player-toolbar-space,0px) + 8px);left:8px;right:8px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);box-shadow:0 6px 24px var(--shadow);pointer-events:auto;font-size:12px;}
+.control-layout-panel *{font-family:'Prompt',sans-serif!important;}
+.control-layout-panel button{font-size:12px;padding:7px 10px;}
+.control-appearance-options{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;flex-basis:100%;padding-top:8px;border-top:1px solid var(--border);}
+.control-appearance-options [hidden]{display:none!important;}
+.control-appearance-options label{display:flex;align-items:center;gap:7px;flex:1 1 140px;min-width:0;}
+.control-appearance-options input[type="range"]{width:90px;min-width:40px;flex:1;max-width:100%;accent-color:var(--accent);cursor:pointer;}
+.control-appearance-options output{min-width:3em;text-align:right;font-variant-numeric:tabular-nums;color:var(--sub);}
+.player-confirm-layer{position:absolute;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:rgba(0,0,0,.6);touch-action:manipulation;}
+.player-confirm-card{box-sizing:border-box;width:min(340px,100%);padding:20px;background:#242120;color:#f1ede4;border:1px solid #514a43;border-radius:14px;font:13px/1.6 "Prompt",sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.3);}
+.player-confirm-card h2{font-size:16px;margin:0 0 8px;}
+.player-confirm-card p{margin:0 0 16px;color:#bfb7ac;}
+.player-confirm-actions{display:flex;justify-content:flex-end;gap:8px;}
+.web-tap-feedback{animation:webTapFeedback .16s ease-out;}
+@keyframes webTapFeedback{from{filter:brightness(1.25);}to{filter:brightness(1);}}
+@media(prefers-reduced-motion:reduce){.web-tap-feedback{animation:none;}}
+.control-drag-handle{position:absolute;display:flex;align-items:center;justify-content:center;border:2px dashed var(--accent);border-radius:10px;background:rgba(0,0,0,.75);color:#fff;pointer-events:auto;touch-action:none;cursor:move;user-select:none;font:600 13px 'Prompt',sans-serif!important;}
+#moveControlsBtn[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent);}
+
 .gb-boot{position:absolute; inset:0; background:#000; border-radius:8px; display:flex; align-items:center; justify-content:center; z-index:50; opacity:1; transition:opacity .45s ease; pointer-events:none; overflow:hidden;}
 .gb-boot.hide{opacity:0;}
-.gb-boot-logo{font-family:var(--font-pixel); color:var(--accent); font-size:15px; text-align:center; line-height:1.9; letter-spacing:1px; opacity:0; transform:scale(.25) translateY(50px); animation:gbBootIn 1.05s cubic-bezier(.22,1.15,.4,1) forwards .12s;}
+.gb-boot-content{width:100%;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:22px;}
+.gb-boot-content .boot-load-bar-track{width:min(520px,88%);}
+.gb-boot-message{font-family:'Prompt',sans-serif;color:#fff;font-size:13px;min-height:18px;text-align:center;}
 @keyframes gbBootIn{
   0%{opacity:0; transform:scale(.2) translateY(60px);}
   55%{opacity:1; transform:scale(1.18) translateY(0);}
@@ -286,7 +425,10 @@ label.checkline.checkline-lg input:checked::after{
 }
 .hint{color:var(--sub); font-size:12px; margin-top:10px; text-align:center; padding:0 10px; line-height:1.55;}
 .hint-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
-.hint-list li{margin:0;}
+.hint-list li{margin:0; display:grid; grid-template-columns:2.5em minmax(0,1fr); column-gap:6px; text-align:left; align-items:start;}
+.hint-number{color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; text-align:right;}
+.hint-copy{min-width:0;}
+.hint-icon{display:inline-block; width:13px; height:13px; margin:0 2px; vertical-align:-2px; color:var(--text);}
 .hint b{color:var(--text); font-weight:700;}
 .hint-area{margin-top:14px; text-align:center; max-width:720px; margin-left:auto; margin-right:auto;}
 .hint-toggle{display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--border); color:var(--sub); font-family:inherit; font-size:12px; font-weight:600; padding:6px 14px; border-radius:20px; cursor:pointer; touch-action:manipulation; transition:color .2s ease, border-color .2s ease;}
@@ -309,12 +451,65 @@ label.checkline.checkline-lg input:checked::after{
 .card-actions button{min-width:0; white-space:nowrap; padding:7px 4px;}
 .grid.list-view .card-actions{gap:4px; padding:6px 6px; max-width:62%;}
 .grid.list-view .card-actions button{flex:0 1 auto; padding:7px 9px;}
+
+/* Keep mobile card actions contained and the flag beside its version. */
+.card-version-meta{display:contents;}
+@media (max-width:640px){
+  .grid:not(.list-view) .card-body{padding-left:8px;padding-right:8px;}
+  .grid:not(.list-view) .tag-row{gap:3px;}
+  .grid:not(.list-view) .tag-row .tag{padding-left:5px;padding-right:5px;letter-spacing:0;}
+  .grid:not(.list-view) .version-chip{padding-left:4px;padding-right:4px;}
+  .grid:not(.list-view) .card-version-meta{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;}
+  .grid:not(.list-view) .card-actions{flex-wrap:wrap;gap:5px;padding:4px 8px 10px;}
+  .grid:not(.list-view) .card-actions button{box-sizing:border-box;flex:1 1 0;}
+  .grid:not(.list-view) .card-actions button[data-act=play]{flex:1 0 100%;width:100%;justify-content:center;}
+  .grid:not(.list-view) .card-actions button[data-act=play] svg{flex-shrink:0;}
+}
 /* search / favourites */
 #gameSearchInput{flex:1 1 130px; min-width:0; max-width:240px; padding:7px 12px; border-radius:20px; border:1.5px solid var(--border); background:var(--card); color:var(--text); font-size:13px; font-family:inherit;}
 #gameSearchInput:focus{outline:none; border-color:var(--accent);}
 body.in-play .intro-col, body.in-play .intro-overlay p{animation:none!important;}
 #ejsContainer canvas{touch-action:none;user-select:none;-webkit-user-select:none;}
 body.in-play #ejsContainer{touch-action:none; overscroll-behavior:contain;}
+/* NDS only: empty gamepad containers must not cover the native touchscreen.
+   Actual buttons and the D-pad remain interactive. The core checks lower LCD bounds. */
+body[data-emu-core="nds"] #ejsContainer .ejs_virtualGamepad_parent,
+body[data-emu-core="nds"] #ejsContainer .ejs_virtualGamepad_left,
+body[data-emu-core="nds"] #ejsContainer .ejs_virtualGamepad_right,
+body[data-emu-core="nds"] #ejsContainer .ejs_virtualGamepad_top,
+body[data-emu-core="nds"] #ejsContainer .ejs_virtualGamepad_bottom{pointer-events:none;}
+body[data-emu-core="nds"] #ejsContainer .ejs_virtualGamepad_button,
+body[data-emu-core="nds"] #ejsContainer .ejs_dpad_main{pointer-events:auto;}
+
+
+/* Desktop play toolbar: keep Save, Load, Fullscreen, personal sync code and Back. */
+@media (hover: hover) and (pointer: fine){
+  body.in-play #headerIconGroup{display:flex!important;}
+  body.in-play #headerIconGroup > button:not(#syncBtn),
+  body.in-play #moveControlsBtn,
+  body.in-play #playerRotateBtn{display:none!important;}
+}
+
+
+#dashResetStatsBtn{display:none;background:transparent;color:var(--sub);border:0;padding:5px 3px;margin-right:auto;font-size:10px;gap:4px;align-items:center;opacity:.35;cursor:pointer;}
+body.authed #dashResetStatsBtn{display:inline-flex;}
+#dashResetStatsBtn:hover,#dashResetStatsBtn:focus-visible{opacity:1;}
+#dashResetStatsBtn:disabled{cursor:wait;opacity:.25;}
+
+
+/* Match mobile card actions while editing on desktop. */
+body.authed .grid:not(.list-view) .card-actions{flex-wrap:wrap;gap:5px;padding:4px 8px 10px;}
+body.authed .grid:not(.list-view) .card-actions button{box-sizing:border-box;flex:1 1 0;min-width:0;}
+body.authed .grid:not(.list-view) .card-actions button[data-act=play]{flex:1 0 100%;width:100%;justify-content:center;}
+body.authed .grid:not(.list-view) .card-actions button[data-act=play] svg{flex-shrink:0;}
+
+
+/* Player extensions: scoped UI; no canvas/control geometry rules. */
+#gbBootProgress.indeterminate .boot-load-seg{animation:romLoadingPulse 1s ease-in-out infinite alternate;}
+#gbBootProgress.indeterminate .boot-load-seg:nth-child(even){animation-delay:.25s;}
+@keyframes romLoadingPulse{from{opacity:.18;}to{opacity:.8;}}
+@media(prefers-reduced-motion:reduce){#gbBootProgress.indeterminate .boot-load-seg{animation:none;opacity:.35;}}
+#gbBootRetry{margin-top:12px;background:transparent;border:1px solid #fff;color:#fff;}
 </style>
 </head>
 <body>
@@ -427,7 +622,7 @@ setTimeout(function(){
 </div>
 <div class="modal-bg" id="summaryModalBg">
   <div class="modal summary-modal">
-    <h2>สรุปทุกภาค / ทุกเกม</h2>
+    <h2>รายละเอียดข้อมูล</h2>
     <div class="modal-sub" id="summaryCount"></div>
     <input type="search" id="summarySearch" class="summary-search" placeholder="ค้นหาชื่อเกมหรือเนื้อหา...">
     <div id="summaryList"></div>
@@ -453,6 +648,7 @@ setTimeout(function(){
     <div class="dash-section-title">ผู้เล่นรายคน</div>
     <div id="dashUsers"></div>
     <div class="modal-actions">
+      <button type="button" id="dashResetStatsBtn" title="รีเซ็ตสถิติสำหรับทดสอบ" aria-label="รีเซ็ตสถิติสำหรับทดสอบ"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg><span>รีเซ็ตสถิติ</span></button>
       <button id="dashRefreshBtn" style="background:var(--border);color:var(--text)">รีเฟรชข้อมูล</button>
       <button id="dashCloseBtn" style="background:var(--accent);color:#fff">ปิด</button>
     </div>
@@ -470,7 +666,7 @@ setTimeout(function(){
     <button class="iconbtn" id="syncBtn" title="รหัสซิงก์เซฟส่วนตัว">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H7a4.5 4.5 0 0 1-.4-8.98A6 6 0 0 1 18 9.06 4.5 4.5 0 0 1 17.5 19Z"/><path d="m9 13 2 2 4-4"/></svg>
     </button>
-    <button class="iconbtn" id="summaryBtn" title="สรุปทุกภาคทุกเกม">
+    <button class="iconbtn" id="summaryBtn" title="รายละเอียดข้อมูล">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H19v-3"/><path d="M9 8h6M9 12h6"/></svg>
     </button>
     <button class="iconbtn" id="dashboardBtn" title="แดชบอร์ดผู้เล่น">
@@ -484,6 +680,15 @@ setTimeout(function(){
     </button>
     <button class="iconbtn" id="quickLoadBtn" title="โหลดด่วน" style="display:none">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <button type="button" class="iconbtn" id="moveControlsBtn" title="ปรับปุ่มควบคุม" aria-label="ปรับปุ่มควบคุม" aria-pressed="false" style="display:none">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10a4 4 0 0 1 3.9 3.1l1.1 5a3 3 0 0 1-5.1 2.8L15 16H9l-1.9 1.9A3 3 0 0 1 2 15.1l1.1-5A4 4 0 0 1 7 7Z"/><path d="M7 10v4M5 12h4"/><circle cx="16" cy="11" r=".8" fill="currentColor" stroke="none"/><circle cx="18" cy="13" r=".8" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button type="button" class="iconbtn" id="playerFullscreenBtn" title="ขยายเต็มจอ" aria-label="ขยายเต็มจอ" aria-pressed="false" style="display:none">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M21 3l-7 7M10 21H3v-7M3 21l7-7"/></svg>
+    </button>
+    <button type="button" class="iconbtn" id="playerRotateBtn" title="สลับแนวตั้ง/แนวนอน" aria-label="สลับแนวตั้ง/แนวนอน" style="display:none">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="13" rx="1.5"/><path d="M14 8h5l-2-2M19 8l-2 2"/><rect x="11" y="14" width="10" height="7" rx="1.5"/></svg>
     </button>
     <button class="btn btn-outline" id="backBtn" style="display:none">BACK</button>
   </div>
@@ -508,9 +713,46 @@ setTimeout(function(){
   </div>
   <div id="playView">
     <div class="ejs-wrap" id="ejsWrap">
+      <div class="fullscreen-player-toolbar" id="fullscreenPlayerToolbar" role="toolbar" aria-label="เมนูเกมเต็มจอ" hidden>
+        <div class="tl" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <span class="fullscreen-game-title" id="fullscreenGameTitle"></span>
+        <div class="fullscreen-player-actions" id="fullscreenPlayerActions"></div>
+      </div>
+      <button type="button" class="iconbtn fullscreen-toolbar-reveal" id="showFullscreenToolbarBtn" title="แสดงแถบเมนู" aria-label="แสดงแถบเมนู" hidden>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="control-layout-editor" id="controlLayoutEditor" hidden>
+        <div class="control-layout-panel"><span class="control-panel-title">ปรับปุ่มควบคุม</span><button type="button" class="btn btn-outline" id="controlLayoutReset">คืนค่าเดิม</button><button type="button" class="btn btn-accent" id="controlLayoutDone">เสร็จ</button>
+          <div class="control-appearance-options">
+            <label id="gbaSkinOption" hidden for="gbaSkinSelect">สกิน GBA <select id="gbaSkinSelect"><option value="original">Defualt</option><option value="purple">Gameboys Advance</option><option value="retro">Retro Classic</option><option value="cyanred">Nintendo Switch</option><option value="pokedex">Pokedex</option><option value="darkknight">Dark Knight</option><option value="gameboylight">Game Boy Light</option></select></label>
+            <label for="controlSize">ขนาด <input id="controlSize" type="range" min="70" max="140" step="5" value="100"><output id="controlSizeValue" for="controlSize">100%</output></label>
+            <label for="controlOpacity">ความชัด <input id="controlOpacity" type="range" min="25" max="100" step="5" value="100"><output id="controlOpacityValue" for="controlOpacity">100%</output></label>
+            <label class="control-check"><input id="controlHideLR" type="checkbox"> ซ่อน L / R</label>
+            <label class="control-check"><input id="controlHideUtility" type="checkbox"> ซ่อน Select / Start / Fast / Slow</label>
+            <label class="control-check"><input id="buttonAnimationEnabled" type="checkbox" checked> เอฟเฟกต์กดปุ่ม</label>
+          </div>
+        </div>
+      </div>
       <div id="ejsContainer"></div>
       <div class="gb-boot" id="gbBootOverlay">
-        <div class="gb-boot-logo">GAMEBOY<br>EMULATOR</div>
+        <div class="gb-boot-content">
+          <div class="boot-load-label">LOADING</div>
+          <div class="boot-load-bar-track" id="gbBootProgress" role="progressbar" aria-label="กำลังโหลดเกม" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+            <span class="boot-load-seg"></span>
+          </div>
+          <div class="boot-load-pct" id="gbBootPercent">0%</div>
+          <div class="gb-boot-message" id="gbBootMessage">กำลังเตรียมเกม...</div>
+          <button type="button" class="btn" id="gbBootRetry" hidden>ลองอีกครั้ง</button>
+        </div>
       </div>
     </div>
     <div class="hint-area">
@@ -523,9 +765,16 @@ setTimeout(function(){
         <div class="hint-collapse-inner">
           <div class="hint">
             <ul class="hint-list">
-              <li><b>ปุ่มควบคุม:</b> <b>Z</b>, <b>X</b> และปุ่มทิศทาง — ใช้คีย์บอร์ดหรือปุ่มบนหน้าจอที่มากับตัวจำลอง</li>
-              <li><b>ระบบบันทึกเกม:</b> เล่นเครื่องไหนก็ได้ เซฟจะตามไปด้วยเสมอ แต่ต้องใส่ <b>"รหัสซิงก์เซฟส่วนตัว"</b> ทุกครั้งที่เล่น</li>
-              <li><b>เล่นบนมือถือ:</b> เล่นได้ปกติ แนะนำหมุนจอเป็นแนวนอนสำหรับเกม GBA — กดปุ่มขยายจอจะมีปุ่มควบคุมขึ้นมาให้</li>
+              <li><span class="hint-number">1.</span><div class="hint-copy"><b>เริ่มเล่น:</b> เลือกเกมแล้วกด <b>Play</b> รอหน้าโหลดจนเกมเริ่ม จากนั้นกด <b>Start</b> หรือปุ่มที่เกมระบุ หากเสียงยังไม่ดังให้แตะหน้าจอหนึ่งครั้ง แล้วตรวจระดับเสียงในเมนูเครื่องเล่น</div></li>
+              <li><span class="hint-number">2.</span><div class="hint-copy"><b>ปุ่มควบคุม:</b> บนมือถือใช้ปุ่มทิศทางและ A / B / X / Y ที่แสดงบนจอ ปุ่ม <b>Start</b> มักใช้เริ่มเกมหรือเปิดเมนู ส่วน <b>Select</b> และ L / R ใช้ตามที่แต่ละเกมกำหนด บนคอมใช้คีย์บอร์ดได้ ดูหรือเปลี่ยนปุ่มได้ที่เมนู <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg> → <b>Control Settings</b></div></li>
+              <li><span class="hint-number">3.</span><div class="hint-copy"><b>เต็มจอและหมุนจอ:</b> แตะไอคอนขยายจอ <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 3h7v7M21 3l-7 7M10 21H3v-7M3 21l7-7"/></svg> บนแถบเพื่อเข้าเต็มจอ แตะไอคอนย่อจอ <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 3l-7 7M14 3v7h7M3 21l7-7M3 14h7v7"/></svg> เพื่อกลับจอปกติ ใช้ไอคอนสลับแนวจอ <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="8" height="13" rx="1.5"/><path d="M14 8h5l-2-2M19 8l-2 2"/><rect x="11" y="14" width="10" height="7" rx="1.5"/></svg> เพื่อสลับแนวตั้ง / แนวนอน หากเบราว์เซอร์ไม่รองรับ ให้เปิดหมุนหน้าจออัตโนมัติของมือถือแล้วเอียงเครื่อง แนะนำเปิดเว็บผ่าน Chrome แทนการเปิดในแอปแชท</div></li>
+              <li><span class="hint-number">4.</span><div class="hint-copy"><b>ซ่อนแถบเมนู:</b> ขณะเต็มจอ กดไอคอนย่อจอ <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 3l-7 7M14 3v7h7M3 21l7-7M3 14h7v7"/></svg> ค้างเพื่อซ่อนแถบด้านบน เมื่อต้องการแสดงอีกครั้ง ให้แตะปุ่มลูกศรเล็ก <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg> ที่มุมซ้ายบน ในแนวนอนจอเกมจะใช้พื้นที่แถบที่ซ่อนไปด้วย</div></li>
+              <li><span class="hint-number">5.</span><div class="hint-copy"><b>ย้ายตำแหน่งปุ่ม:</b> สำหรับ GBA / NDS แตะไอคอนปรับปุ่ม <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10a4 4 0 0 1 3.9 3.1l1.1 5a3 3 0 0 1-5.1 2.8L15 16H9l-1.9 1.9A3 3 0 0 1 2 15.1l1.1-5A4 4 0 0 1 7 7Z"/><path d="M7 10v4M5 12h4"/><circle cx="16" cy="11" r=".8" fill="currentColor" stroke="none"/><circle cx="18" cy="13" r=".8" fill="currentColor" stroke="none"/></svg> บนแถบ แล้วลากปุ่มไปตำแหน่งที่ถนัด สำหรับ GBA เลือก <b>Gameboys Advance / Retro Classic / Nintendo Switch / Pokedex / Dark Knight</b> ได้เมื่อเล่นมือถือเต็มจอ หรือเลือก <b>Defualt</b> เพื่อกลับหน้าตาปกติ สกินจะเปลี่ยนตามแนวจอ ใช้แถบ <b>ขนาด / ความชัด</b> เพื่อปรับปุ่ม ติ๊ก <b>ซ่อน L / R</b> หรือ <b>ซ่อน Select / Start / Fast / Slow</b> เพื่อให้ปุ่มจางหาย แต่ยังอยู่ที่เดิมและกดได้ และเปิดหรือปิด <b>เอฟเฟกต์กดปุ่ม</b> ได้ กด <b>เสร็จ</b> เพื่อบันทึก หรือ <b>คืนค่าเดิม</b> เพื่อจัดปุ่มและขนาดกลับ ระบบจำตำแหน่งแยกตามเครื่องเกม แนวจอ และโหมดย่อ / เต็มจอในเบราว์เซอร์นี้</div></li>
+              <li><span class="hint-number">6.</span><div class="hint-copy"><b>Fast / Slow:</b> แตะ <b>Fast</b> หนึ่งครั้งเพื่อเร่งค้าง หรือ <b>Slow</b> เพื่อเล่นช้าลง ปุ่มที่เปิดอยู่จะเปลี่ยนสี แตะปุ่มเดิมอีกครั้งเพื่อกลับความเร็วปกติ การเปิดโหมดหนึ่งจะปิดอีกโหมด สำหรับ NDS การเร่งอาจเห็นผลน้อยหากมือถือประมวลผลเต็มกำลังอยู่แล้ว หากเกมช้าผิดปกติให้ตรวจว่า Slow ปิดอยู่</div></li>
+              <li><span class="hint-number">7.</span><div class="hint-copy"><b>เซฟในเกม — ใช้เล่นต่อข้ามเครื่อง:</b> เปิดเมนูของเกมแล้วเลือก <b>Save / บันทึก</b> ตามขั้นตอนของเกม หากต้องการซิงก์ ให้ตั้ง <b>รหัสซิงก์เซฟส่วนตัวเดียวกัน</b> บนทุกเครื่อง และเปิดเกมเดียวกันขณะมีอินเทอร์เน็ต เว็บจะซิงก์เซฟในเกมให้อัตโนมัติเป็นระยะ รหัสจะจำไว้ในเบราว์เซอร์ ไม่ต้องกรอกใหม่ทุกครั้ง ก่อนออกให้เซฟในเกมแล้วกด <b>BACK</b> และอย่าใช้รหัสเดียวกันเล่นเกมเดียวกันพร้อมกันหลายเครื่อง</div></li>
+              <li><span class="hint-number">8.</span><div class="hint-copy"><b>Save / Load save บนแถบ — เซฟด่วน:</b> <b>Save</b> <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> เก็บจุดเล่นปัจจุบัน รวมถึงกลางฉากหรือกลางการต่อสู้ ส่วน <b>Load save</b> <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> กลับไปยังจุดที่กด Save ล่าสุดของเกมนั้น การกด Save อีกครั้งจะทับเซฟด่วนเดิม และการ Load จะขอยืนยันก่อนย้อนความคืบหน้ากลับไปยังเซฟล่าสุด เซฟด่วนเก็บในเครื่อง / เบราว์เซอร์นี้ ไม่ได้ซิงก์ข้ามเครื่อง และแยกจากเซฟในเกม ควรเซฟในเกมควบคู่กันเสมอ</div></li>
+              <li><span class="hint-number">9.</span><div class="hint-copy"><b>สำรองเซฟและออกเกม:</b> ในเมนู <svg class="hint-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16"/></svg> ใช้ <b>Export Save File</b> เพื่อดาวน์โหลดเซฟในเกมไว้สำรอง และใช้ <b>Import Save File</b> เมื่อต้องการนำไฟล์เซฟของเกมเดียวกันกลับมา อย่าล้างข้อมูลเว็บไซต์ก่อนสำรองเซฟ เมื่อต้องการกลับหน้าเลือกเกมให้กด <b>BACK</b> บนแถบ หากแถบซ่อนอยู่ให้แสดงแถบก่อน</div></li>
+              <li><span class="hint-number">10.</span><div class="hint-copy"><b>NDS: สองจอและจอสัมผัส:</b> Nintendo DS มีสองจอ โดยปกติจอบนแสดงเหตุการณ์และจอล่างใช้สัมผัส แตะหรือใช้นิ้วลากบนจอสัมผัสของเกมได้ทั้งแนวตั้งและแนวนอน หลายเกมต้องกด Start / A ก่อนเริ่ม และไม่ได้ตอบสนองต่อการแตะในทุกฉาก ปุ่ม L / R หรือเมนูที่ทับจอเป็นปุ่มควบคุม จึงควรแตะบริเวณภาพเกมที่ไม่มีปุ่มทับ</div></li>
             </ul>
           </div>
         </div>
@@ -554,6 +803,7 @@ setTimeout(function(){
     <div class="field">
       <label>คำอธิบาย (ไม่บังคับ)</label>
       <textarea id="romDesc" rows="2" placeholder="รายละเอียดเพิ่มเติมเกี่ยวกับเกมนี้"></textarea>
+      <div class="field-hint" id="autoGameInfoStatus" aria-live="polite">เติมข้อมูลให้อัตโนมัติเมื่อเลือกไฟล์หรือใส่ชื่อเกม และแก้ไขเองได้</div>
     </div>
     <label class="field checkline checkline-lg">
       <input type="checkbox" id="romHasThai">
@@ -657,7 +907,7 @@ function updateAuthUI(){
   if(typeof setHeaderDraggable==='function') setHeaderDraggable(marqueeAuthorized);
 }
 loginBtn.onclick=()=>{
-  if(marqueeAuthorized){ marqueeAuthorized=false; updateAuthUI(); return; }
+  if(marqueeAuthorized){ marqueeAuthorized=false; MARQUEE_PASSWORD=''; updateAuthUI(); return; }
   requireAuth(()=>updateAuthUI());
 };
 
@@ -988,7 +1238,7 @@ function renderGridFromCurrent(){
     card.innerHTML=`
       <div class="cover-wrap"><img crossorigin="anonymous" class="cover" src="${escapeHtml(coverSrc)}" loading="lazy" decoding="async"></div>
       <div class="card-body">
-        <div class="tag-row"><span class="tag tag-${escapeHtml(item.core)}">${escapeHtml(String(item.core||"").toUpperCase())}</span>${getDisplayVersion(item) ? `<span class="version-chip">${formatVersionLabel(getDisplayVersion(item))}</span>` : ''}${getDisplayHasThai(item) ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</div>
+        <div class="tag-row"><span class="tag tag-${escapeHtml(item.core)}">${escapeHtml(String(item.core||"").toUpperCase())}</span><span class="card-version-meta">${getDisplayVersion(item) ? `<span class="version-chip">${formatVersionLabel(getDisplayVersion(item))}</span>` : ''}${getDisplayHasThai(item) ? `<span class="thai-flag-inline" title="มีแปลไทย">${THAI_FLAG_SVG}</span>` : ''}</span></div>
         <p class="name">${escapeHtml(item.name)}</p>
         ${item.description ? `<p class="desc">${escapeHtml(item.description)}</p>` : ''}
       </div>
@@ -1188,6 +1438,58 @@ const romVersionInput=document.getElementById('romVersion');
 const romSystemInput=document.getElementById('romSystem');
 const saveBtn=document.getElementById('saveBtn');
 let editingItem=null; // set when the modal is used to edit an existing game instead of adding a new one
+const autoGameInfoCache=new Map();
+let autoGameInfoSequence=0,autoGameInfoLastDescription='';
+function cleanGameInfoName(name){
+  return String(name||'').replace(/\.(gb|gbc|gba|nds|srl|zip)$/i,'').replace(/\[[^\]]*\]|\([^)]*(?:USA|Europe|Japan|Rev|TH|Thai)[^)]*\)/gi,'').replace(/\b(?:v\d+(?:\.\d+)*|TH|Thai)\b/gi,'').replace(/[_]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function normalizeGameInfoTitle(name){return cleanGameInfoName(name).replace(/\s*\(video game\)\s*$/i,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9ก-๙]/g,'');}
+async function lookupAutoGameInfo(name,system){
+  name=cleanGameInfoName(name);if(name.length<3)return null;
+  const candidate=findBuiltinSummary(name);
+  const builtin=candidate&&(/pok[eé]mon|harvest\s*moon/i.test(name)||candidate.keys.some(key=>key.length>=8&&normalizeGameInfoTitle(name).includes(key)))?candidate:null;
+  if(builtin){const first=builtin.text.split(/\n\s*\n/);return {description:(first[0]+' '+(first[1]||'')).slice(0,420),story:builtin.text,source:'ข้อมูลเกมในเว็บ'};}
+  const key=system+':'+normalizeGameInfoTitle(name);
+  if(autoGameInfoCache.has(key))return autoGameInfoCache.get(key);
+  const job=(async()=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6000);
+    try{
+      const params=new URLSearchParams({action:'query',format:'json',formatversion:'2',origin:'*',generator:'search',gsrsearch:'"'+name+'" video game',gsrlimit:'5',prop:'extracts|info',inprop:'url',exintro:'1',explaintext:'1',exsentences:'6'});
+      const response=await fetch('https://en.wikipedia.org/w/api.php?'+params,{signal:controller.signal,credentials:'omit'});
+      if(!response.ok)return null;
+      const data=await response.json();
+      const platform={gb:/Game Boy(?! Advance| Color)/i,gbc:/Game Boy Color/i,gba:/Game Boy Advance/i,nds:/Nintendo DS/i}[system];
+      const page=(data.query?.pages||[]).find(page=>normalizeGameInfoTitle(page.title)===normalizeGameInfoTitle(name)&&/video game/i.test(page.extract||'')&&(!platform||platform.test(page.extract||'')));
+      if(!page||!/^https:\/\/en\.wikipedia\.org\//.test(page.fullurl||''))return null;
+      const excerpt=String(page.extract||'').slice(0,900);
+      return {description:excerpt.slice(0,400),story:name+' ('+(SYSTEM_LABELS[system]||system)+')\n\n'+excerpt+'\n\nแหล่งข้อมูล: '+page.fullurl+'\nข้อความจาก Wikipedia (ภาษาอังกฤษ), CC BY-SA: https://creativecommons.org/licenses/by-sa/4.0/',source:'Wikipedia: '+page.title};
+    }catch(error){console.warn('Automatic game details unavailable',error);return null;}
+    finally{clearTimeout(timer);}
+  })();
+  autoGameInfoCache.set(key,job);
+  const result=await job;
+  if(!result)autoGameInfoCache.delete(key);
+  return result;
+}
+async function previewAutoGameInfo(){
+  if(editingItem)return;
+  const seq=++autoGameInfoSequence,status=document.getElementById('autoGameInfoStatus');
+  const name=romNameInput.value||romFileInput.files[0]?.name||'',system=romSystemInput.value;
+  if(cleanGameInfoName(name).length<3)return;
+  status.textContent='กำลังค้นหารายละเอียดเกม...';
+  const info=await lookupAutoGameInfo(name,system);
+  if(seq!==autoGameInfoSequence||editingItem)return;
+  if(info){
+    if(!romDescInput.value.trim()||romDescInput.value===autoGameInfoLastDescription){romDescInput.value=info.description;autoGameInfoLastDescription=info.description;}
+    status.textContent='พบข้อมูลจาก '+info.source+' — แก้ไขคำอธิบายเองได้';
+  }else{
+    if(romDescInput.value===autoGameInfoLastDescription)romDescInput.value='';
+    autoGameInfoLastDescription='';status.textContent='ยังไม่พบข้อมูลตรงกับเกมนี้ ใส่รายละเอียดเองได้ และเพิ่มเกมได้ตามปกติ';
+  }
+}
+romNameInput.addEventListener('input',()=>{autoGameInfoSequence++;});
+romNameInput.addEventListener('blur',previewAutoGameInfo);
+romSystemInput.addEventListener('change',previewAutoGameInfo);
 
 // ---------- custom file pickers (only the button opens the OS file dialog — clicking the filename text does nothing) ----------
 const FILE_PICKER_EMPTY='ยังไม่ได้เลือกไฟล์';
@@ -1261,6 +1563,7 @@ romFileInput.addEventListener('change', async ()=>{
   if(filenameLooksThai(f.name)) romHasThaiInput.checked=true;
   const ver=extractVersionFromFilename(f.name);
   if(ver) romVersionInput.value=ver;
+  if(!editingItem){if(!romNameInput.value.trim())romNameInput.value=cleanGameInfoName(f.name);previewAutoGameInfo();}
 });
 
 coverFileInput.addEventListener('change', ()=>{
@@ -1272,6 +1575,8 @@ coverFileInput.addEventListener('change', ()=>{
 });
 
 function resetModalToAdd(){
+  autoGameInfoSequence++;autoGameInfoLastDescription='';
+  document.getElementById('autoGameInfoStatus').textContent='เติมข้อมูลให้อัตโนมัติเมื่อเลือกไฟล์หรือใส่ชื่อเกม และแก้ไขเองได้';
   editingItem=null;
   modalTitleEl.textContent='เพิ่มเกมใหม่';
   romFileLabelEl.textContent='ไฟล์ ROM (.gb / .gbc / .gba / .nds)';
@@ -1289,6 +1594,8 @@ function resetModalToAdd(){
   saveBtn.textContent='บันทึก';
 }
 function openEditModal(item){
+  autoGameInfoSequence++;
+  document.getElementById('autoGameInfoStatus').textContent='แก้ไขรายละเอียดที่บันทึกไว้ได้';
   editingItem=item;
   modalTitleEl.textContent='แก้ไขเกม';
   romFileLabelEl.textContent='ไฟล์ ROM (ไม่บังคับ ใส่เฉพาะถ้าต้องการเปลี่ยน)';
@@ -1307,12 +1614,12 @@ function openEditModal(item){
   modalBg.classList.add('show');
 }
 document.getElementById('addBtn').onclick=()=>requireAuth(()=>{ resetModalToAdd(); modalBg.classList.add('show'); });
-document.getElementById('cancelBtn').onclick=()=>{ modalBg.classList.remove('show'); editingItem=null; };
+document.getElementById('cancelBtn').onclick=()=>{autoGameInfoSequence++;modalBg.classList.remove('show');editingItem=null;};
 saveBtn.onclick=async()=>{
   const romFile=romFileInput.files[0];
   const coverFile=coverFileInput.files[0];
   const system=romSystemInput.value;
-  const description=romDescInput.value.trim();
+  let description=romDescInput.value.trim();
   const hasThai=romHasThaiInput.checked;
   const version=romVersionInput.value.trim();
   let name=romNameInput.value.trim();
@@ -1335,12 +1642,17 @@ saveBtn.onclick=async()=>{
       const {error}=await sb.from('games').update(updateData).eq('id', editingItem.id);
       if(error) throw error;
     } else {
+      const autoInfo=await lookupAutoGameInfo(name,system);
+      if(!description||description===autoGameInfoLastDescription)description=autoInfo?.description||'';
       const romPath=await uploadRom(romFile);
       let coverPath=null;
       if(coverFile){ coverPath=await uploadToLibrary(coverFile,'covers'); }
       const nextOrder = currentGames.length ? Math.max(...currentGames.map(g=>g.sort_order||0))+1 : 0;
-      const {error}=await sb.from('games').insert({ name, core:system, description, rom_path:romPath, cover_path:coverPath, sort_order:nextOrder, has_thai:hasThai, version });
+      const {data:addedGame,error}=await sb.from('games').insert({ name, core:system, description, rom_path:romPath, cover_path:coverPath, sort_order:nextOrder, has_thai:hasThai, version }).select('id').single();
       if(error) throw error;
+      if(autoInfo&&addedGame?.id!=null){
+        try{await setSiteSetting(SUMMARY_KEY_PREFIX+addedGame.id,autoInfo.story);}catch(error){console.warn('Could not store automatic game details',error);}
+      }
     }
     modalBg.classList.remove('show');
     resetModalToAdd();
@@ -1408,7 +1720,29 @@ const syncModalBg=document.getElementById('syncModalBg');
 const syncCodeInput=document.getElementById('syncCodeInput');
 const syncCurrentMsg=document.getElementById('syncCurrentMsg');
 let syncModalResolve=null;
+let syncModalHome=null;
+function mountSyncModalInPlayer(){
+  const player=document.getElementById('ejsContainer');
+  if(!player)return;
+  const fullscreen=document.fullscreenElement||document.webkitFullscreenElement;
+  const destination=fullscreen&&(fullscreen.contains(player)||player.contains(fullscreen))?fullscreen:player;
+  if(syncModalHome){destination.appendChild(syncModalBg);return;}
+  const placeholder=document.createComment('sync-modal-home');
+  syncModalBg.parentNode.insertBefore(placeholder,syncModalBg);
+  syncModalHome=placeholder;
+  syncModalBg.style.zIndex='10000';
+  destination.appendChild(syncModalBg);
+}
+function restoreSyncModal(){
+  if(syncModalHome&&syncModalHome.parentNode){
+    syncModalHome.parentNode.insertBefore(syncModalBg,syncModalHome);
+    syncModalHome.remove();
+  }
+  syncModalHome=null;
+  syncModalBg.style.zIndex='';
+}
 function openSyncModal(){
+  if(document.fullscreenElement||document.webkitFullscreenElement)mountSyncModalInPlayer();
   return new Promise(resolve=>{
     syncModalResolve=resolve;
     const cur=getSyncCode();
@@ -1422,10 +1756,12 @@ document.getElementById('syncSaveBtn').onclick=()=>{
   const v=syncCodeInput.value.trim();
   if(v) setSyncCode(v);
   syncModalBg.classList.remove('show');
+  restoreSyncModal();
   if(syncModalResolve){ syncModalResolve(getSyncCode()); syncModalResolve=null; }
 };
 document.getElementById('syncSkipBtn').onclick=()=>{
   syncModalBg.classList.remove('show');
+  restoreSyncModal();
   if(syncModalResolve){ syncModalResolve(getSyncCode()); syncModalResolve=null; }
 };
 document.getElementById('syncBtn').addEventListener('click', ()=>{ openSyncModal(); });
@@ -1433,6 +1769,35 @@ document.getElementById('syncBtn').addEventListener('click', ()=>{ openSyncModal
 // ---------- play flow (reload-based so EmulatorJS always boots fresh) ----------
 function startGame(id){
   sessionStorage.setItem('playId', id);
+  const game=currentGames.find(g=>String(g.id)===String(id));
+  const mobile=window.matchMedia('(pointer: coarse)').matches||window.innerWidth<=640;
+  // Fullscreen must be requested while this Play tap still counts as a user
+  // gesture. For mobile GBA/NDS, boot in-place instead of reloading the page,
+  // because navigation clears the browser's fullscreen activation.
+  if(mobile&&game&&['gba','nds'].includes(game.core)){
+    const playView=document.getElementById('playView');
+    document.getElementById('libraryView').style.display='none';
+    playView.style.display='block';
+    document.body.classList.add('in-play');
+    document.body.dataset.emuCore=game.core;
+    document.querySelector('.fab-zone').style.display='none';
+    detailModalBg.classList.remove('show');
+    mountSyncModalInPlayer();
+    preventEmulatorLandscapeLock();
+    let fsPromise=null;
+    const fullscreenTarget=document.getElementById('ejsWrap');
+    if(fullscreenTarget&&typeof fullscreenTarget.requestFullscreen==='function'){
+      try{fsPromise=fullscreenTarget.requestFullscreen({navigationUI:'hide'});}catch(e){fsPromise=Promise.reject(e);}
+    }else if(fullscreenTarget&&typeof fullscreenTarget.webkitRequestFullscreen==='function'){
+      try{fullscreenTarget.webkitRequestFullscreen();}catch(e){console.warn('Fullscreen request failed',e);}
+    }
+    if(fsPromise&&typeof fsPromise.catch==='function') fsPromise.catch(e=>{
+      console.warn('Mobile fullscreen request was denied',e);
+      toastMsg('เบราว์เซอร์ไม่อนุญาตเต็มจออัตโนมัติ แตะเมนูเกมแล้วเลือก Fullscreen');
+    });
+    bootPlayer(id);
+    return;
+  }
   // The click blip (playClick) is ~120ms long. Reloading the page immediately, as
   // before, destroyed the audio context before any sound could actually come out —
   // that's why PLAY was silent. A short delay lets the blip finish first.
@@ -1515,24 +1880,47 @@ let toastTimer=null;
 function toastMsg(msg){
   const el=document.getElementById('toastMsg');
   if(!el) return;
+  el.classList.remove('action-toast');
   el.textContent=msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>el.classList.remove('show'), 2200);
 }
-// ---- quick save/load: a full emulator save-state (not just SRAM), kept per-device in localStorage.
+function toastAction(label, kind){
+  const el=document.getElementById('toastMsg'); if(!el) return;
+  el.replaceChildren(); el.classList.add('action-toast');
+  const text=document.createElement('span'); text.textContent=label;
+  const ns='http://www.w3.org/2000/svg', svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke','currentColor'); svg.setAttribute('stroke-width','1.8'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
+  const path=document.createElementNS(ns,'path');
+  path.setAttribute('d',kind==='save'?'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2ZM17 21v-8H7v8M7 3v5h8':'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3');
+  svg.appendChild(path); el.append(text,svg);
+  el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{el.classList.remove('show','action-toast');},2200);
+}
+// ===== LOCAL CHECKPOINT MODULE: one save-state per game/device. =====
 // This is separate from the cross-device SRAM sync above — it's a fast mid-session checkpoint, e.g. right before a boss fight.
 function quickSaveKey(id){ return id ? 'quickSave:'+id : null; }
 function quickSaveAtKey(id){ return id ? 'quickSaveAt:'+id : null; }
 let quickBusy=false;
 let quickDBPromise;
+let quickDBUnavailable=false;
 function quickDB(){
+  if(quickDBUnavailable)return Promise.reject(new Error('พื้นที่ IndexedDB ใช้งานไม่ได้'));
   if(!quickDBPromise) quickDBPromise=new Promise((resolve,reject)=>{
-    const r=indexedDB.open('PokeWebQuickStates',1);
-    r.onupgradeneeded=()=>r.result.createObjectStore('states');
-    r.onsuccess=()=>resolve(r.result);
-    r.onerror=()=>reject(r.error);
-  }).catch(e=>{quickDBPromise=null;throw e;});
+    const request=indexedDB.open('PokeWebQuickStates',1);
+    let settled=false;
+    const fail=error=>{if(settled)return;settled=true;clearTimeout(timer);reject(error);};
+    const timer=setTimeout(()=>fail(new Error('เปิดพื้นที่เซฟไม่สำเร็จ กรุณาลองอีกครั้ง')),8000);
+    request.onupgradeneeded=()=>{
+      if(!request.result.objectStoreNames.contains('states'))request.result.createObjectStore('states');
+    };
+    request.onsuccess=()=>{
+      if(settled){request.result.close();return;}
+      settled=true;clearTimeout(timer);resolve(request.result);
+    };
+    request.onerror=()=>fail(request.error||new Error('เปิดพื้นที่เซฟไม่สำเร็จ'));
+    request.onblocked=()=>fail(new Error('พื้นที่เซฟถูกล็อก ลองปิดแท็บเกมอื่นแล้วเปิดใหม่'));
+  }).catch(error=>{quickDBPromise=null;quickDBUnavailable=true;throw error;});
   return quickDBPromise;
 }
 async function quickRecord(id, record){
@@ -1545,11 +1933,65 @@ async function quickRecord(id, record){
     tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error||new Error('Storage aborted'));
   });
 }
+function quickFallbackKey(id){return 'quickCheckpoint:'+id;}
+async function writeQuickState(id,record){
+  try{await quickRecord(id,record);try{localStorage.removeItem(quickFallbackKey(id));}catch(error){}return;}
+  catch(error){console.warn('Quick checkpoint: using localStorage fallback',error);}
+  let bytes=record.bytes,codec='raw';
+  // Compress only when this browser can also decode the same format.
+  if(typeof CompressionStream==='function'&&typeof DecompressionStream==='function'){
+    try{
+      const stream=new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+      const compressed=new Uint8Array(await new Response(stream).arrayBuffer());
+      if(compressed.length<bytes.length){bytes=compressed;codec='gzip';}
+    }catch(error){console.warn('Checkpoint compression unavailable',error);}
+  }
+  const serialized=JSON.stringify({format:1,codec,at:record.at,bytes:bytesToBase64(bytes)});
+  // One atomic write: a failure leaves the previous checkpoint intact.
+  localStorage.setItem(quickFallbackKey(id),serialized);
+}
+async function decodeQuickFallback(record){
+  let bytes=base64ToBytes(record.bytes);
+  if(record.codec==='gzip'){
+    if(typeof DecompressionStream!=='function')throw new Error('เบราว์เซอร์นี้เปิดเซฟบีบอัดไม่ได้');
+    bytes=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+  }
+  if(!bytes.length)throw new Error('ไฟล์เซฟว่าง');
+  return {bytes,at:record.at};
+}
 async function readQuickState(id){
-  let rec=await quickRecord(id);
-  if(rec) return rec;
-  const old=localStorage.getItem(quickSaveKey(id));
-  return old?{bytes:base64ToBytes(old),at:Number(localStorage.getItem(quickSaveAtKey(id)))}:null;
+  let databaseRecord,storageError;
+  try{databaseRecord=await quickRecord(id);if(databaseRecord?.format===2)databaseRecord=databaseRecord.slots?.[0]||null;}
+  catch(error){storageError=error;}
+  let fallback,legacy,localReadable=false;
+  try{
+    const serialized=localStorage.getItem(quickFallbackKey(id));
+    const old=localStorage.getItem(quickSaveKey(id));
+    localReadable=true;
+    if(serialized){
+      fallback=JSON.parse(serialized);
+      // Keep the newest checkpoint made by the previous three-slot version.
+      if(fallback.format===2){fallback=fallback.slots?.[0];if(!fallback)throw new Error('ไม่พบเซฟล่าสุด');fallback={...fallback,format:1};}
+      if(fallback.format!==1||!['raw','gzip'].includes(fallback.codec)||typeof fallback.bytes!=='string')throw new Error('รูปแบบไฟล์เซฟไม่ถูกต้อง');
+    }
+    if(old)legacy={bytes:base64ToBytes(old),at:Number(localStorage.getItem(quickSaveAtKey(id)))};
+  }catch(error){
+    if(!databaseRecord)throw error;
+    console.warn('Could not read backup checkpoint',error);
+  }
+  let record=databaseRecord;
+  if(legacy&&(!record||Number(legacy.at)>Number(record.at)))record=legacy;
+  if(fallback&&(!record||Number(fallback.at)>=Number(record.at)))return decodeQuickFallback(fallback);
+  if(record)return record;
+  if(localReadable)return null;
+  if(storageError)throw storageError;
+  return null;
+}
+async function copyQuickStateBytes(state){
+  if(state instanceof Blob)state=await state.arrayBuffer();
+  if(state instanceof ArrayBuffer)return new Uint8Array(state.slice(0));
+  if(ArrayBuffer.isView(state))return new Uint8Array(new Uint8Array(state.buffer,state.byteOffset,state.byteLength));
+  throw new Error('ไม่ได้รับข้อมูลเซฟจาก Emulator');
 }
 async function updateQuickLoadAvailability(){
   const id=sessionStorage.getItem('playId'), btn=document.getElementById('quickLoadBtn');
@@ -1561,32 +2003,36 @@ async function updateQuickLoadAvailability(){
   }catch(e){btn.classList.remove('disabled');btn.title='ลองโหลดเซฟด่วน';}
 }
 async function quickSaveState(){
-  const id=sessionStorage.getItem('playId'), gm=window.EJS_emulator?.gameManager;
+  const id=sessionStorage.getItem('playId'), emulator=window.EJS_emulator, gm=emulator?.gameManager;
   if(quickBusy) return;
-  if(!id||!gm){toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;}
+  if(!id||!gm||!emulator.started){toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;}
   quickBusy=true;
   try{
-    const state=typeof gm.getState==='function'?await gm.getState():null;
-    const bytes=state instanceof Blob?new Uint8Array(await state.arrayBuffer()):state instanceof Uint8Array?state:ArrayBuffer.isView(state)?new Uint8Array(state.buffer,state.byteOffset,state.byteLength):state instanceof ArrayBuffer?new Uint8Array(state):null;
+    if(typeof gm.getState!=='function')throw new Error('Emulator ไม่รองรับเซฟด่วน');
+    const bytes=await copyQuickStateBytes(await gm.getState());
     if(!bytes?.byteLength) throw new Error('Core returned no save-state');
-    await quickRecord(id,{bytes,at:Date.now()});
+    await writeQuickState(id,{bytes,at:Date.now()});
     // Delete legacy copy only after the new checkpoint has committed successfully.
     try{localStorage.removeItem(quickSaveKey(id));localStorage.removeItem(quickSaveAtKey(id));}catch(e){}
-    toastMsg('เซฟด่วนแล้ว ✅');vibrateShort(20);
+    toastAction('Save','save');vibrateShort(20);
     await updateQuickLoadAvailability();
   }catch(e){console.warn('quickSaveState failed',e);toastMsg(e.name==='QuotaExceededError'?'พื้นที่เซฟเต็ม กรุณาเพิ่มพื้นที่ว่าง':'เซฟด่วนไม่สำเร็จ: '+e.message);}
   finally{quickBusy=false;}
 }
 async function quickLoadState(){
-  const id=sessionStorage.getItem('playId'), gm=window.EJS_emulator?.gameManager;
+  const id=sessionStorage.getItem('playId'), emulator=window.EJS_emulator, gm=emulator?.gameManager;
   if(quickBusy) return;
-  if(!id||!gm){toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;}
+  if(!id||!gm||!emulator.started){toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;}
   quickBusy=true;
   try{
     const rec=await readQuickState(id);
     if(!rec){toastMsg('ยังไม่มีเซฟด่วนสำหรับเกมนี้');return;}
     if(typeof gm.loadState!=='function') throw new Error('Core does not support loadState');
-    await gm.loadState(rec.bytes);toastMsg('โหลดด่วนแล้ว ✅');vibrateShort(20);
+    if(!await confirmPlayerAction("โหลดเซฟด่วน?","เกมจะย้อนกลับไปยังจุดที่กด Save ล่าสุด ความคืบหน้าหลังจุดนั้นจะหายไป","Load save"))return;
+    if(sessionStorage.getItem("playId")!==id)return;
+    const bytes=await copyQuickStateBytes(rec.bytes);
+    if(!bytes.byteLength)throw new Error('ไฟล์เซฟว่าง');
+    await gm.loadState(bytes);toastAction('Load save','load');vibrateShort(20);
   }catch(e){console.warn('quickLoadState failed',e);toastMsg('โหลดด่วนไม่สำเร็จ: '+e.message);}
   finally{quickBusy=false;}
 }
@@ -1605,17 +2051,743 @@ function optimizeNdsWebGL(){
   };
   window.__ndsOpaqueWebGLInstalled=true;
 }
+// Keep existing GBA fullscreen behavior. NDS 4.2.3 requests a portrait lock;
+// release that lock so the user can rotate the device without changing LCD layout.
+// EmulatorJS opens its menu at startup. Close it only for a fullscreen GBA/NDS
+// player; later presses on the menu button continue to use the original behavior.
+function isPlayerFullscreen(){
+  const fullscreen=document.fullscreenElement||document.webkitFullscreenElement;
+  const player=document.getElementById('ejsContainer');
+  return !!(fullscreen&&player&&(fullscreen.contains(player)||player.contains(fullscreen)));
+}
+function updatePlayerFullscreenButton(){
+  const button=document.getElementById('playerFullscreenBtn');
+  if(!button)return;
+  const active=isPlayerFullscreen();
+  const label=active?'ย่อจอ':'ขยายเต็มจอ';
+  button.title=label;
+  button.setAttribute('aria-label',label);
+  button.setAttribute('aria-pressed',String(active));
+  const path=active?'M21 3l-7 7M14 3v7h7M3 21l7-7M3 14h7v7':'M14 3h7v7M21 3l-7 7M10 21H3v-7M3 21l7-7';
+  button.innerHTML='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>';
+}
+function togglePlayerFullscreen(){
+  const emulator=window.EJS_emulator;
+  if(!emulator||!emulator.started||typeof emulator.toggleFullscreen!=='function'){
+    toastMsg('ยังโหลดเกมไม่เสร็จ ลองอีกครั้ง');return;
+  }
+  try{
+    // The same fullscreen operation used by EmulatorJS's own menu button.
+    emulator.toggleFullscreen(!isPlayerFullscreen());
+  }catch(error){
+    console.warn('Player fullscreen failed',error);
+    toastMsg('เปลี่ยนโหมดเต็มจอไม่สำเร็จ ลองอีกครั้ง');
+  }
+}
+function bindPlayerActionTap(button,action){
+  if(!button)return;
+  let touchStart=null,ignoreClickUntil=0;
+  const begin=(id,x,y)=>{touchStart={id,x,y};};
+  const move=(id,x,y)=>{if(touchStart&&touchStart.id===id&&Math.hypot(x-touchStart.x,y-touchStart.y)>12)touchStart=null;};
+  const finish=(event,id)=>{
+    if(!touchStart||touchStart.id!==id)return;
+    touchStart=null;ignoreClickUntil=Date.now()+800;
+    if(event.cancelable)event.preventDefault();
+    event.stopPropagation();action();
+  };
+  if(window.PointerEvent){
+    button.addEventListener('pointerdown',event=>{
+      if(event.isPrimary!==false&&['touch','pen'].includes(event.pointerType))begin(event.pointerId,event.clientX,event.clientY);
+    });
+    button.addEventListener('pointermove',event=>move(event.pointerId,event.clientX,event.clientY));
+    button.addEventListener('pointerup',event=>finish(event,event.pointerId));
+    for(const type of ['pointercancel','pointerleave'])button.addEventListener(type,()=>{touchStart=null;});
+  }else{
+    button.addEventListener('touchstart',event=>{const t=event.changedTouches[0];if(t)begin(t.identifier,t.clientX,t.clientY);},{passive:true});
+    button.addEventListener('touchmove',event=>{for(const t of event.changedTouches)move(t.identifier,t.clientX,t.clientY);},{passive:true});
+    button.addEventListener('touchend',event=>{for(const t of event.changedTouches)finish(event,t.identifier);},{passive:false});
+    button.addEventListener('touchcancel',()=>{touchStart=null;});
+  }
+  button.addEventListener('click',event=>{
+    if(Date.now()<ignoreClickUntil){event.preventDefault();event.stopPropagation();return;}
+    action();
+  });
+}
+let fullscreenHoldTimer=null,fullscreenHoldStart=null,fullscreenHoldTriggered=false;
+function setFullscreenToolbarHidden(hidden){
+  fullscreenToolbarHidden=!!hidden&&isPlayerFullscreen();
+  if(fullscreenToolbarHost)fullscreenToolbarHost.classList.toggle('player-toolbar-hidden',fullscreenToolbarHidden);
+  const reveal=document.getElementById('showFullscreenToolbarBtn');
+  if(reveal)reveal.hidden=!fullscreenToolbarHidden;
+  const toolbar=document.getElementById('fullscreenPlayerToolbar');
+  if(toolbar){toolbar.setAttribute('aria-hidden',String(fullscreenToolbarHidden));if(fullscreenToolbarHidden)document.activeElement?.blur();}
+  if(document.body.dataset.emuCore==='gba'&&controlLayoutRoot?.classList.contains('gba-console-skin')){cancelAnimationFrame(controlLayoutFrame);controlLayoutFrame=requestAnimationFrame(()=>{applyControlLayout();if(controlLayoutEditing)renderControlLayoutHandles();});}
+}
+const fullscreenToggleButton=document.getElementById('playerFullscreenBtn');
+function cancelFullscreenHold(){clearTimeout(fullscreenHoldTimer);fullscreenHoldTimer=null;fullscreenHoldStart=null;}
+function beginFullscreenHold(id,x,y){
+  cancelFullscreenHold();fullscreenHoldTriggered=false;
+  if(!isPlayerFullscreen())return;
+  fullscreenHoldStart={id,x,y};
+  fullscreenHoldTimer=setTimeout(()=>{
+    if(!isPlayerFullscreen())return;
+    fullscreenHoldTriggered=true;setFullscreenToolbarHidden(true);
+  },600);
+}
+function moveFullscreenHold(id,x,y){
+  if(fullscreenHoldStart&&fullscreenHoldStart.id===id&&Math.hypot(x-fullscreenHoldStart.x,y-fullscreenHoldStart.y)>12)cancelFullscreenHold();
+}
+if(window.PointerEvent){
+  fullscreenToggleButton.addEventListener('pointerdown',event=>{
+    if(event.button!==0||event.isPrimary===false)return;
+    beginFullscreenHold(event.pointerId,event.clientX,event.clientY);
+    if(isPlayerFullscreen()&&typeof fullscreenToggleButton.setPointerCapture==='function'){
+      try{fullscreenToggleButton.setPointerCapture(event.pointerId);}catch(error){}
+    }
+  });
+  fullscreenToggleButton.addEventListener('pointermove',event=>moveFullscreenHold(event.pointerId,event.clientX,event.clientY));
+  for(const type of ['pointerup','pointercancel','pointerleave'])fullscreenToggleButton.addEventListener(type,cancelFullscreenHold);
+}else{
+  fullscreenToggleButton.addEventListener('touchstart',event=>{const t=event.changedTouches[0];if(t)beginFullscreenHold(t.identifier,t.clientX,t.clientY);},{passive:true});
+  fullscreenToggleButton.addEventListener('touchmove',event=>{for(const t of event.changedTouches)moveFullscreenHold(t.identifier,t.clientX,t.clientY);},{passive:true});
+  for(const type of ['touchend','touchcancel'])fullscreenToggleButton.addEventListener(type,cancelFullscreenHold);
+}
+fullscreenToggleButton.addEventListener('contextmenu',event=>event.preventDefault());
+fullscreenToggleButton.addEventListener('click',event=>{
+  if(fullscreenHoldTriggered){fullscreenHoldTriggered=false;event.preventDefault();event.stopPropagation();return;}
+  togglePlayerFullscreen();
+});
+bindPlayerActionTap(document.getElementById('showFullscreenToolbarBtn'),()=>setFullscreenToolbarHidden(false));
 
-document.getElementById('quickSaveBtn').addEventListener('click', quickSaveState);
-document.getElementById('quickLoadBtn').addEventListener('click', quickLoadState);
+// Move the original buttons, keeping their handlers and Load availability state.
+// No clone, input interception, canvas replacement, or synthetic touch events.
+let fullscreenToolbarHost=null;
+let fullscreenToolbarHidden=false;
+const fullscreenToolbarAnchors=new Map();
+function moveFullscreenNode(node,destination){
+  if(!node||!destination)return;
+  if(!fullscreenToolbarAnchors.has(node)){
+    const anchor=document.createComment('fullscreen toolbar return position');
+    node.before(anchor);
+    fullscreenToolbarAnchors.set(node,anchor);
+  }
+  destination.appendChild(node);
+}
+function restoreFullscreenToolbar(){
+  cancelFullscreenHold();
+  if(fullscreenToolbarHost)fullscreenToolbarHost.classList.remove('has-player-toolbar','player-toolbar-hidden');
+  fullscreenToolbarHidden=false;
+  const reveal=document.getElementById('showFullscreenToolbarBtn');
+  if(reveal)reveal.hidden=true;
+  const toolbar=document.getElementById('fullscreenPlayerToolbar');
+  if(toolbar){toolbar.hidden=true;toolbar.setAttribute('aria-hidden','false');}
+  for(const [node,anchor] of fullscreenToolbarAnchors){
+    if(anchor.parentNode)anchor.replaceWith(node);
+  }
+  fullscreenToolbarAnchors.clear();
+  fullscreenToolbarHost=null;
+  playerOrientationTarget=null;
+  playerRotationRequest++;playerRotationBusy=false;
+  clearTimeout(playerRotationReleaseTimer);clearTimeout(playerRotationCheckTimer);
+  document.getElementById('playerRotateBtn').style.display='none';
+}
+function syncFullscreenPlayerToolbar(){
+  updatePlayerFullscreenButton();
+  const fullscreen=document.fullscreenElement||document.webkitFullscreenElement;
+  const player=document.getElementById('ejsContainer');
+  const supported=['gba','nds'].includes(document.body.dataset.emuCore);
+  if(!supported||!fullscreen||!player||!(fullscreen.contains(player)||player.contains(fullscreen))){
+    restoreFullscreenToolbar();return;
+  }
+  const toolbar=document.getElementById('fullscreenPlayerToolbar');
+  const actions=document.getElementById('fullscreenPlayerActions');
+  if(!toolbar||!actions)return;
+  if(!toolbar.__fullscreenEventsBound){
+    // Toolbar taps end here, so the emulator cannot treat them as game/menu taps.
+    for(const type of ['click','pointerdown','pointerup','pointermove','mousedown','mouseup','mousemove','touchstart','touchmove','touchend','touchcancel']){
+      toolbar.addEventListener(type,event=>event.stopPropagation());
+    }
+    toolbar.__fullscreenEventsBound=true;
+  }
+  if(fullscreenToolbarHost&&fullscreenToolbarHost!==fullscreen)restoreFullscreenToolbar();
+  fullscreenToolbarHost=fullscreen;
+  fullscreen.classList.add('has-player-toolbar');
+  moveFullscreenNode(toolbar,fullscreen);
+  moveFullscreenNode(document.getElementById('showFullscreenToolbarBtn'),fullscreen);
+  for(const id of ['quickSaveBtn','quickLoadBtn','moveControlsBtn','playerFullscreenBtn','playerRotateBtn','backBtn']){
+    moveFullscreenNode(document.getElementById(id),actions);
+  }
+  document.getElementById('playerRotateBtn').style.display='inline-flex';
+  if(window.matchMedia('(hover: hover) and (pointer: fine)').matches){
+    moveFullscreenNode(document.getElementById('syncBtn'),actions);
+  }
+  // Save/Load feedback must also be inside the browser's fullscreen subtree.
+  moveFullscreenNode(document.getElementById('toastMsg'),fullscreen);
+  const title=document.getElementById('fullscreenGameTitle');
+  const source=document.getElementById('headerGameNameText');
+  if(title)title.textContent=source?source.textContent:'';
+  toolbar.hidden=false;
+  setFullscreenToolbarHidden(fullscreenToolbarHidden);
+}
 
+function closeFullscreenEmulatorMenu(){
+  if(!['gba','nds'].includes(document.body.dataset.emuCore))return;
+  const fullscreen=document.fullscreenElement||document.webkitFullscreenElement;
+  const player=document.getElementById('ejsContainer');
+  if(!fullscreen||!player||!(fullscreen.contains(player)||player.contains(fullscreen)))return;
+  const emulator=window.EJS_emulator;
+  const menu=emulator&&(emulator.menu||emulator.frontend&&emulator.frontend.menu);
+  if(menu&&typeof menu.close==='function')menu.close();
+}
+function handlePlayerFullscreenMenu(){
+  syncFullscreenPlayerToolbar();
+  scheduleControlLayout();
+  // Run after EmulatorJS's own fullscreen listeners, once per transition.
+  requestAnimationFrame(closeFullscreenEmulatorMenu);
+}
+document.addEventListener('fullscreenchange',handlePlayerFullscreenMenu);
+document.addEventListener('webkitfullscreenchange',handlePlayerFullscreenMenu);
+
+let playerOrientationNativeLock=null,playerRotationBusy=false,playerOrientationTarget=null;
+let playerRotationRequest=0,playerRotationReleaseTimer=null,playerRotationCheckTimer=null;
+function togglePlayerOrientation(){
+  if(playerRotationBusy)return;
+  const orientation=window.screen&&window.screen.orientation;
+  const lock=playerOrientationNativeLock||(orientation&&typeof orientation.lock==='function'?orientation.lock.bind(orientation):null);
+  if(!isPlayerFullscreen()){toastMsg('เปิดเต็มจอก่อนสลับแนวจอ');return;}
+  if(!lock){toastMsg('เบราว์เซอร์นี้ไม่รองรับปุ่มหมุนจอ กรุณาเปิดหมุนอัตโนมัติแล้วเอียงเครื่อง');return;}
+  const request=++playerRotationRequest;
+  const previous=playerOrientationTarget;
+  const landscape=previous?previous==='landscape':window.innerWidth>window.innerHeight;
+  const target=landscape?'portrait':'landscape';
+  // Record the user's choice before native callbacks; never await an unbounded browser promise.
+  playerOrientationTarget=target;
+  playerRotationBusy=true;
+  clearTimeout(playerRotationReleaseTimer);clearTimeout(playerRotationCheckTimer);
+  playerRotationReleaseTimer=setTimeout(()=>{if(request===playerRotationRequest)playerRotationBusy=false;},250);
+  const failed=error=>{
+    if(request!==playerRotationRequest)return;
+    playerRotationBusy=false;playerOrientationTarget=previous;
+    clearTimeout(playerRotationCheckTimer);
+    console.warn('Screen rotation unavailable',error);
+    toastMsg('เบราว์เซอร์นี้สั่งหมุนจอไม่ได้ ลองเปิดเว็บ HTTPS ด้วย Chrome หรือเปิดหมุนอัตโนมัติแล้วเอียงเครื่อง');
+  };
+  try{
+    // Cancel a previous native lock that Android may have left pending.
+    if(typeof orientation.unlock==='function')orientation.unlock();
+    Promise.resolve(lock(target==='portrait'?'portrait-primary':'landscape')).catch(failed);
+    playerRotationCheckTimer=setTimeout(()=>{
+      if(request!==playerRotationRequest||!isPlayerFullscreen())return;
+      const actual=window.innerWidth>window.innerHeight?'landscape':'portrait';
+      if(actual!==target)toastMsg('เบราว์เซอร์ยังไม่เปลี่ยนแนวจอ ลองเปิดเว็บ HTTPS ด้วย Chrome หรือเอียงเครื่อง');
+    },1800);
+  }catch(error){failed(error);}
+}
+bindPlayerActionTap(document.getElementById('playerRotateBtn'),togglePlayerOrientation);
+function unlockNdsOrientation(){
+  if(document.body.dataset.emuCore!=='nds')return;
+  // Keep a user-requested fullscreen orientation through emulator callbacks.
+  if(isPlayerFullscreen()&&(playerOrientationTarget||playerRotationBusy))return;
+  const orientation=window.screen&&window.screen.orientation;
+  if(!orientation||typeof orientation.unlock!=='function')return;
+  try{orientation.unlock();}catch(error){console.warn('Could not unlock NDS orientation',error);}
+  playerOrientationTarget=null;
+}
+function preventEmulatorLandscapeLock(){
+  if(window.__emulatorLandscapeLockHandled) return;
+  const orientation=window.screen&&window.screen.orientation;
+  if(!orientation||typeof orientation.lock!=='function') return;
+  try{
+    const nativeLock=orientation.lock;
+    playerOrientationNativeLock=nativeLock.bind(orientation);
+    Object.defineProperty(orientation,'lock',{configurable:true,value:function(mode){
+      if(isPlayerFullscreen()&&(playerOrientationTarget||playerRotationBusy))return Promise.resolve();
+      if(document.body.dataset.emuCore==='nds'){
+        // Ignore the emulator's automatic portrait lock, without unlocking the user's choice.
+        return Promise.resolve();
+      }
+      if(String(mode).toLowerCase().startsWith('landscape')) return Promise.resolve();
+      return nativeLock.call(orientation,mode);
+    }});
+    document.addEventListener('fullscreenchange',unlockNdsOrientation);
+    document.addEventListener('webkitfullscreenchange',unlockNdsOrientation);
+    window.__emulatorLandscapeLockHandled=true;
+  }catch(e){console.warn('Could not preserve current screen orientation',e);}
+  unlockNdsOrientation();
+}
+
+bindPlayerActionTap(document.getElementById('quickSaveBtn'),quickSaveState);
+bindPlayerActionTap(document.getElementById('quickLoadBtn'),quickLoadState);
+
+// Bind when EmulatorJS creates or rebuilds its mobile controls.
+const watchedControlRoots=new WeakSet(),boundFastButtons=new WeakSet();
+function watchMobileControls(root){
+  if(watchedControlRoots.has(root)||!window.MutationObserver)return;
+  watchedControlRoots.add(root);
+  const selector='.ejs_virtualGamepad_parent,.ejs_virtualGamepad_button,.ejs_dpad_main';
+  new MutationObserver(records=>{
+    if(records.some(record=>Array.from(record.addedNodes).some(node=>node.nodeType===1&&(node.matches(selector)||node.querySelector(selector)))))scheduleControlLayout();
+  }).observe(root,{childList:true,subtree:true});
+}
+function bindFastToggle(root){
+  root.querySelectorAll('.ejs_virtualGamepad_button.b_speed_fast,.ejs_virtualGamepad_button.b_speed_slow').forEach(button=>{
+    const emulator=window.EJS_emulator;
+    const slow=button.classList.contains('b_speed_slow');
+    const stateKey=slow?'isSlowMotion':'isFastForward';
+    const method=slow?'toggleSlowMotion':'toggleFastForward';
+    const label=slow?'Slow':'Fast';
+    const paint=()=>{
+      const active=!!emulator[stateKey];
+      button.classList.toggle(slow?'site-slow-active':'site-fast-active',active);
+      button.setAttribute('aria-pressed',String(active));
+      button.setAttribute('aria-label',active?label+' เปิดอยู่ แตะเพื่อปิด':label+' แตะเพื่อเปิดค้าง');
+    };
+    paint();
+    if(boundFastButtons.has(button))return;
+    boundFastButtons.add(button);
+    let gesture=null,lastTap=0;
+    const block=event=>{if(event.cancelable)event.preventDefault();event.stopImmediatePropagation();};
+    const toggle=()=>{
+      if(controlLayoutEditing||!emulator.started)return;
+      const manager=emulator.gameManager;
+      if(typeof manager?.[method]!=='function'){toastMsg('เครื่องเล่นนี้ยังไม่รองรับ '+label+' แบบค้าง');return;}
+      const active=!emulator[stateKey];
+      try{
+        if(active){
+          const otherKey=slow?'isFastForward':'isSlowMotion',otherMethod=slow?'toggleFastForward':'toggleSlowMotion';
+          if(emulator[otherKey]&&typeof manager[otherMethod]==='function'){manager[otherMethod](0);emulator[otherKey]=false;}
+          const ratioKey=slow?'sm-ratio':'ff-ratio',ratioMethod=slow?'setSlowMotionRatio':'setFastForwardRatio';
+          const saved=typeof emulator.preGetSetting==='function'?emulator.preGetSetting(ratioKey):null;
+          if(typeof manager[ratioMethod]==='function'&&(saved==null||saved===''||(Number.isFinite(Number(saved))&&Number(saved)<=1&&!(saved==='unlimited'&&!slow))))manager[ratioMethod](3);
+        }
+        manager[method](active?1:0);emulator[stateKey]=active;
+        bindFastToggle(root);
+      }
+      catch(error){console.warn(label+' toggle failed',error);toastMsg('เปลี่ยนโหมด '+label+' ไม่สำเร็จ');}
+    };
+    // Capture on this button only, before native press-and-release callbacks.
+    for(const type of ['pointerdown','pointerup','pointercancel','touchstart','touchend','touchcancel','mousedown','mouseup','click','contextmenu']){
+      button.addEventListener(type,event=>{
+        block(event);
+        if(type==='pointerdown'&&event.button===0&&event.isPrimary!==false){
+          gesture={id:event.pointerId,x:event.clientX,y:event.clientY};
+          button.setPointerCapture?.(event.pointerId);
+        }else if(type==='pointerup'&&gesture?.id===event.pointerId){
+          const tap=Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)<12;
+          gesture=null;lastTap=Date.now();if(tap)toggle();
+        }else if(type==='pointercancel'||type==='touchcancel'){gesture=null;}
+        else if(type==='touchstart'&&!window.PointerEvent){const t=event.changedTouches[0];gesture={id:t.identifier,x:t.clientX,y:t.clientY};}
+        else if(type==='touchend'&&!window.PointerEvent&&gesture){
+          const t=Array.from(event.changedTouches).find(t=>t.identifier===gesture.id);
+          if(t){const tap=Math.hypot(t.clientX-gesture.x,t.clientY-gesture.y)<12;gesture=null;lastTap=Date.now();if(tap)toggle();}
+        }else if(type==='click'&&Date.now()-lastTap>800){toggle();lastTap=Date.now();}
+      },{capture:true,passive:false});
+    }
+  });
+}
+
+// Player safeguards and cosmetic preferences; no emulator input events are replaced.
+function isolatePlayerDialogInput(layer){
+  for(const type of ['pointerdown','pointerup','pointermove','touchstart','touchmove','touchend','touchcancel','mousedown','mouseup','click'])layer.addEventListener(type,event=>event.stopPropagation());
+}
+let playerConfirmPending=false;
+function confirmPlayerAction(title,message,actionLabel){
+  if(playerConfirmPending)return Promise.resolve(false);
+  playerConfirmPending=true;
+  const host=document.fullscreenElement||document.webkitFullscreenElement||document.getElementById('ejsWrap');
+  const previousFocus=document.activeElement;
+  return new Promise(resolve=>{
+    const layer=document.createElement('div');layer.className='player-confirm-layer';
+    const card=document.createElement('div');card.className='player-confirm-card';card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-labelledby','playerConfirmTitle');
+    const heading=document.createElement('h2');heading.id='playerConfirmTitle';heading.textContent=title;
+    const text=document.createElement('p');text.id='playerConfirmMessage';text.textContent=message;card.setAttribute('aria-describedby',text.id);
+    const actions=document.createElement('div');actions.className='player-confirm-actions';
+    const cancel=document.createElement('button');cancel.type='button';cancel.className='btn btn-outline';cancel.textContent='ยกเลิก';
+    const accept=document.createElement('button');accept.type='button';accept.className='btn btn-accent';accept.textContent=actionLabel;
+    actions.append(cancel,accept);card.append(heading,text,actions);layer.appendChild(card);host.appendChild(layer);
+    let settled=false;
+    const finish=value=>{if(settled)return;settled=true;layer.remove();playerConfirmPending=false;document.removeEventListener('keydown',onKey,true);if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});resolve(value);};
+    const onKey=event=>{
+      event.stopPropagation();
+      if(event.key==='Escape'){event.preventDefault();finish(false);}
+      else if(event.key==='Tab'){event.preventDefault();(document.activeElement===cancel?accept:cancel).focus();}
+    };
+    document.addEventListener('keydown',onKey,true);
+    isolatePlayerDialogInput(layer);
+    cancel.addEventListener('click',()=>finish(false));accept.addEventListener('click',()=>finish(true));
+    cancel.focus({preventScroll:true});
+  });
+}
+const controlAppearanceOriginal=new WeakMap(),controlAppearanceCache=new Map();
+function readControlAppearance(){
+  const core=document.body.dataset.emuCore||'gba';
+  if(controlAppearanceCache.has(core))return controlAppearanceCache.get(core);
+  let value={size:100,opacity:100,hideLR:false,hideUtility:false,skin:"original"};
+  try{const saved=JSON.parse(localStorage.getItem('emuControlAppearance:v1:'+core)||'{}');if(Number.isFinite(saved.size))value.size=Math.max(70,Math.min(140,saved.size));if(Number.isFinite(saved.opacity))value.opacity=Math.max(25,Math.min(100,saved.opacity));value.hideLR=saved.hideLR===true;value.hideUtility=saved.hideUtility===true;value.skin=["purple","retro","cyanred","pokedex","darkknight","gameboylight"].includes(saved.skin)?saved.skin:"original";}catch(error){}
+  controlAppearanceCache.set(core,value);return value;
+}
+function saveControlAppearance(){
+  try{localStorage.setItem('emuControlAppearance:v1:'+document.body.dataset.emuCore,JSON.stringify(readControlAppearance()));}catch(error){toastMsg('ปรับปุ่มได้ แต่บันทึกค่าลงเครื่องไม่สำเร็จ');}
+}
+function isControlVisuallyHidden(node,prefs){
+  const label=(node.textContent||'').trim().toLowerCase();
+  const has=names=>names.some(name=>node.classList.contains(name));
+  const shoulder=['l','r'].includes(label)||has(['b_l','b_r','b_l1','b_r1','b_shoulder_l','b_shoulder_r']);
+  const utility=['select','start','fast','slow'].includes(label)||has(['b_select','b_start','b_speed_fast','b_speed_slow']);
+  return !!((prefs.hideLR&&shoulder)||(prefs.hideUtility&&utility));
+}
+function applyControlAppearance(node){
+  if(!controlAppearanceOriginal.has(node))controlAppearanceOriginal.set(node,{scale:node.style.getPropertyValue('scale'),scalePriority:node.style.getPropertyPriority('scale'),opacity:node.style.getPropertyValue('opacity'),opacityPriority:node.style.getPropertyPriority('opacity')});
+  const original=controlAppearanceOriginal.get(node),prefs=readControlAppearance();
+  for(const key of ['scale','opacity']){if(original[key])node.style.setProperty(key,original[key],original[key+'Priority']);else node.style.removeProperty(key);}
+  const base=getComputedStyle(node);
+  const baseScale=base.scale,baseOpacity=parseFloat(base.opacity);
+  if(prefs.size!==100){const parts=(baseScale==='none'?'1 1':baseScale).split(/\s+/);node.style.setProperty('scale',parts.map(v=>(parseFloat(v)||1)*prefs.size/100).join(' '),'important');}
+  // Opacity alone hides the artwork: geometry and native touch targets stay intact.
+  if(isControlVisuallyHidden(node,prefs))node.style.setProperty('opacity','0','important');
+  else if(prefs.opacity!==100)node.style.setProperty('opacity',String((Number.isFinite(baseOpacity)?baseOpacity:1)*prefs.opacity/100),'important');
+}
+function refreshControlAppearanceInputs(){
+  const prefs=readControlAppearance();
+  for(const [id,key] of [['controlSize','size'],['controlOpacity','opacity']]){document.getElementById(id).value=prefs[key];document.getElementById(id+'Value').textContent=prefs[key]+'%';}
+  document.getElementById('controlHideLR').checked=prefs.hideLR;
+  document.getElementById('controlHideUtility').checked=prefs.hideUtility;
+  document.getElementById('gbaSkinOption').hidden=document.body.dataset.emuCore!=='gba';
+  document.getElementById('gbaSkinSelect').value=prefs.skin;
+}
+let buttonAnimationEnabled=true;
+try{buttonAnimationEnabled=localStorage.getItem('emuButtonAnimation:v1')!=='off';}catch(error){}
+const buttonAnimationInput=document.getElementById('buttonAnimationEnabled');buttonAnimationInput.checked=buttonAnimationEnabled;
+buttonAnimationInput.addEventListener('change',()=>{buttonAnimationEnabled=buttonAnimationInput.checked;try{localStorage.setItem('emuButtonAnimation:v1',buttonAnimationEnabled?'on':'off');}catch(error){}if(!buttonAnimationEnabled)document.querySelectorAll('.web-tap-feedback').forEach(node=>node.classList.remove('web-tap-feedback'));});
+const buttonFeedbackTimers=new WeakMap();
+document.addEventListener('pointerdown',event=>{
+  if(!buttonAnimationEnabled||document.body.dataset.emuCore==='nds'||controlLayoutEditing||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const button=event.target.closest?.('button,.ejs_virtualGamepad_button,.ejs_dpad_main');
+  if(!button)return;
+  button.classList.add('web-tap-feedback');clearTimeout(buttonFeedbackTimers.get(button));buttonFeedbackTimers.set(button,setTimeout(()=>button.classList.remove('web-tap-feedback'),180));
+},{capture:true,passive:true});
+
+// Control layout editor: edit-only handles, original EmulatorJS controls underneath.
+const controlLayoutCache=new Map();
+const controlOriginalTranslate=new WeakMap();
+let controlLayoutEditing=false,controlLayoutRoot=null,controlLayoutSlot='',controlLayoutItems=[],controlDrag=null,controlLayoutFrame=0;
+const GBA_SKIN_IMAGES={"landscape":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/gameboys-advance-landscape-757e01306f48.png","portrait":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/gameboys-advance-portrait-17bba5bf2845.png"};
+const GBA_RETRO_SKIN_IMAGES={"landscape":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/retro-classic-landscape-385fded56dea.png","portrait":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/retro-classic-portrait-86443eb59d0f.png"};
+const GBA_CYAN_RED_SKIN_IMAGES={"landscape":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/nintendo-switch-landscape-83c31929fd33.png","portrait":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/nintendo-switch-portrait-5a2a38ede1b6.png"};
+const GBA_POKEDEX_SKIN_IMAGES={"landscape":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/pokedex-landscape-edc03ab472df.png","portrait":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/pokedex-portrait-d281d7bd5b14.png"};
+const GBA_DARK_KNIGHT_SKIN_IMAGES={"landscape":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/dark-knight-landscape-e22d37aa8530.png","portrait":"https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/dark-knight-portrait-8f6c46e5a350.png"};
+function getGbaSkinGeometry(width,height,toolbarTop){
+  const top=Math.max(0,Math.min(height-1,toolbarTop||0)),available=height-top;
+  const landscape=width>height;
+  const maxW=width*(landscape?.66:.92),maxH=available*(landscape?.90:.35);
+  const screenW=Math.min(maxW,maxH*1.5),screenH=screenW/1.5;
+  const screen={x:(width-screenW)/2,y:top+available*(landscape?.485:.224)-screenH/2,w:screenW,h:screenH};
+  const cy=f=>top+available*f;
+  const positions=landscape?{
+    dpad:[width*.105,cy(.48)],l:[width*.10,cy(.11)],r:[width*.90,cy(.11)],a:[width*.94,cy(.40)],b:[width*.90,cy(.61)],select:[width*.10,cy(.77)],start:[width*.90,cy(.77)],fast:[width*.10,cy(.92)],slow:[width*.90,cy(.92)]
+  }:{dpad:[width*.23,cy(.72)],l:[width*.15,cy(.56)],r:[width*.85,cy(.56)],a:[width*.83,cy(.67)],b:[width*.68,cy(.76)],select:[width*.39,cy(.89)],start:[width*.61,cy(.89)],fast:[width*.14,cy(.95)],slow:[width*.86,cy(.95)]};
+  return {width,height,top,available,landscape,screen,positions,dpadSize:Math.min(width*(landscape?.18:.30),available*.30,150,landscape?screen.x*.65:150),actionSize:Math.min(width*(landscape?.075:.16),available*.20,70),shoulderW:Math.min(width*.20,available*.28,100),shoulderH:Math.min(available*.085,38),smallW:Math.min(width*.16,75),smallH:Math.min(available*.075,32)};
+}
+function gbaSkinRole(item){
+  if(item.id==='dpad')return 'dpad';
+  const label=(item.label||'').trim().toLowerCase();
+  if(['l','r','a','b','start','select','fast','slow'].includes(label))return label;
+  const roles={b_a:'a',b_b:'b',b_l:'l',b_r:'r',b_l1:'l',b_r1:'r',b_start:'start',b_select:'select',b_speed_fast:'fast',b_speed_slow:'slow'};
+  return roles[item.id]||null;
+}
+const GBA_GAMEBOY_LIGHT_CONCEPT="https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/skins/v1/game-boy-light-concept-e02e4bd98126.png";
+function renderGbaSkinArt(g){
+  if(g.skin==='gameboylight')return renderGameboyLightArt(g);
+  // Resize the bezel around the screen; a single shared texture supplies all nine pieces.
+  const image=(g.skin==='darkknight'?GBA_DARK_KNIGHT_SKIN_IMAGES:g.skin==='pokedex'?GBA_POKEDEX_SKIN_IMAGES:g.skin==='cyanred'?GBA_CYAN_RED_SKIN_IMAGES:g.skin==='retro'?GBA_RETRO_SKIN_IMAGES:GBA_SKIN_IMAGES)[g.landscape?'landscape':'portrait'];
+  const xs=g.landscape?[0,.239,.764,1]:[0,.097,.902,1];
+  const ys=g.landscape?[0,.126,.845,1]:[0,.074,.374,1];
+  const tx=[0,g.screen.x,g.screen.x+g.screen.w,g.width];
+  const ty=[g.top,g.screen.y,g.screen.y+g.screen.h,g.height];
+  let slices='';
+  for(let row=0;row<3;row++)for(let col=0;col<3;col++){
+    const sx=xs[col]*g.width,sy=ys[row]*g.available,sw=(xs[col+1]-xs[col])*g.width,sh=(ys[row+1]-ys[row])*g.available;
+    slices+='<svg x="'+tx[col]+'" y="'+ty[row]+'" width="'+(tx[col+1]-tx[col])+'" height="'+(ty[row+1]-ty[row])+'" viewBox="'+sx+' '+sy+' '+sw+' '+sh+'" preserveAspectRatio="none" overflow="hidden"><use href="#gba-skin-texture"/></svg>';
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+g.width+' '+g.height+'" aria-hidden="true"><defs><image id="gba-skin-texture" href="'+image+'" width="'+g.width+'" height="'+g.available+'" preserveAspectRatio="none"/></defs>'+slices+(g.skin==='pokedex'?renderPokedexIndicators(g):'')+'</svg>';
+}
+function renderGameboyLightArt(g){
+  // Decorative SVG only: the native canvas and live gamepad keep their existing geometry.
+  const sc=g.screen,cx=sc.x+sc.w/2;
+  const side=Math.max(4,Math.min(38,sc.x*.85));
+  const upper=Math.max(3,Math.min(15,(sc.y-g.top)*.65));
+  const below=g.height-sc.y-sc.h;
+  const lower=Math.max(3,Math.min(20,below*.55));
+  const stickerW=Math.min(27,side*.72),stickerH=stickerW*4.4;
+  const stickerX=sc.x-side+(side-stickerW)/2;
+  const stickerY=sc.y+sc.h*.08;
+  const labelSize=g.landscape?Math.min(12,below*.32):Math.min(14,g.width*.035);
+  const labelY=sc.y+sc.h+(g.landscape?below*.28:lower*.55);
+  const brandSize=g.landscape?Math.min(13,below*.35):Math.min(17,g.width*.044);
+  const brandY=g.landscape?sc.y+sc.h+below*.73:sc.y+sc.h+lower+brandSize*1.6;
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+g.width+' '+g.height+'" aria-hidden="true">'+
+    '<defs><linearGradient id="gbl-yellow" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe755"/><stop offset=".22" stop-color="#ffd91a"/><stop offset=".65" stop-color="#f6c400"/><stop offset="1" stop-color="#e8ae00"/></linearGradient><linearGradient id="gbl-bezel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#383838"/><stop offset=".45" stop-color="#151515"/><stop offset="1" stop-color="#292929"/></linearGradient></defs>'+
+    '<rect x="1" y="'+(g.top+1)+'" width="'+(g.width-2)+'" height="'+(g.available-2)+'" rx="'+Math.min(30,g.width*.06)+'" fill="url(#gbl-yellow)" stroke="#a67b06" stroke-width="2"/>'+
+    '<rect x="5" y="'+(g.top+5)+'" width="'+(g.width-10)+'" height="'+(g.available-10)+'" rx="'+Math.min(26,g.width*.055)+'" fill="none" stroke="#fff38a" stroke-opacity=".55" stroke-width="2"/>'+
+    '<rect x="'+(sc.x-side)+'" y="'+(sc.y-upper)+'" width="'+(sc.w+side*2)+'" height="'+(sc.h+upper+lower)+'" rx="'+Math.min(20,side)+'" fill="url(#gbl-bezel)" stroke="#a9850b" stroke-width="2"/>'+
+    '<rect x="'+sc.x+'" y="'+sc.y+'" width="'+sc.w+'" height="'+sc.h+'" fill="#000"/>'+
+    '<svg x="'+stickerX+'" y="'+stickerY+'" width="'+stickerW+'" height="'+stickerH+'" viewBox="1040 237 59 246" preserveAspectRatio="xMidYMid meet" overflow="hidden"><image href="'+GBA_GAMEBOY_LIGHT_CONCEPT+'" width="1536" height="1024"/></svg>'+
+    '<text x="'+cx+'" y="'+labelY+'" dominant-baseline="middle" text-anchor="middle" font-family="Arial,sans-serif" font-style="italic" font-weight="800" font-size="'+labelSize+'" fill="#e5e5e5">GAME BOY <tspan fill="#86c0dc" font-weight="500">LIGHT</tspan></text>'+
+    '<rect x="'+(cx-brandSize*3.4)+'" y="'+(brandY-brandSize*.72)+'" width="'+(brandSize*6.8)+'" height="'+(brandSize*1.44)+'" rx="'+brandSize+'" fill="none" stroke="#ae850c" stroke-width="1"/>'+
+    '<text x="'+cx+'" y="'+brandY+'" dominant-baseline="middle" text-anchor="middle" font-family="Georgia,serif" font-weight="bold" font-size="'+brandSize+'" fill="#705613">Nintendo</text></svg>';
+}
+
+function renderPokedexIndicators(g){
+  const radius=g.landscape?Math.min(g.screen.x*.15,g.available*.065):Math.min(g.width*.055,(g.screen.y-g.top)*.34);
+  const cx=g.landscape?g.screen.x*.38:g.width*.12;
+  const cy=g.landscape?g.top+g.available*.24:(g.top+g.screen.y)/2;
+  const ledRadius=Math.max(2,Math.min(5,radius*.23));
+  const colors=['#f3294a','#f5d02b','#36c688'];
+  let lamps='';
+  for(let i=0;i<3;i++){
+    const x=g.landscape?g.screen.x*(.65+i*.11):g.width*(.26+i*.07);
+    lamps+='<circle cx="'+x+'" cy="'+cy+'" r="'+ledRadius+'" fill="'+colors[i]+'" stroke="#5b1320" stroke-width="1.5"/><circle cx="'+(x-ledRadius*.25)+'" cy="'+(cy-ledRadius*.3)+'" r="'+(ledRadius*.3)+'" fill="#fff" opacity=".65"/>';
+  }
+  return '<defs><radialGradient id="pokedex-blue-lens" cx="30%" cy="25%"><stop offset="0" stop-color="#67e7ff"/><stop offset=".4" stop-color="#10b4ed"/><stop offset="1" stop-color="#04629c"/></radialGradient></defs><circle cx="'+cx+'" cy="'+cy+'" r="'+radius+'" fill="#dddfe1" stroke="#46121b" stroke-width="2"/><circle cx="'+cx+'" cy="'+cy+'" r="'+(radius*.79)+'" fill="url(#pokedex-blue-lens)" stroke="#164866" stroke-width="1.5"/><circle cx="'+(cx-radius*.26)+'" cy="'+(cy-radius*.29)+'" r="'+(radius*.22)+'" fill="#c0fbff" opacity=".8"/>'+lamps;
+}
+function syncGbaConsoleSkin(root){
+  const skin=readControlAppearance().skin;
+  const enabled=document.body.dataset.emuCore==='gba'&&['purple','retro','cyanred','pokedex','darkknight','gameboylight'].includes(skin)&&isPlayerFullscreen()&&window.matchMedia('(pointer: coarse)').matches;
+  root.classList.toggle('gba-console-skin',enabled);
+  root.classList.toggle('gba-retro-skin',enabled&&skin==='retro');
+  root.classList.toggle('gba-cyan-red-skin',enabled&&skin==='cyanred');
+  root.classList.toggle('gba-pokedex-skin',enabled&&skin==='pokedex');
+  root.classList.toggle('gba-dark-knight-skin',enabled&&skin==='darkknight');
+  root.classList.toggle('gba-gameboy-light-skin',enabled&&skin==='gameboylight');
+  if(!enabled)return null;
+  const r=root.getBoundingClientRect();if(!r.width||!r.height)return null;
+  const toolbar=document.getElementById('fullscreenPlayerToolbar');
+  const top=!fullscreenToolbarHidden&&toolbar&&!toolbar.hidden?Math.max(0,toolbar.getBoundingClientRect().bottom-r.top):0;
+  const geometry=getGbaSkinGeometry(r.width,r.height,top),sc=geometry.screen;
+  geometry.skin=skin;
+  for(const [name,value] of Object.entries({'x':sc.x,'y':sc.y,'w':sc.w,'h':sc.h}))root.style.setProperty('--skin-screen-'+name,value+'px');
+  for(const [name,value] of Object.entries({'action-size':geometry.actionSize,'shoulder-w':geometry.shoulderW,'shoulder-h':geometry.shoulderH,'small-w':geometry.smallW,'small-h':geometry.smallH}))root.style.setProperty('--skin-'+name,value+'px');
+  let art=root.querySelector(':scope > .gba-skin-art');
+  if(!art){art=document.createElement('div');art.className='gba-skin-art';art.setAttribute('aria-hidden','true');root.prepend(art);}
+  const key=[skin,r.width,r.height,top].join(':');if(art.dataset.geometry!==key){art.innerHTML=renderGbaSkinArt(geometry);art.dataset.geometry=key;}
+  return geometry;
+}
+function positionGbaSkinControl(root,item,geometry){
+  const role=gbaSkinRole(item);if(!role||!geometry.positions[role])return;
+  item.node.dataset.skinRole=role;
+  if(role==='dpad'){
+    const rect=item.node.getBoundingClientRect(),prefs=readControlAppearance();
+    if(rect.width){const factor=geometry.dpadSize*(prefs.size/100)/rect.width;const scale=getComputedStyle(item.node).scale;const parts=(scale==='none'?'1 1':scale).split(/\s+/);item.node.style.setProperty('scale',parts.map(v=>(parseFloat(v)||1)*factor).join(' '),'important');}
+  }
+  const bounds=controlLayoutBounds(root,item.node),[cx,cy]=geometry.positions[role];
+  positionOriginalControl(root,item.node,Math.max(0,Math.min(bounds.maxX,cx-bounds.button.width/2)),Math.max(bounds.minY,Math.min(bounds.maxY,cy-bounds.button.height/2)));
+}
+
+function controlLayoutKey(){
+  const core=document.body.dataset.emuCore;
+  return core+':'+(window.innerWidth>window.innerHeight?'landscape':'portrait')+':'+(isPlayerFullscreen()?'full':'embedded')+(controlLayoutRoot?.classList.contains('gba-console-skin')?':'+readControlAppearance().skin:'');
+}
+function readControlLayout(slot){
+  if(controlLayoutCache.has(slot))return controlLayoutCache.get(slot);
+  let layout={};
+  try{
+    const stored=JSON.parse(localStorage.getItem('emuControlLayout:v1:'+slot)||'{}');
+    for(const [id,pos] of Object.entries(stored||{})){
+      if(pos&&Number.isFinite(pos.x)&&Number.isFinite(pos.y))layout[id]={x:Math.max(0,Math.min(1,pos.x)),y:Math.max(0,Math.min(1,pos.y))};
+    }
+  }catch(error){console.warn('Control layout read failed',error);}
+  controlLayoutCache.set(slot,layout);return layout;
+}
+function saveControlLayout(slot){
+  try{localStorage.setItem('emuControlLayout:v1:'+slot,JSON.stringify(readControlLayout(slot)));return true;}
+  catch(error){console.warn('Control layout save failed',error);toastMsg('ย้ายปุ่มได้ แต่บันทึกตำแหน่งลงเครื่องไม่สำเร็จ');return false;}
+}
+function restoreControlTranslate(node){
+  const original=controlOriginalTranslate.get(node);
+  if(!original)return;
+  if(original.value)node.style.setProperty('translate',original.value,original.priority);
+  else node.style.removeProperty('translate');
+}
+function findControlLayoutItems(){
+  const player=document.getElementById('ejsContainer');
+  const root=player&&(player.classList.contains('ejs_parent')?player:player.querySelector('.ejs_parent'));
+  if(!root)return {root:null,items:[]};
+  const seen=new Set(),items=[];
+  root.querySelectorAll('.ejs_virtualGamepad_button,.ejs_dpad_main').forEach(node=>{
+    const dpad=node.classList.contains('ejs_dpad_main');
+    const cls=Array.from(node.classList).find(name=>name.startsWith('b_'));
+    const id=dpad?'dpad':cls;
+    if(!id||seen.has(id))return;
+    seen.add(id);
+    if(!controlOriginalTranslate.has(node))controlOriginalTranslate.set(node,{value:node.style.getPropertyValue('translate'),priority:node.style.getPropertyPriority('translate')});
+    items.push({id,node,label:dpad?'D-pad':node.textContent.trim()});
+  });
+  return {root,items};
+}
+function controlLayoutBounds(root,node){
+  const r=root.getBoundingClientRect(),b=node.getBoundingClientRect();
+  const toolbar=document.getElementById('fullscreenPlayerToolbar');
+  const top=isPlayerFullscreen()&&toolbar?Math.max(0,toolbar.getBoundingClientRect().bottom-r.top):0;
+  return {root:r,button:b,minY:top,maxX:Math.max(0,r.width-b.width),maxY:Math.max(top,r.height-b.height)};
+}
+function positionOriginalControl(root,node,x,y){
+  restoreControlTranslate(node);
+  const base=node.getBoundingClientRect(),r=root.getBoundingClientRect();
+  // Independent CSS translate preserves the emulator's own transform/scale.
+  // Measure a one-pixel translation to account for ancestor gamepad scaling.
+  const computed=getComputedStyle(node).translate;
+  const parts=(computed&&computed!=='none'?computed:'0px 0px').split(/\s+/);
+  const tx=parts[0]||'0px',ty=parts[1]||'0px';
+  node.style.setProperty('translate','calc('+tx+' + 1px) calc('+ty+' + 1px)','important');
+  const shifted=node.getBoundingClientRect();
+  const scaleX=shifted.left-base.left||1,scaleY=shifted.top-base.top||1;
+  node.style.setProperty('translate','calc('+tx+' + '+((r.left+x-base.left)/scaleX)+'px) calc('+ty+' + '+((r.top+y-base.top)/scaleY)+'px)','important');
+}
+function applyControlLayout(){
+  if(!['gba','nds'].includes(document.body.dataset.emuCore))return;
+  const found=findControlLayoutItems();
+  if(!found.root)return;
+  watchMobileControls(found.root);
+  bindFastToggle(found.root);
+  controlLayoutRoot=found.root;controlLayoutItems=found.items;
+  const skinGeometry=syncGbaConsoleSkin(found.root);
+  for(const item of found.items){const role=gbaSkinRole(item);if(role)item.node.dataset.skinRole=role;}
+  controlLayoutSlot=controlLayoutKey();
+  const layout=readControlLayout(controlLayoutSlot);
+  for(const item of controlLayoutItems){
+    const {id,node}=item;
+    applyControlAppearance(node);
+    restoreControlTranslate(node);
+    if(skinGeometry)positionGbaSkinControl(controlLayoutRoot,item,skinGeometry);
+    if(!layout[id])continue;
+    const bounds=controlLayoutBounds(controlLayoutRoot,node);
+    positionOriginalControl(controlLayoutRoot,node,layout[id].x*bounds.maxX,bounds.minY+layout[id].y*(bounds.maxY-bounds.minY));
+  }
+}
+function scheduleControlLayout(){
+  if(controlLayoutEditing)finishControlLayoutEdit();
+  cancelAnimationFrame(controlLayoutFrame);
+  controlLayoutFrame=requestAnimationFrame(applyControlLayout);
+}
+function renderControlLayoutHandles(){
+  const layer=document.getElementById('controlLayoutEditor');
+  layer.querySelectorAll('.control-drag-handle').forEach(node=>node.remove());
+  const r=controlLayoutRoot.getBoundingClientRect();
+  for(const item of controlLayoutItems){
+    const b=item.node.getBoundingClientRect();
+    if(!b.width||!b.height||getComputedStyle(item.node).display==='none')continue;
+    const handle=document.createElement('div');
+    handle.className='control-drag-handle';handle.textContent=item.label;
+    handle.setAttribute('aria-label','ลากย้าย '+item.label);
+    Object.assign(handle.style,{left:(b.left-r.left)+'px',top:(b.top-r.top)+'px',width:b.width+'px',height:b.height+'px'});
+    handle.addEventListener('pointerdown',event=>{
+      if(event.button!==0||event.isPrimary===false)return;
+      event.preventDefault();event.stopPropagation();
+      const rect=handle.getBoundingClientRect();
+      controlDrag={item,handle,id:event.pointerId,offsetX:event.clientX-rect.left,offsetY:event.clientY-rect.top};
+      handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener('pointermove',event=>{
+      if(!controlDrag||controlDrag.id!==event.pointerId||controlDrag.handle!==handle)return;
+      event.preventDefault();event.stopPropagation();
+      const bounds=controlLayoutBounds(controlLayoutRoot,item.node);
+      const x=Math.max(0,Math.min(bounds.maxX,event.clientX-bounds.root.left-controlDrag.offsetX));
+      const y=Math.max(bounds.minY,Math.min(bounds.maxY,event.clientY-bounds.root.top-controlDrag.offsetY));
+      positionOriginalControl(controlLayoutRoot,item.node,x,y);
+      handle.style.left=x+'px';handle.style.top=y+'px';
+      readControlLayout(controlLayoutSlot)[item.id]={x:bounds.maxX?x/bounds.maxX:0,y:bounds.maxY>bounds.minY?(y-bounds.minY)/(bounds.maxY-bounds.minY):0};
+    });
+    const end=event=>{
+      if(controlDrag&&controlDrag.id===event.pointerId){controlDrag=null;saveControlLayout(controlLayoutSlot);}
+      event.stopPropagation();
+    };
+    handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);
+    // These touches belong to editor handles, never to native gamepad callbacks.
+    for(const type of ['touchstart','touchmove','touchend','touchcancel','click','mousedown','mouseup','mousemove','contextmenu']){
+      handle.addEventListener(type,event=>{if(event.cancelable)event.preventDefault();event.stopPropagation();},{passive:false});
+    }
+    layer.appendChild(handle);
+  }
+}
+function startControlLayoutEdit(){
+  if(controlLayoutEditing){finishControlLayoutEdit();return;}
+  if(!window.PointerEvent){toastMsg('เบราว์เซอร์นี้ไม่รองรับการลากปุ่ม ลองเปิดด้วย Chrome');return;}
+  if(!window.EJS_emulator?.started){toastMsg('รอเกมโหลดเสร็จก่อนย้ายปุ่ม');return;}
+  const emulator=window.EJS_emulator;
+  const frontend=emulator.frontend||emulator;
+  if(typeof frontend.toggleVirtualGamepad==='function')frontend.toggleVirtualGamepad(true);
+  applyControlLayout();
+  if(!controlLayoutRoot||!controlLayoutItems.length){toastMsg('ไม่พบปุ่มควบคุมบนหน้าจอ');return;}
+  if(isPlayerFullscreen())setFullscreenToolbarHidden(false);
+  const layer=document.getElementById('controlLayoutEditor');
+  controlLayoutRoot.appendChild(layer);layer.hidden=false;controlLayoutEditing=true;
+  document.getElementById('moveControlsBtn').setAttribute('aria-pressed','true');
+  refreshControlAppearanceInputs();
+  renderControlLayoutHandles();
+}
+function finishControlLayoutEdit(){
+  if(!controlLayoutEditing)return;
+  controlLayoutEditing=false;controlDrag=null;
+  saveControlLayout(controlLayoutSlot);saveControlAppearance();
+  const layer=document.getElementById('controlLayoutEditor');layer.hidden=true;
+  layer.querySelectorAll('.control-drag-handle').forEach(node=>node.remove());
+  document.getElementById('moveControlsBtn').setAttribute('aria-pressed','false');
+}
+function resetControlLayout(){
+  if(!controlLayoutEditing)return;
+  controlLayoutCache.set(controlLayoutSlot,{});
+  saveControlLayout(controlLayoutSlot);
+  Object.assign(readControlAppearance(),{size:100,opacity:100,hideLR:false,hideUtility:false});saveControlAppearance();refreshControlAppearanceInputs();
+  applyControlLayout();
+  renderControlLayoutHandles();
+}
+for(const [id,key] of [['controlSize','size'],['controlOpacity','opacity']]){
+  const input=document.getElementById(id);
+  input.addEventListener('input',()=>{
+    readControlAppearance()[key]=Number(input.value);refreshControlAppearanceInputs();
+    applyControlLayout();
+    if(controlLayoutEditing)renderControlLayoutHandles();
+  });
+  input.addEventListener('change',saveControlAppearance);
+}
+for(const [id,key] of [['controlHideLR','hideLR'],['controlHideUtility','hideUtility']]){
+  const input=document.getElementById(id);
+  input.addEventListener('change',()=>{
+    readControlAppearance()[key]=input.checked;saveControlAppearance();applyControlLayout();
+    if(controlLayoutEditing)renderControlLayoutHandles();
+  });
+}
+document.getElementById('gbaSkinSelect').addEventListener('change',event=>{
+  if(document.body.dataset.emuCore!=='gba')return;
+  readControlAppearance().skin=['purple','retro','cyanred','pokedex','darkknight','gameboylight'].includes(event.target.value)?event.target.value:'original';saveControlAppearance();applyControlLayout();
+  if(controlLayoutEditing)renderControlLayoutHandles();
+});
+const controlEditorLayer=document.getElementById('controlLayoutEditor');
+for(const type of ['pointerdown','pointerup','pointermove','touchstart','touchmove','touchend','touchcancel','click','mousedown','mouseup','mousemove']){
+  controlEditorLayer.addEventListener(type,event=>event.stopPropagation());
+}
+bindPlayerActionTap(document.getElementById('moveControlsBtn'),startControlLayoutEdit);
+bindPlayerActionTap(document.getElementById('controlLayoutDone'),finishControlLayoutEdit);
+bindPlayerActionTap(document.getElementById('controlLayoutReset'),resetControlLayout);
+window.addEventListener('resize',scheduleControlLayout);
+
+
+let playerBackBusy=false;
 document.getElementById('backBtn').onclick=async()=>{
+  if(playerBackBusy||quickBusy)return;
+  playerBackBusy=true;
+  if(!await confirmPlayerAction('ออกจากเกม?','ก่อนออก ควรเซฟผ่านเมนูเกมหรือกด Save เพื่อเก็บจุดเล่นล่าสุด','ออกเกม')){playerBackBusy=false;return;}
+  try{
+  finishControlLayoutEdit();
+  cancelNdsBackgroundSync();
   await flushSave();
   await logPlaySession();
   sessionStorage.removeItem('playId');
   sessionStorage.removeItem('playGameName');
   sessionStorage.setItem('skipIntro','1'); // go straight back to the game-selection library — skip the intro splash and loading screen
   location.reload();
+  }catch(error){console.warn('Could not exit game',error);toastMsg('ออกเกมไม่สำเร็จ ลองอีกครั้ง');}
+  finally{playerBackBusy=false;}
 };
 window.addEventListener('pagehide', ()=>{ if(sessionStorage.getItem('playId')){ flushSave(); logPlaySession(); } });
 
@@ -1631,18 +2803,164 @@ hintToggleBtn.addEventListener('click', ()=>{
 
 function coreFor(system){ if(system==='nds') return 'nds'; return system==='gba' ? 'gba' : 'gb'; } // gb core (Gambatte) handles GB + GBC; nds uses the melonDS-based 'nds' core
 
+function configureNdsNativeTouch(system){
+  if(system!=='nds'||!window.matchMedia('(pointer: coarse)').matches)return;
+  const emulator=window.EJS_emulator;
+  const gm=emulator&&emulator.gameManager;
+  // Verified melonDS option; guard against a different NDS core/build.
+  if(!gm||typeof gm.getCoreOptions!=='function'||typeof gm.setVariable!=='function')return;
+  try{
+    const options=gm.getCoreOptions();
+    if(typeof options!=='string'||!options.includes('melonds_touch_mode'))return;
+    gm.setVariable('melonds_touch_mode','Touch');
+    emulator.enableMouseLock=false;
+  }catch(error){console.warn('NDS native touch configuration failed',error);}
+}
+
+// Keep the touch-working NDS core; reduce optional rendering work only.
+let ndsBackgroundSync=null,ndsBackgroundSyncRunning=false;
+function cancelNdsBackgroundSync(){
+  if(!ndsBackgroundSync)return;
+  if(ndsBackgroundSync.kind==='idle')window.cancelIdleCallback?.(ndsBackgroundSync.handle);
+  else clearTimeout(ndsBackgroundSync.handle);
+  ndsBackgroundSync=null;
+}
+function scheduleNdsBackgroundSync(){
+  if(document.body.dataset.emuCore!=='nds'||document.visibilityState!=='visible'||quickBusy||ndsBackgroundSync||ndsBackgroundSyncRunning)return;
+  const gameId=sessionStorage.getItem('playId');
+  if(!gameId||!window.EJS_emulator?.started)return;
+  const latest=Date.now()+1500;
+  const run=async deadline=>{
+    ndsBackgroundSync=null;
+    if(document.body.dataset.emuCore!=='nds'||document.visibilityState!=='visible'||sessionStorage.getItem('playId')!==gameId||quickBusy||!window.EJS_emulator?.started)return;
+    // Give the next frame its budget; cap deferral so automatic saves still happen.
+    if(deadline&&!deadline.didTimeout&&deadline.timeRemaining()<8&&Date.now()<latest){queue();return;}
+    ndsBackgroundSyncRunning=true;
+    try{await flushSave();}finally{ndsBackgroundSyncRunning=false;}
+  };
+  const queue=()=>{
+    if(typeof window.requestIdleCallback==='function'&&typeof window.cancelIdleCallback==='function'){
+      ndsBackgroundSync={kind:'idle',handle:window.requestIdleCallback(run,{timeout:Math.max(1,latest-Date.now())})};
+    }else ndsBackgroundSync={kind:'timer',handle:setTimeout(()=>run(null),0)};
+  };
+  queue();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')cancelNdsBackgroundSync();});
+window.addEventListener('pagehide',cancelNdsBackgroundSync);
+function restoreNdsBaselineAudio(system){
+  if(system!=='nds')return;
+  const emulator=window.EJS_emulator,gm=emulator&&emulator.gameManager;
+  if(!gm)return;
+  try{
+    // Undo the audio interpolation forced by the recent tuning. Other saved settings remain intact.
+    const options=typeof gm.getCoreOptions==='function'?gm.getCoreOptions():'';
+    const key='melonds_audio_interpolation';
+    const line=String(options).split('\n').find(line=>line.split('; ')[0].split('|')[0]===key);
+    if(!line||!line.split('; ').slice(1).join('; ').split('|').includes('None'))return;
+    const gameKey=typeof emulator.getLocalStorageKey==='function'?emulator.getLocalStorageKey():(emulator.config?.gameId||'nds');
+    const rollbackKey='ndsBaselineAudioRestored:v1:'+gameKey;
+    try{if(localStorage.getItem(rollbackKey)==='1')return;}catch(error){}
+    if(typeof emulator.changeSettingOption==='function')emulator.changeSettingOption(key,'None');
+    else if(typeof gm.setVariable==='function')gm.setVariable(key,'None');
+    else return;
+    try{localStorage.setItem(rollbackKey,'1');}catch(error){}
+  }catch(error){console.warn('NDS baseline audio restore failed',error);}
+}
+
+// ===== NDS PERFORMANCE: lightweight defaults, runtime-supported options only. =====
+function applyNdsPerformance(system){
+  if(system!=='nds')return;
+  const emulator=window.EJS_emulator,gm=emulator?.gameManager;
+  if(!emulator?.started||typeof gm?.setVariable!=='function'||typeof gm?.getCoreOptions!=='function')return;
+  try{
+    const supported=new Map(String(gm.getCoreOptions()).split('\n').map(line=>{
+      const [label,...choices]=line.split('; ');return [label.split('|')[0],choices.join('; ').split('|')];
+    }));
+    const targets={melonds_audio_interpolation:'None',melonds_opengl_resolution:'1x native (256x192)'};
+    if(window.crossOriginIsolated===true&&window.EJS_threads===true)targets.melonds_threaded_renderer='enabled';
+    for(const [key,value] of Object.entries(targets)){
+      if(supported.get(key)?.includes(value))gm.setVariable(key,value);
+    }
+    if(typeof emulator.handleSpecialOptions==='function')emulator.handleSpecialOptions('shader','disabled');
+  }catch(error){console.warn('NDS performance configuration unavailable',error);}
+}
+
+// ===== ROM LOADING MODULE: no synthetic percentages or duplicate downloads. =====
+let gameBootDownloadFailed=false;
+function setGameBootProgress(value,message){
+  const determinate=Number.isFinite(value);
+  const pct=determinate?Math.max(0,Math.min(100,Math.floor(value))):null;
+  const fill=document.getElementById('gbBootProgress'),number=document.getElementById('gbBootPercent'),label=document.getElementById('gbBootMessage');
+  if(fill){
+    fill.classList.toggle('indeterminate',!determinate);
+    if(determinate)fill.setAttribute('aria-valuenow',String(pct));else fill.removeAttribute('aria-valuenow');
+    fill.setAttribute('aria-valuetext',message||'กำลังโหลดไฟล์เกม');
+    const segments=fill.querySelectorAll('.boot-load-seg');
+    segments.forEach((segment,index)=>segment.classList.toggle('on',determinate&&index<Math.floor(pct*segments.length/100)));
+  }
+  if(number)number.textContent=determinate?pct+'%':'—';
+  if(label&&message)label.textContent=message;
+}
+function startGameBootProgress(){
+  gameBootDownloadFailed=false;
+  document.getElementById('gbBootRetry').hidden=true;
+  document.getElementById('gbBootOverlay')?.classList.remove('hide');
+  setGameBootProgress(null,'กำลังเตรียมเกม...');
+}
+function failGameBootProgress(message){
+  gameBootDownloadFailed=true;
+  setGameBootProgress(null,message);
+  document.getElementById('gbBootProgress')?.classList.remove('indeterminate');
+  document.getElementById('gbBootRetry').hidden=false;
+}
+function attachRomDownloadProgress(emulator,romUrl){
+  if(!emulator||emulator.__romProgressAttached)return;
+  emulator.__romProgressAttached=true;
+  const originalDownload=emulator.downloadFile,originalRom=emulator.downloadRom,originalError=emulator.startGameError;
+  if(typeof originalDownload==='function')emulator.downloadFile=function(path,callback,notWithPath,opts){
+    if(path!==romUrl||String(opts?.method||'GET').toUpperCase()==='HEAD')return originalDownload.call(this,path,callback,notWithPath,opts);
+    setGameBootProgress(0,'กำลังโหลดไฟล์เกม...');
+    return originalDownload.call(this,path,progress=>{
+      if(typeof callback==='function')callback(progress);
+      const percent=String(progress).match(/(\d+(?:\.\d+)?)%/);
+      setGameBootProgress(percent?Number(percent[1]):null,percent?'กำลังโหลดไฟล์เกม...':'กำลังโหลดไฟล์เกม '+String(progress).trim());
+    },notWithPath,opts).then(result=>{
+      if(result===-1){failGameBootProgress('โหลดไฟล์เกมไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ต');return result;}
+      setGameBootProgress(100,'โหลดไฟล์เกมครบแล้ว กำลังเตรียมเกม...');return result;
+    });
+  };
+  if(typeof originalRom==='function')emulator.downloadRom=function(...args){
+    setGameBootProgress(null,'กำลังตรวจไฟล์เกมที่บันทึกไว้...');
+    return Promise.resolve(originalRom.apply(this,args)).then(result=>{
+      if(!gameBootDownloadFailed)setGameBootProgress(100,'ไฟล์เกมพร้อมแล้ว กำลังเตรียม Emulator...');return result;
+    });
+  };
+  if(typeof originalError==='function')emulator.startGameError=function(message){failGameBootProgress('เริ่มเกมไม่สำเร็จ: '+message);return originalError.call(this,message);};
+}
+function finishGameBootProgress(){
+  if(gameBootDownloadFailed)return;
+  setGameBootProgress(100,'พร้อมเล่น!');
+  setTimeout(()=>document.getElementById('gbBootOverlay')?.classList.add('hide'),450);
+}
+document.getElementById('gbBootRetry').onclick=()=>location.reload();
+
+// ===== PLAYER BOOT: storage/configuration only; input and screen layout remain native. =====
 async function bootPlayer(id){
   const {data:rec}=await sb.from('games').select('*').eq('id',id).maybeSingle();
   if(!rec){ sessionStorage.removeItem('playId'); return; }
   document.getElementById('libraryView').style.display='none';
   document.getElementById('playView').style.display='block';
   document.body.classList.add('in-play');
+  document.body.dataset.emuCore=rec.core||'';
+  startGameBootProgress();
   playGbBootChime();
-  setTimeout(()=>{ const ov=document.getElementById('gbBootOverlay'); if(ov) ov.classList.add('hide'); }, 1250);
   document.querySelector('.fab-zone').style.display='none';
   document.getElementById('backBtn').style.display='inline-block';
   document.getElementById('quickSaveBtn').style.display='inline-flex';
   document.getElementById('quickLoadBtn').style.display='inline-flex';
+  document.getElementById('playerFullscreenBtn').style.display=['gba','nds'].includes(rec.core)?'inline-flex':'none';
+  document.getElementById('moveControlsBtn').style.display=['gba','nds'].includes(rec.core)?'inline-flex':'none';
+  updatePlayerFullscreenButton();
   updateQuickLoadAvailability();
   document.title='เล่น: '+rec.name;
   headerGameNameText.textContent=rec.name;
@@ -1653,6 +2971,7 @@ async function bootPlayer(id){
 
   let code=getSyncCode();
   if(!code){ code=await openSyncModal(); }
+  setGameBootProgress(null,'กำลังตรวจสอบข้อมูลเกม...');
 
   const romUrl=romUrlFor(rec.rom_path);
   let saveBytes=null;
@@ -1660,34 +2979,54 @@ async function bootPlayer(id){
     const {data:saveRow}=await sb.from('saves').select('sram,updated_at').eq('sync_code',code).eq('game_id',id).maybeSingle();
     if(saveRow && saveRow.sram){ saveBytes=base64ToBytes(saveRow.sram); saveBaselineAt=saveRow.updated_at||null; }
   }
-  if(saveBytes){
-    window.EJS_onGameStart=()=>{
+  window.EJS_onGameStart=()=>{
+    syncFullscreenPlayerToolbar();
+    scheduleControlLayout();
+    closeFullscreenEmulatorMenu();
+    unlockNdsOrientation();
+    configureNdsNativeTouch(rec.core);
+    restoreNdsBaselineAudio(rec.core);
+    applyNdsPerformance(rec.core);
+    if(saveBytes){
       try{
         const gm=window.EJS_emulator.gameManager;
         gm.FS.writeFile(gm.getSaveFilePath(), saveBytes);
         if(typeof gm.loadSaveFiles==='function') gm.loadSaveFiles();
       }catch(e){ console.warn('restore save failed', e); }
-    };
-  }
-  setInterval(()=>{ if(document.visibilityState==='visible'&&!quickBusy) flushSave(); }, rec.core==='nds'?45000:15000);
+    }
+    finishGameBootProgress();
+  };
+  setGameBootProgress(null,'กำลังเตรียมไฟล์เกม...');
+  setInterval(()=>{
+    if(document.visibilityState!=='visible'||quickBusy)return;
+    if(rec.core==='nds')scheduleNdsBackgroundSync();
+    else flushSave();
+  }, rec.core==='nds'?45000:15000);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
-  // NDS's two stacked screens (256x384) are much taller/narrower than GB/GBA's landscape screen —
-  // swap the player's aspect ratio to fit, and leave every other system exactly as before.
+  // Keep the original embedded player placement. Fullscreen scaling is handled by the
+  // fullscreen canvas using object-fit:contain, so each console keeps its real ratio.
   const ejsContainerEl=document.getElementById('ejsContainer');
   if(ejsContainerEl) ejsContainerEl.style.aspectRatio = rec.core==='nds' ? '2/3' : '4/3';
   window.EJS_player='#ejsContainer';
   window.EJS_core=coreFor(rec.core);
+  if(rec.core==='nds') window.EJS_controlScheme='nds';
+  if(rec.core==='nds'){
+    window.EJS_defaultOptions={};
+    if(window.matchMedia('(pointer: coarse)').matches)Object.assign(window.EJS_defaultOptions,{melonds_touch_mode:'Touch',lockMouse:'disabled'});
+  }
   window.EJS_gameUrl=romUrl;
   window.EJS_gameName=rec.name;
   window.EJS_gameID='pkmn-'+rec.id; // stable id so EmulatorJS's own save data is found again next time
   // EmulatorJS 4.3.0 has a reported NDS touchscreen regression on mobile;
   // keep other systems on stable while NDS uses the last touch-working release.
   window.EJS_pathtodata=rec.core==='nds'?'https://cdn.emulatorjs.org/4.2.3/data/':'https://cdn.emulatorjs.org/stable/data/';
+  window.EJS_ready=()=>attachRomDownloadProgress(window.EJS_emulator,romUrl);
   window.EJS_startOnLoaded=true;
   window.EJS_backgroundColor='#000';
   // Use the standard mobile gamepad instead of replacing it with an empty layout.
   window.EJS_threads=rec.core==='nds' && window.crossOriginIsolated===true && typeof SharedArrayBuffer!=='undefined';
   window.EJS_disableDatabases=false; // keep EmulatorJS's own local storage on — this is what remembers button mapping, volume, etc. between plays
+  preventEmulatorLandscapeLock();
   if(rec.core==='nds'){
     optimizeNdsWebGL();
     // melonDS (the nds core) needs bios7.bin, bios9.bin and firmware.bin — built into the site, see ndsBiosUrl()
@@ -1695,9 +3034,10 @@ async function bootPlayer(id){
     if(biosUrl) window.EJS_biosUrl=biosUrl;
     else console.warn('No NDS BIOS available — upload roms/nds-bios.zip to R2 or fill NDS_BIOS_BASE64.');
   }
+  setGameBootProgress(null,'กำลังโหลด Emulator...');
   const s=document.createElement('script');
   s.src=window.EJS_pathtodata+'loader.js';
-  s.onerror=()=>toastMsg('โหลด Emulator ไม่สำเร็จ ตรวจอินเทอร์เน็ตหรือการบล็อก CDN');
+  s.onerror=()=>{failGameBootProgress('โหลด Emulator ไม่สำเร็จ');toastMsg('โหลด Emulator ไม่สำเร็จ ตรวจอินเทอร์เน็ตหรือการบล็อก CDN');};
   document.body.appendChild(s);
 }
 
@@ -1710,7 +3050,7 @@ const DEFAULT_MARQUEE_IMAGES=[
   'https://picsum.photos/seed/gba9/400/300','https://picsum.photos/seed/gba10/400/300',
   'https://picsum.photos/seed/gba11/400/300','https://picsum.photos/seed/gba12/400/300'
 ];
-const MARQUEE_PASSWORD='1212312121';
+let MARQUEE_PASSWORD=''; // Admin credential kept in memory only after server verification.
 async function fetchMarqueeRows(){
   const {data,error}=await sb.from('marquee_images').select('*').order('sort_order',{ascending:true});
   if(error){ console.error(error); return []; }
@@ -1985,18 +3325,30 @@ function requireAuth(action){
   setTimeout(()=>keyPassInput.focus(),50);
 }
 document.getElementById('keyCancelBtn').onclick=()=>{ keyModalBg.classList.remove('show'); pendingAuthAction=null; };
-document.getElementById('keySubmitBtn').onclick=()=>{
-  if(keyPassInput.value===MARQUEE_PASSWORD){
+let adminLoginBusy=false;
+document.getElementById('keySubmitBtn').onclick=async()=>{
+  if(adminLoginBusy)return;
+  const password=keyPassInput.value;
+  const button=document.getElementById('keySubmitBtn');
+  adminLoginBusy=true; button.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('verify_emulator_admin',{p_password:password});
+    if(error){
+      if(error.code==='PGRST202')throw new Error('กรุณารัน setup-reset-stats.sql ฉบับล่าสุดใน Supabase ก่อน');
+      throw error;
+    }
+    if(data!==true){keyErrorMsg.textContent='รหัสผ่านไม่ถูกต้อง';return;}
+    if(!keyModalBg.classList.contains('show'))return;
+    MARQUEE_PASSWORD=password;
     marqueeAuthorized=true;
-    if(keyRememberChk.checked){ localStorage.setItem(KEY_PASS_STORAGE,keyPassInput.value); }
+    if(keyRememberChk.checked){ localStorage.setItem(KEY_PASS_STORAGE,password); }
     else{ localStorage.removeItem(KEY_PASS_STORAGE); }
     updateAuthUI();
     keyModalBg.classList.remove('show');
     const act=pendingAuthAction; pendingAuthAction=null;
     if(act) act();
-  } else {
-    keyErrorMsg.textContent='รหัสผ่านไม่ถูกต้อง';
-  }
+  }catch(error){keyErrorMsg.textContent=error.message||'ตรวจสอบรหัสไม่สำเร็จ กรุณาลองอีกครั้ง';}
+  finally{adminLoginBusy=false;button.disabled=false;}
 };
 keyPassInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') document.getElementById('keySubmitBtn').click(); });
 
@@ -2100,13 +3452,13 @@ const summaryCountEl=document.getElementById('summaryCount');
 // full:true  = premise/setting confirmed from public sources.  full:false = only the basics could be confirmed.
 const BUILTIN_SUMMARIES=[
 {keys:['morefriendsofmineraltown'], full:false, text:
-`Harvest Moon: More Friends of Mineral Town (GBA) — ภาคปรับปรุงของ Friends of Mineral Town (ข้อมูลนี้มาจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้)
+`Harvest Moon: More Friends of Mineral Town — เกมจำลองชีวิต/ทำฟาร์มบน GBA และเป็นเวอร์ชันที่ให้ผู้เล่นรับบทเป็นตัวละครหญิงในเมือง Mineral Town
 
-แนวเกม: เกมทำฟาร์มจำลองชีวิต ผู้เล่นเป็นเจ้าของฟาร์มที่เมือง Mineral Town ปลูกพืช เลี้ยงสัตว์ ตกปลา ขุดเหมือง ผูกมิตรกับชาวเมือง และเข้าร่วมเทศกาลตลอดปี
+ชีวิตในฟาร์ม: ปลูกพืชตามฤดูกาล เลี้ยงวัว/แกะ/ไก่ เก็บผลผลิต ตกปลา ขุดเหมือง และนำของไปขายเพื่อหาเงินอัปเกรดฟาร์มกับเครื่องมือ
 
-ต่างจากภาคก่อน: เลือกเล่นเป็นชายหรือหญิงได้ และมีผู้มีสิทธิ์แต่งงานทั้งสองเพศ
+ชีวิตในเมือง: ทำความรู้จักชาวเมือง มอบของที่ชอบ เข้าร่วมเทศกาล และสร้างความสัมพันธ์กับตัวละครชายที่สามารถแต่งงานได้
 
-เป้าหมาย: ไม่มีตอนจบเดียว ผู้เล่นตั้งเป้าเอง เช่นพัฒนาฟาร์ม แต่งงาน มีลูก ฟื้นสถานที่ในเมือง และสะสมความสัมพันธ์กับชาวเมือง`},
+เป้าหมาย: ไม่มีเส้นเรื่องต่อสู้หรือฉากจบแบบ RPG เป้าหมายคือฟื้นฟูและพัฒนาฟาร์มให้เติบโต พร้อมเลือกวิถีชีวิตและความสัมพันธ์ของตัวละคร`},
 {keys:['friendsofmineraltown'], full:false, text:
 `Harvest Moon: Friends of Mineral Town (GBA) — ข้อมูลนี้มาจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้
 
@@ -2157,34 +3509,72 @@ const BUILTIN_SUMMARIES=[
 เนื้อเรื่อง: มีเรื่องราวต้นฉบับ ตัวละครใหม่ และเควสต์แบบวีรบุรุษกรีก มีดันเจี้ยนวิหารและเจอโปเกมอนตำนานที่ออกแบบใหม่ตามเทพปกรณัม เกมยาวราว 30 ชั่วโมงขึ้นไป มีเควสต์ข้างเกิน 60 อัน สไตล์ภาพและเพลงคล้าย Game Boy Color
 
 ปิดเรื่อง: ผมยืนยันได้เฉพาะโครงและธีมเรื่อง ไม่พบบทสรุปฉากจบที่ตรวจสอบได้ในแหล่งสาธารณะ`},
-{keys:['beyondhoenn'], full:false, text:
-`Pokémon Emerald Beyond Hoenn — ฐาน Emerald, สร้างโดย Narfloflo
+{keys:['beyondhoenn'], full:true, text:
+`Pokémon Emerald Beyond Hoenn — ROM hack จาก Pokémon Emerald โดย Narfloflo
 
-สิ่งที่ยืนยันได้: มี 3 ภูมิภาคให้สำรวจ (ออกนอก Hoenn), มี Kanto Victory Road และลีก Kanto เพิ่ม, มีคาสิโนในสนามบิน, Pokédex ใหม่ NPC ใหม่ ระบบสี/พาเลตแบบไดนามิก การแยกฟิสิคอล/สเปเชียล และความยากที่เพิ่มขึ้น
+ฉากและเส้นทาง: เริ่มจากการผจญภัยใน Hoenn แล้วขยายไปยัง Kanto และ Johto รวมสามภูมิภาค แต่ละพื้นที่มีโปเกมอนและจุดสำรวจของตัวเอง
 
-โครงเรื่อง: ตามเส้นเรื่องของ Emerald ใน Hoenn ก่อน แล้วขยายไปยังภูมิภาคอื่น ผมไม่พบสรุปเนื้อเรื่องฉากต่อฉากที่ตรวจสอบได้`},
-{keys:['fireredrocketedition','rocketedition'], full:false, text:
-`Pokémon FireRed Rocket Edition — ฐาน FireRed/LeafGreen
+เป้าหมาย: เล่นเนื้อเรื่องและความท้าทายของแต่ละภูมิภาค เก็บข้อมูล Pokédex ที่ปรับใหม่ และเดินทางไปสู่ Indigo Plateau
 
-สิ่งที่ยืนยันได้: เรื่องอ้างอิงเส้นเรื่องของ FireRed/LeafGreen โดยเล่าจากมุมของทีม Rocket (แฟนเกมอื่นอย่าง Team Magma Edition อ้างถึงเกมนี้เป็นต้นแบบของแนว "เล่นเป็นฝ่ายร้าย") ตัวเอกไต่ระดับในองค์กรและเกี่ยวข้องกับ Giovanni
+ระบบเด่น: ปรับเส้นทางความยาก เพิ่มการแยกกายภาพ/พิเศษ และมีตัวเลือกข้ามช่วงต้นเพื่อเริ่มทดสอบที่ Vermilion City หรือ Indigo Plateau
 
-ผมไม่พบสรุปเนื้อเรื่องเต็มที่ตรวจสอบได้ จึงไม่เขียนรายละเอียดฉากที่อาจคลาดเคลื่อน`},
+ขอบเขตข้อมูล: ยืนยันโครงสร้างหลายภูมิภาคและระบบหลักได้ แต่ไม่พบ walkthrough เนื้อเรื่องฉากต่อฉากจากผู้สร้าง จึงไม่สรุปเหตุการณ์ที่ไม่มีแหล่งยืนยัน`} ,
+{keys:['fireredrocket','rocketedition'], full:true, text:
+`Pokémon FireRed: Rocket Edition — ROM hack ที่เล่าเรื่องคู่ขนานกับ FireRed จากมุมของสมาชิก Team Rocket
+
+บทบาทผู้เล่น: เริ่มจากสมาชิกระดับล่างและไต่ตำแหน่งในองค์กร ระหว่างนั้นได้เห็นสิ่งที่เกิดขึ้นใน Kanto ขณะที่ Red เดินทางไปเก็บยิม
+
+ระบบเด่น: หลังชนะเทรนเนอร์สามารถขโมยโปเกมอนของคู่ต่อสู้ได้ มีระบบการตัดสินใจ/ภารกิจเสริม และการเลือกช่วยหรือหักหลังตัวละครส่งผลต่อบางเหตุการณ์
+
+เนื้อเรื่อง: สำรวจความลับและแผนสมคบคิดที่เชื่อมตัวละครคุ้นเคยกับโลกใต้ดินของ Kanto เนื้อหานี้เป็นการตีความใหม่ของ FireRed ไม่ใช่แค่เปลี่ยนทีมผู้เล่น
+
+เป้าหมาย: เติบโตใน Team Rocket พร้อมเผชิญเรื่องราวอีกด้านของการผจญภัยของ Red`} ,
 {keys:['radicalred'], full:true, text:
 `Pokémon Radical Red — ฐาน FireRed, สร้างโดย soupercell และ koala4 (ได้แรงบันดาลใจจากแฮ็กของ Drayano), เวอร์ชันล่าสุดที่อ้างถึงคือ 4.1 (มีนาคม 2024)
 
 แนวเกม: แฮ็กเน้นความยาก ทำใหม่ทั้งการผจญภัยในภูมิภาค Kanto ให้ยากขึ้นมาก เพิ่มโปเกมอนถึงเจน 9, Mega Evolution และ Dynamax ปรับความสามารถของโปเกมอนหลายตัว เทรนเนอร์มีทีมที่วางกลยุทธ์มาแล้ว และโปเกมอนสำคัญๆ ในเนื้อเรื่องก็แข็งขึ้น
 
 เนื้อเรื่อง: ไม่ได้เพิ่มเนื้อเรื่องใหม่ ใช้เส้นเรื่องเดิมของ FireRed คือเริ่มที่ Pallet Town รับโปเกมอนตัวแรกจากศาสตราจารย์ Oak แข่งกับ rival เก็บ 8 แบดจ์ ขัดขวาง Team Rocket และ Giovanni แล้วท้าชิง Elite Four กับแชมป์ ต่างที่ความยากและระบบเกม`},,
-{keys:['emeraldrogue'], full:false, text:
-`Pokémon Emerald Rogue — ฐาน Emerald (ข้อมูลส่วนนี้มาจากความรู้ทั่วไปของผม ไม่ได้ค้นยืนยันรอบนี้)
+{keys:['emeraldrogue'], full:true, text:
+`Pokémon Emerald Rogue — นำโลกและระบบต่อสู้ของ Emerald มาปรับเป็นเกมผจญภัยแนว roguelike
 
-เป็นแนว roguelike ไม่มีเนื้อเรื่องต่อเนื่องแบบเกมปกติ แต่ละรอบสุ่มเส้นทาง ทีม และไอเทม ต้องผ่านเส้นทางและบอสให้ได้ ตายแล้วเริ่มใหม่`},,
-{keys:['rowe'], full:false, text:
-`Pokémon R.O.W.E. — ในรายการรวมแฮ็กที่ตรวจสอบ ติดแท็ก Open World, Feature Rich และ Physical/Special Split ผมไม่พบเนื้อเรื่องที่ยืนยันได้`},
-{keys:['emeraldseaglass','seaglass'], full:false, text:
-`Pokémon Emerald Seaglass — ฐาน Emerald สร้างโดย Nemo622 (ผู้สร้าง Lazarus) ผมยืนยันได้แค่ผู้สร้างและฐานเกม ไม่พบสรุปเนื้อเรื่องที่ตรวจสอบได้`},
-{keys:['quetzal'], full:false, text:
-`Pokémon Quetzal — ฐาน Emerald ต้องแพตช์กับรอม Emerald ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+รูปแบบการเล่น: ในแต่ละรอบผู้เล่นเลือกเส้นทาง ฝ่าพื้นที่ต่อสู้ต่อเนื่อง พบเทรนเนอร์และบอส พร้อมรับโปเกมอน/ไอเทมเพื่อสร้างทีมจากสิ่งที่ได้ในรอบนั้น
+
+เป้าหมาย: ฝ่าด่านไปให้ถึง Pokémon League และเอาชนะแชมเปียน การปลดล็อกสิ่งใหม่เพิ่มตัวเลือกในการเล่นรอบต่อไป
+
+จุดต่างจาก Emerald ปกติ: ไม่ได้เดินตามแผนที่และเนื้อเรื่องแบบเส้นตรง การวางแผนทีมและปรับกลยุทธ์จากสิ่งที่สุ่มพบเป็นแกนหลัก
+
+หมายเหตุ: ระบบย่อยอาจต่างกันตามเวอร์ชันของ ROM hack`} ,,
+{keys:['rowe'], full:true, text:
+`Pokémon R.O.W.E. (Reinvented Open World Emerald) — ปรับ Pokémon Emerald ให้ Hoenn เปิดสำรวจได้ยืดหยุ่นขึ้น
+
+การผจญภัย: เลือกเส้นทางและลำดับการสำรวจได้มากกว่า Emerald ต้นฉบับ เป้าหมายหลักยังเป็นการท้าทายยิมและ Pokémon League ใน Hoenn
+
+การสร้างทีม: โปเกมอนจำนวนมากหาได้ตั้งแต่ต้น ลดการพึ่งพาการผสมพันธุ์ มีโปเกมอนเดินตาม ระบบ Wonder Trade และกลไกต่อสู้ที่อัปเดต
+
+เล่นซ้ำได้หลายแบบ: มีระดับความยากและโหมดเสริม เช่น Randomized, Double Battle, Inverse และรูปแบบจำกัดทีม/ค่าสถานะ
+
+เรื่องราว: ใช้ Hoenn เป็นฉากหลัก โดยจุดขายคือโลกเปิดและการจัดทีมมากกว่าเนื้อเรื่องใหม่`} ,
+{keys:['emeraldseaglass'], full:true, text:
+`Pokémon Emerald Seaglass — เกมที่สร้างจาก Emerald โดย Nemo622 ใช้แผนที่และลำดับยิม Hoenn เป็นแกน แล้วปรับภาพและระบบการเล่นใหม่
+
+ภาพและบรรยากาศ: ใช้ภาพพิกเซลโทน Game Boy Color พร้อมฉากและงานตกแต่งที่ปรับใหม่
+
+การเล่น: ปรับค่าสถานะ ท่า ความสามารถ และโปเกมอนป่าหลายจุด เพิ่มระบบค้นหาโปเกมอนคล้าย DexNav และโปเกมอนเดินตาม รวมถึงเทรนเนอร์/เหตุการณ์เพิ่มระหว่างเส้นเรื่องเดิม
+
+ภารกิจ: มีเควสต์และกิจกรรมในเกมสำหรับโปเกมอนหายากหรือตำนาน แทนการพึ่งอีเวนต์ภายนอกบางส่วน
+
+เนื้อเรื่อง: ยังคงการผจญภัยใน Hoenn และแกนเรื่อง Emerald เป็นหลัก ส่วนที่เปลี่ยนคือเหตุการณ์เสริมและความท้าทาย`} ,
+{keys:['quetzal'], full:true, text:
+`Pokémon Quetzal — ROM hack ของ Emerald โดย Tenma ที่คงการผจญภัยหลักใน Hoenn แล้วเพิ่มระบบจากเกม Pokémon รุ่นใหม่
+
+เนื้อเรื่องและเป้าหมาย: เล่นเนื้อเรื่อง Emerald ใน Hoenn เก็บยิมและท้าชิงลีก พร้อมสำรวจเหตุการณ์และกิจกรรมเสริม
+
+ระบบเด่น: รองรับเล่นคนเดียวและ co-op ออนไลน์ เลือกตัวละครได้มากกว่า 100 แบบ มีโปเกมอนเดินในฉาก และรวมโปเกมอน/ท่า/ความสามารถกับระบบต่อสู้จากเจนใหม่
+
+แนวทางเล่น: เหมาะกับการเล่น Emerald กับเพื่อน หรือสะสม Pokédex ขนาดใหญ่และทดลองตัวละคร/ระบบเพิ่มเติม
+
+หมายเหตุ: รายละเอียดและจำนวนคอนเทนต์เปลี่ยนตามเวอร์ชัน Quetzal ที่ติดตั้ง`} ,
 {keys:['inclement'], full:true, text:
 `Pokémon Inclement Emerald — ฐาน Emerald (สร้างใหม่บน pokeemerald decompilation) โดย Buffel Saft
 
@@ -2193,8 +3583,16 @@ const BUILTIN_SUMMARIES=[
 รายละเอียดที่ยืนยันได้: โปเกมอนไม่ใช่ตำนานส่วนใหญ่ของเจน 1–7 จับได้ (เวอร์ชัน 1.13 มีแผนเจน 8 ในอนาคต) แต่ละเส้นทางมีโปเกมอนในหญ้าประมาณ 8 ชนิด มีชนิดอื่นในต้นไม้ที่ตัดได้ กองทราย และต้นเบอร์รี่ ผู้ฝึกฉลาดขึ้นและทีมสมดุลกว่าเดิม
 
 เนื้อเรื่อง: ยึดเส้นเรื่อง Emerald เดิมใน Hoenn (Team Aqua/Magma, Kyogre/Groudon/Rayquaza) เพิ่มอีเวนต์ใหม่ ไม่ใช่เรื่องราวใหม่`},,
-{keys:['modern'], full:false, text:
-`Pokémon Modern — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['modern'], full:true, text:
+`Pokémon Modern Emerald — เวอร์ชันปรับปรุง Pokémon Emerald ที่ยังคงเรื่องราวและภูมิภาค Hoenn เดิม
+
+เป้าหมาย: รับโปเกมอนเริ่มต้น เดินทางผ่าน Hoenn เก็บยิม ขัดขวางแผนของ Team Aqua และ Team Magma แล้วท้าชิง Pokémon League
+
+ระบบปรับปรุง: เลือกการตั้งค่าก่อนเริ่ม เช่น กลไกต่อสู้สมัยใหม่และการแยกกายภาพ/พิเศษ ประเภท Fairy โปเกมอนเพิ่มจากภาคอื่น วงจรกลางวัน-กลางคืน และโปเกมอนเดินตาม
+
+ตัวเลือกผู้เล่น: มีระดับความยากและโหมดเสริมหลายแบบ เพื่อให้ปรับประสบการณ์ได้ตั้งแต่ใกล้เกมเดิมไปจนถึงท้าทายขึ้น
+
+จุดเน้น: เพิ่มคุณภาพชีวิตและความหลากหลายในการเล่น โดยไม่ได้แทนที่โครงเรื่องหลักของ Emerald`} ,
 {keys:['eliteredux'], full:true, text:
 `Pokémon Elite Redux — ฐาน Emerald สร้างโดย Darky (พัฒนาต่อยอดจาก Inclement Emerald / Yda patch โดยได้รับอนุญาตจาก Buffel Saft และ Yda)
 
@@ -2203,16 +3601,50 @@ const BUILTIN_SUMMARIES=[
 จุดขาย: โปเกมอนแต่ละตัวมีความสามารถได้พร้อมกันหลายอย่าง คือสลับได้ 3 อย่างบวกความสามารถติดตัวถาวรได้อีกสูงสุด 3 ตัว (innates) สลับ Nature และ EV ได้ในเมนู เข้าถึง Egg move, Tutor move และ TM ได้ทันที จำกัดด้วยเลเวลแคปเท่านั้น
 
 เนื้อเรื่อง: ยึดโครงเรื่อง Emerald/Hoenn เป็นหลัก จุดเด่นอยู่ที่ระบบเกม ไม่ใช่เนื้อเรื่องใหม่`},,
-{keys:['wishesoftomorrow'], full:false, text:
-`Pokémon Wishes of Tomorrow — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
-{keys:['redchapter'], full:false, text:
-`Pokémon Red Chapter — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
-{keys:['soulgold'], full:false, text:
-`Pokémon SoulGold — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
-{keys:['heartsoul'], full:false, text:
-`Pokémon HeartSoul — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
-{keys:['superdarkworship','darkworship'], full:false, text:
-`Pokémon Super Dark Worship — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`},
+{keys:['wishesoftomorrow'], full:true, text:
+`Pokémon: Wishes of Tomorrow — เกมสร้างจากซอร์ส Pokémon Emerald โดย Flatfoot Games มีภูมิภาคและเรื่องราวใหม่ ไม่ได้เดินเรื่องใน Hoenn เดิม
+
+จุดเริ่มเรื่อง: เนื้อเรื่องเกี่ยวข้องกับ Jirachi และพลังคำอธิษฐานที่เชื่อมกับเหตุการณ์สำคัญในภูมิภาคใหม่ ผู้เล่นออกสำรวจพื้นที่และเผชิญกลุ่มที่ต้องการใช้พลังนั้น
+
+ระบบเด่นที่ประกาศไว้: โครงเรื่องแบ่งเป็นสามองก์ มี Shadow Pokémon ให้ตามหาและชำระล้าง รวมถึงระบบและโปเกมอนจากเกมรุ่นหลัง
+
+ขอบเขตข้อมูล: ฟีเจอร์ขึ้นกับ build ในคลังเว็บ โครงการมีข้อมูลหลายช่วงการพัฒนา จึงควรเทียบกับเวอร์ชัน ROM ที่ติดตั้งก่อนยืนยันรายละเอียดเฉพาะ`} ,
+{keys:['redchapter'], full:true, text:
+`Pokémon Adventures: Red Chapter — ROM hack บนพื้นฐาน FireRed ที่เล่าเรื่องโดยอิงมังงะ Pokémon Adventures / Pokémon Special
+
+เนื้อเรื่อง: ติดตาม Red ในการเดินทางผ่าน Kanto และต่อเนื่องไปยัง Orange Islands โดยมีตัวละครและเหตุการณ์จากมังงะ รวมถึงฉากเสริมที่เพิ่มสำหรับเวอร์ชันเกม
+
+รูปแบบการเล่น: ยังคงจับและฝึกโปเกมอน ต่อสู้กับเทรนเนอร์และสำรวจเมือง แต่เพิ่มกิจกรรม เหตุการณ์ ตัวละคร เครื่องแต่งกาย และระบบกลางวัน/กลางคืนในบางเวอร์ชัน
+
+เวอร์ชันในคลัง: การ์ดเกมระบุ Beta 15; รุ่นย่อยและแพตช์เสริมอาจมีเนื้อหาหรือการแก้บั๊กต่างกัน`} ,
+{keys:['soulgold'], full:true, text:
+`Pokémon SoulGold — ROM hack สำหรับ GBA ที่ใช้ระบบพื้นฐานของ Emerald แล้วนำการผจญภัย Johto มาขยาย
+
+ฉากและเรื่องราว: เดินทางใน Johto ผ่านเมือง เส้นทาง และยิมของภูมิภาค โดยเน้นการผจญภัย Johto แบบขยาย ไม่ใช่การเดินทางต่อไป Kanto
+
+ระบบเด่น: เพิ่มพื้นที่/จุดสำรวจและกิจกรรมหลังเนื้อเรื่อง มี Mega Evolution การต่อสู้กับบอสหลายช่วง และการปรับคุณภาพชีวิต/ทีมโปเกมอน
+
+เป้าหมาย: ทำภารกิจหลักและท้าชิงลีก Johto ก่อนตามเก็บกิจกรรมและเนื้อหาหลังจบ
+
+หมายเหตุ: รายการฟีเจอร์อาจต่างกันตามรุ่น SoulGold ที่เว็บนำมาใส่`} ,
+{keys:['heartsoul'], full:true, text:
+`Pokémon Heart & Soul — นำการผจญภัย Johto มาสร้างเป็นเกม GBA โดยผสมเนื้อหาจาก Gold/Silver/Crystal กับ HeartGold/SoulSilver
+
+เนื้อเรื่อง: เดินทางใน Johto ตามแกนเรื่องคลาสสิก หลังจบลีกมี Kanto เป็นเนื้อหาหลังเกม
+
+ระบบและกิจกรรม: มีโปเกมอนเดินตาม ระบบกลางวัน/กลางคืน Bug-Catching Contest และ Ruins of Alph ที่ปรับใหม่ พร้อมตัวเลือกปรับโหมด ความยาก Randomizer และ Nuzlocke
+
+คุณภาพชีวิต: มีตัวเลือกไม่ต้องสอน HM ให้โปเกมอน ปรับ TM และเลือกใช้ระบบแยกกายภาพ/พิเศษได้
+
+หมายเหตุ: รายละเอียดนี้อิง Heart & Soul รุ่น 2.x; ชื่อ/รุ่นที่การ์ดเว็บนำมาใช้ควรเทียบกับไฟล์ ROM จริง`} ,
+{keys:['superdarkworship'], full:true, text:
+`Pokémon Super Dark Worship — เกม GBA ที่ดัดแปลงจาก FireRed มีภูมิภาคใหม่ชื่อ Seafood และเนื้อเรื่องต้นฉบับ
+
+เรื่องราว: มีกลุ่มลัทธิ/องค์กรร้ายพยายามจับโปเกมอนศักดิ์สิทธิ์และใช้พลังของพวกมัน ผู้เล่นออกเดินทางใน Seafood เพื่อหยุดแผนดังกล่าว
+
+ระบบเด่น: เพิ่มโปเกมอนจากหลายเจเนอเรชัน รวมโปเกมอน Hisui และระบบต่อสู้สมัยใหม่ เช่น Mega Evolution กับรูปแบบพิเศษจากเกมรุ่นหลัง
+
+ขอบเขตข้อมูล: มีหลาย build และหลายภาษา จำนวนโปเกมอนกับระบบที่เปิดใช้จึงอาจไม่เหมือนกันทุกไฟล์`} ,
 {keys:['emeraldimperium','imperium'], full:true, text:
 `Pokémon Emerald Imperium — ฐาน Emerald สร้างโดย iriv24
 
@@ -2221,9 +3653,24 @@ const BUILTIN_SUMMARIES=[
 รายละเอียดที่ยืนยันได้: โปเกมอนเกือบทั้งหมดของเจน 1–9 หาได้, ใช้ระบบต่อสู้สมัยใหม่, มี Mega Evolution รวมถึง Mega ใหม่ที่เพิ่มเอง (เช่นสตาร์ทเตอร์เจน 4 และ Gigantamax บางตัวที่แปลงเป็น Mega), มีตัวละครเจน 4 เพิ่ม เช่น Dawn เป็น rival อีกคน และ Gym Leader ต่างๆ, ผู้ฝึกสำคัญ (ยิม, Elite 4, rival, Team Aqua/Magma, มินิบอสตามเส้นทาง) ยากขึ้น มีตู้ GameCube ในห้องตัวเองไว้ใส่โค้ดโกง
 
 เนื้อเรื่อง: ยึดเส้นเรื่อง Emerald เดิมใน Hoenn (Team Aqua/Magma) เพิ่มตัวละครและการต่อสู้ ไม่ใช่เนื้อเรื่องใหม่ทั้งหมด`},
-{keys:['evolved'], full:false, text:
-`Pokémon Evolved — ผมไม่พบข้อมูลเนื้อเรื่องที่ยืนยันได้ในการค้นรอบนี้`}
-];
+{keys:['evolved'], full:true, text:
+`Pokémon Evolved — ROM hack ที่สร้างจาก Pokémon LeafGreen โดย AtSign8877 ปรับแกนหลักที่สายวิวัฒนาการของโปเกมอนเจน 1
+
+แนวคิด: โปเกมอนดั้งเดิม 151 ตัวมีสายวิวัฒนาการเพิ่ม ทำให้ Pokédex ขยายเป็น 354 ตัว พร้อมรูปแบบวิวัฒนาการและสไปรต์ใหม่
+
+การผจญภัย: ยังคงเดินทางใน Kanto ต่อสู้กับยิมและ Team Rocket ตามโครง LeafGreen โดยจัดการได้รับแบดจ์ให้เดินตามลำดับยิม
+
+จุดเน้น: ทดลองทีมและค้นหาว่าโปเกมอนคุ้นเคยพัฒนาเป็นรูปแบบใด เนื้อเรื่องหลักไม่ได้เปลี่ยนเป็นภูมิภาคใหม่`},
+{keys:['moonblack2'], full:true, text:
+`Pokémon Moon Black 2 — ROM hack ของ Pokémon Black 2 สำหรับ Nintendo DS
+
+ฉากและเรื่องราว: ผู้เล่นรับบท Sun หรือ Moon ซึ่งเดินทางจาก Alola ไป Unova หลังเหตุการณ์ลีก พร้อม Gladion แล้วเข้าร่วมการผจญภัย Black 2 ที่ปรับตัวละครและเหตุการณ์
+
+ระบบเด่น: เพิ่มโปเกมอนและฟอร์ม Alola/Unova คู่แข่งและผู้นำยิมใหม่ Fairy type, Mega Evolution, ไอเทม/ท่าใหม่ และปรับความยาก
+
+หลังเกม: มี Pokémon World Tournament, การต่อสู้ rematch, ภารกิจ Rainbow Rocket และเป้าหมายเก็บโปเกมอนตำนานกับ Mega Stones
+
+ข้อควรรู้: หน้าผู้สร้างระบุ Beta 4 (อัปเดต 2020) และแจ้งบั๊กบางจุด เช่น Fairy type แสดงผลนอกการต่อสู้ไม่ครบ`}];
 function findBuiltinSummary(name){
   const n=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
   let best=null, bestLen=0;
@@ -2335,15 +3782,16 @@ function renderSummaryList(){
       const bs=findBuiltinSummary(item.name);
       const ovRaw=summaryOverrides[String(item.id)];
       const hasOv=typeof ovRaw==='string' && ovRaw.trim()!=='';
-      const rawStory = hasOv ? ovRaw : (bs ? bs.text : '');
-      const storyText = hasOv ? ovRaw : (bs ? bs.text + (bs.full ? '' : '\n\n(ข้อมูลส่วนนี้ยังไม่ครบ)') : '');
+      const fallbackStory = `ข้อมูลเกม: ${item.name||'เกมนี้'} (${String(item.core||'').toUpperCase()})\n\nคำอธิบายจากคลังเกม: ${item.description||'ยังไม่มีคำอธิบายจากผู้ดูแล'}\n\nรายละเอียดเพิ่มเติม: เกมนี้เปิดผ่านอีมูเลเตอร์ของระบบ ${String(item.core||'').toUpperCase()} ข้อมูลเนื้อเรื่อง ภูมิภาค ตัวละคร ระบบการเล่น และเนื้อหาหลังจบเกมยังไม่มีข้อมูลยืนยันในคลัง จึงไม่ระบุรายละเอียดที่อาจคลาดเคลื่อน`;
+      const rawStory = hasOv ? ovRaw : (bs ? bs.text : fallbackStory);
+      const storyText = hasOv ? ovRaw : (bs ? bs.text + (bs.full ? '' : '\n\n(ข้อมูลส่วนนี้ยังไม่ครบ)') : fallbackStory);
       if(storyText){
         const tg=document.createElement('button'); tg.type='button';
         tg.style.cssText='margin-top:6px; border:1px solid var(--accent); color:var(--accent); background:transparent; border-radius:20px; padding:3px 10px; font-size:12px; cursor:pointer;';
-        tg.textContent='อ่านบทสรุปเรื่อง';
+        tg.textContent='อ่านรายละเอียดข้อมูล';
         const body=document.createElement('div'); body.className='s-desc'; body.style.cssText='display:none; margin-top:8px;';
         body.textContent=storyText;
-        tg.onclick=(e)=>{ e.stopPropagation(); const open=body.style.display==='none'; body.style.display=open?'block':'none'; tg.textContent=open?'ซ่อนบทสรุป':'อ่านบทสรุปเรื่อง'; };
+        tg.onclick=(e)=>{ e.stopPropagation(); const open=body.style.display==='none'; body.style.display=open?'block':'none'; tg.textContent=open?'ซ่อนรายละเอียด':'อ่านรายละเอียดข้อมูล'; };
         body.onclick=(e)=>e.stopPropagation();
         box.appendChild(tg); box.appendChild(body);
       }
@@ -2537,11 +3985,11 @@ function fmtBytes(n){
   return n.toFixed(n>=100?0:n>=10?1:2)+' '+u[i];
 }
 async function getSupabaseUsage(){
-  const folders={roms:0,covers:0,marquee:0}; let files=0;
+  const folders={roms:0,covers:0,marquee:0,skins:0}; let files=0;
   for(const folder of Object.keys(folders)){
     let offset=0;
     while(true){
-      const {data,error}=await sb.storage.from(BUCKET).list(folder,{limit:1000,offset});
+      const {data,error}=await sb.storage.from(BUCKET).list(folder==='skins'?'skins/v1':folder,{limit:1000,offset});
       if(error) throw error;
       if(!data || !data.length) break;
       data.forEach(o=>{ if(o.id){ folders[folder]+=Number(o.metadata && o.metadata.size)||0; files++; } });
@@ -2570,7 +4018,7 @@ async function renderStorageUsage(){
   if(sbRes.status==='fulfilled'){
     const u=sbRes.value;
     html+=storageCardHtml('Supabase Storage', u.total, SUPABASE_STORAGE_LIMIT,
-      'ROM (เกมเก่า) '+fmtBytes(u.folders.roms)+' · รูปปก '+fmtBytes(u.folders.covers)+' · รูปหน้าแรก '+fmtBytes(u.folders.marquee)+' · รวม '+u.files+' ไฟล์');
+      'ROM (เกมเก่า) '+fmtBytes(u.folders.roms)+' · รูปปก '+fmtBytes(u.folders.covers)+' · รูปหน้าแรก '+fmtBytes(u.folders.marquee)+' · สกิน '+fmtBytes(u.folders.skins)+' · รวม '+u.files+' ไฟล์');
   } else {
     html+='<div class="storage-card"><div class="st-head"><span>Supabase Storage</span></div><div class="st-sub">โหลดไม่สำเร็จ: '+escapeHtml((sbRes.reason&&sbRes.reason.message)||String(sbRes.reason))+'</div></div>';
   }
@@ -2618,6 +4066,29 @@ async function migrateOldRoms(btn, list){
   renderStorageUsage();
 }
 document.getElementById('dashboardBtn').addEventListener('click', ()=>{ requireAuth(openDashboard); });
+let dashboardResetBusy=false;
+async function resetDashboardStats(){
+  if(dashboardResetBusy)return;
+  if(!marqueeAuthorized){requireAuth(resetDashboardStats);return;}
+  dashboardResetBusy=true;
+  const button=document.getElementById('dashResetStatsBtn');
+  try{
+    if(!confirm('รีเซ็ตสถิติการเล่นที่บันทึกไว้ของทุกคน?\nเวลาเล่น กราฟ และสถิติในแดชบอร์ดจะเริ่มใหม่ เกม ROM และเซฟเกมจะไม่ถูกลบ'))return;
+    button.disabled=true;
+    const {error,data}=await sb.rpc('reset_emulator_play_stats',{p_reset_code:MARQUEE_PASSWORD});
+    if(error){
+      if(error.code==='PGRST202'||error.message?.includes('Could not find the function'))throw new Error('ต้องรันไฟล์ setup-reset-stats.sql ใน SQL Editor ของ Supabase ก่อน');
+      throw error;
+    }
+    const count=Number(data);
+    if(data===null||data===''||!Number.isSafeInteger(count)||count<0)throw new Error('ผลการรีเซ็ตไม่ถูกต้อง กรุณาตรวจฟังก์ชันใน Supabase');
+    if(sessionStorage.getItem('playStartTs'))sessionStorage.setItem('playStartTs',String(Date.now()));
+    await openDashboard();
+    toastMsg('รีเซ็ตสถิติแล้ว'+(Number.isFinite(count)?' ('+count+' รายการ)':''));
+  }catch(error){console.warn('Dashboard reset failed',error);toastMsg('รีเซ็ตสถิติไม่สำเร็จ: '+(error.message||'กรุณาลองใหม่'));}
+  finally{dashboardResetBusy=false;button.disabled=false;}
+}
+document.getElementById('dashResetStatsBtn').onclick=resetDashboardStats;
 document.getElementById('dashRefreshBtn').onclick=openDashboard;
 document.getElementById('dashCloseBtn').onclick=()=>dashboardModalBg.classList.remove('show');
 dashboardModalBg.addEventListener('click',(e)=>{ if(e.target===dashboardModalBg) dashboardModalBg.classList.remove('show'); });
