@@ -2,6 +2,13 @@
   "headers": [
     {
       "source": "/(.*)",
+      "has": [
+        {
+          "type": "query",
+          "key": "emu",
+          "value": "3ds"
+        }
+      ],
       "headers": [
         {
           "key": "Cross-Origin-Opener-Policy",
@@ -9,7 +16,11 @@
         },
         {
           "key": "Cross-Origin-Embedder-Policy",
-          "value": "credentialless"
+          "value": "require-corp"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "same-origin"
         }
       ]
     }
