@@ -6,17 +6,11 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#05091d",
-  "theme_color": "#05091d",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
-      "src": "https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/splash/app-icon-192-sharp-v2.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/splash/app-icon-512-sharp-v2.png",
+      "src": "https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/splash/browser-logo-v3.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
