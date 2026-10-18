@@ -247,10 +247,14 @@ function renderRomOrigin(item){
 function addDetailSpacing(page){
  if(!page.includes('id="detailVersion"'))return page;
  const style=`<style id="detail-text-spacing">
- #detailModalBg .detail-manual-page{line-height:1.8}
- #detailModalBg .detail-manual-page :is(#detailDesc,#detailStoryText,#detailVersion,#detailRomOrigin,#detailGameInfo,#detailFileHistory){line-height:1.8!important}
+ #detailModalBg{--detail-text-leading:23.4px}
+ #detailModalBg .detail-manual-page{line-height:var(--detail-text-leading)}
+ #detailModalBg :is(#detailDesc,#detailStoryText,#detailVersion,#detailRomOrigin,#detailGameInfo,#detailFileHistory,.detail-feature-item,.detail-cover-back p,.detail-cover-back small,.file-history-entry time){line-height:var(--detail-text-leading)!important}
  #detailModalBg .detail-manual-page :is(#detailDesc,#detailStoryText,#detailVersion,#detailRomOrigin){margin:0!important}
  #detailModalBg .detail-manual-page p{margin-block:0;line-height:inherit}
+ #detailModalBg .detail-cover-back p{margin-block:0}
+ #detailModalBg .detail-cover-back p+p{margin-top:6px}
+ #detailModalBg #detailFileHistory h4{margin:0 0 6px;line-height:var(--detail-text-leading)}
  </style>`;
  return page.replace('</body>',()=>style+'</body>');
 }
