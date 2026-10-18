@@ -233,7 +233,7 @@ function renderRomOrigin(item){
  panel.replaceChildren();
  const file=document.createElement('div');file.textContent='ชื่อไฟล์ ROM: '+(item.rom_path?romDownloadFilename(item):'ยังไม่มีไฟล์ ROM');panel.append(file);
  const origin=getRomOrigin(item),line=document.createElement('div');line.style.marginTop='6px';
- line.textContent=origin?(origin.kind==='port'?'พอร์ตจาก: ':origin.kind==='translation'?'แพตช์ภาษาไทยจาก: ':'ROM Hack จากต้นฉบับ: ')+origin.base:'ภาคต้นฉบับของ ROM: ยังไม่มีข้อมูลยืนยัน';panel.append(line);
+ line.textContent=origin?(origin.kind==='hack'?'Rom Hack : '+origin.base.replace(/^Pokémon\\s+/,''):(origin.kind==='port'?'พอร์ตจาก: ':'แพตช์ภาษาไทยจาก: ')+origin.base):'Rom Hack : ยังไม่มีข้อมูลยืนยัน';panel.append(line);
  if(origin?.note){const note=document.createElement('small');note.textContent=origin.note;note.style.cssText='display:block;color:var(--sub);margin-top:4px';panel.append(note);}
  if(origin?.source){const source=document.createElement('a');source.href=origin.source;source.target='_blank';source.rel='noopener noreferrer';source.textContent='อ้างอิงข้อมูลต้นฉบับ';source.style.cssText='display:inline-block;margin-top:4px;color:var(--accent)';panel.append(source);}
 }
