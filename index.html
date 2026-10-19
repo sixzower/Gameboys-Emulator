@@ -108,6 +108,65 @@ if(new URLSearchParams(location.search).get("emu")!=="3ds"){
   if(bundledPage.includes("currentGames.splice(toIdx,0,moved);\n      renderGridFromCurrent();")) bundledPage=bundledPage.replace("currentGames.splice(toIdx,0,moved);\n      renderGridFromCurrent();","currentGames.splice(toIdx,0,moved);\n      {const rank={gb:0,gbc:1,gba:2,nds:3,'3ds':4,psp:5};currentGames.sort((a,b)=>(rank[String(a.core||'').toLowerCase()]??99)-(rank[String(b.core||'').toLowerCase()]??99));}\n      renderGridFromCurrent();"); else console.warn("Gameboys patch: expected source not found");
   bundledPage=bundledPage.replace("</body>","<style id=\"gb-modal-layout-patch\">\n.modal-bg .modal{position:relative}\n.modal-bg .modal-actions{display:flex;gap:8px}\n.modal-bg .modal-actions button{flex:1}\n.modal-bg .modal-actions button[data-gb-dismiss=\"true\"],.modal-bg .modal-actions button.gb-close-right{margin-left:auto!important;order:99!important}\n.modal-bg .modal-actions #saveBtn,.modal-bg .modal-actions #detailPlayBtn{order:-5!important;margin-right:0!important}\n.modal-bg .modal-actions #cancelBtn,.modal-bg .modal-actions #detailCloseBtn,.modal-bg .modal-actions #keyCancelBtn{margin-left:auto!important;order:99!important}\n.modal-bg .modal .gb-modal-x{position:sticky;top:0;z-index:30;float:right;display:grid;place-items:center;width:34px;height:34px;margin:0 0 -34px auto;padding:0;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:9px;cursor:pointer;font-size:25px;font-weight:600;line-height:1}\n.modal-bg .modal .gb-modal-x:hover{background:var(--border)}\n#detailModalBg #detailTopCloseBtn{background:var(--bg);color:var(--text);font-size:25px;font-weight:600;line-height:1}\n.card-actions button[data-act=\"play\"]{order:-10;margin-right:auto}\n</style><script id=\"gb-modal-close-patch\">\n(function(){\n function setup(){\n  document.querySelectorAll('.modal-bg').forEach(bg=>{\n   const modal=bg.querySelector('.modal');if(!modal)return;\n   const actions=modal.querySelector('.modal-actions');\n   if(actions){\n    actions.querySelectorAll('button').forEach(btn=>{\n     if(/^(ปิด|ยกเลิก)$/.test(btn.textContent.trim())||/^(cancelBtn|detailCloseBtn|keyCancelBtn|imgCancelBtn|syncCancelBtn)$/.test(btn.id))btn.classList.add('gb-close-right');\n    });\n   }\n   if(modal.querySelector('#detailTopCloseBtn,.gb-modal-x'))return;\n   const x=document.createElement('button');x.type='button';x.className='gb-modal-x';x.textContent='×';x.setAttribute('aria-label','ปิดหน้าต่าง');x.title='ปิด';\n   x.addEventListener('click',()=>{\n    const existing=actions&&[...actions.querySelectorAll('button')].find(b=>/^(ปิด|ยกเลิก)$/.test(b.textContent.trim())||/^(cancelBtn|detailCloseBtn|keyCancelBtn|imgCancelBtn|syncCancelBtn)$/.test(b.id));\n    if(existing&&!existing.disabled){existing.click();return;}\n    if(bg.id==='modalBg'&&document.getElementById('saveBtn')?.disabled)return;\n    bg.classList.remove('show');\n   });\n   modal.prepend(x);\n  });\n }\n if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();\n})();\n<\\/script>"+"</body>");
 }
+// Success notification only for completed admin ROM downloads.
+if(new URLSearchParams(location.search).get('emu')!=='3ds'){
+ const helper=`
+// Short synthesized success chime. Independent of the site's background music.
+function playAdminRomDownloadChime(){
+ try{
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx)return;
+  const ctx=window.__adminRomChimeCtx||(window.__adminRomChimeCtx=new AudioCtx());
+  const sound=()=>{
+   const now=ctx.currentTime;
+   [[659.25,0],[880,0.14]].forEach(([hz,offset])=>{
+    const osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type='sine';osc.frequency.setValueAtTime(hz,now+offset);
+    gain.gain.setValueAtTime(0.0001,now+offset);
+    gain.gain.exponentialRampToValueAtTime(0.055,now+offset+0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.23);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start(now+offset);osc.stop(now+offset+0.25);
+   });
+  };
+  if(ctx.state==='suspended')ctx.resume().then(sound).catch(()=>{});else sound();
+ }catch(e){/* Browser denied sound: preserve download and popup. */}
+}
+function showAdminRomDownloadComplete(name,diskSaved){
+ let el=document.getElementById('adminRomDownloadComplete');
+ if(!el){
+  el=document.createElement('div');el.id='adminRomDownloadComplete';el.className='gb-rom-complete';el.setAttribute('role','status');el.setAttribute('aria-live','polite');
+  const icon=document.createElement('span');icon.className='gb-rom-complete-icon';icon.textContent='✓';icon.setAttribute('aria-hidden','true');
+  const copy=document.createElement('div');copy.className='gb-rom-complete-copy';
+  const title=document.createElement('strong');title.textContent='โหลด ROM เสร็จเรียบร้อยแล้ว';
+  const detail=document.createElement('small');detail.className='gb-rom-complete-detail';copy.append(title,detail);
+  const close=document.createElement('button');close.type='button';close.className='gb-rom-complete-close';close.textContent='×';close.setAttribute('aria-label','ปิดการแจ้งเตือน');close.onclick=()=>el.classList.remove('show');
+  el.append(icon,copy,close);document.body.append(el);
+ }
+ el.querySelector('.gb-rom-complete-detail').textContent=(diskSaved?'บันทึกไฟล์แล้ว: ':'โหลดข้อมูลครบแล้ว ส่งไฟล์ให้เบราว์เซอร์บันทึก: ')+name;
+ el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+ playAdminRomDownloadChime();
+ clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.remove('show'),5500);
+}
+`;
+ const hook='function createRomDownloadControl(item){';
+ const disk="status.textContent='บันทึก ROM เรียบร้อยแล้ว';";
+ const browser="status.textContent='ส่งไฟล์ให้เบราว์เซอร์ดาวน์โหลดแล้ว';";
+ if(bundledPage.includes(hook)&&bundledPage.includes(disk)&&bundledPage.includes(browser)){
+  bundledPage=bundledPage.replace(hook,helper+'\n'+hook);
+  bundledPage=bundledPage.replace(disk,disk+'showAdminRomDownloadComplete(name,true);');
+  bundledPage=bundledPage.replace(browser,browser+'showAdminRomDownloadComplete(name,false);');
+  bundledPage=bundledPage.replace('</head>',`<style id="gb-rom-complete-style">
+.gb-rom-complete{position:fixed;right:16px;bottom:max(20px,env(safe-area-inset-bottom));z-index:2147483000;display:flex;align-items:center;gap:12px;max-width:min(440px,calc(100vw - 32px));padding:15px;border:1px solid var(--border,#555);border-left:4px solid var(--accent,#e3350d);border-radius:12px;background:var(--card,#242124);color:var(--text,#fff);box-shadow:0 14px 40px rgba(0,0,0,.45);opacity:0;visibility:hidden;transform:translateY(16px);pointer-events:none;transition:opacity .22s ease,transform .22s ease,visibility .22s}
+.gb-rom-complete.show{opacity:1;visibility:visible;transform:translateY(0);pointer-events:auto}
+.gb-rom-complete-icon{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--accent,#e3350d) 18%,transparent);color:var(--accent,#e3350d);font-size:22px;font-weight:700}
+.gb-rom-complete-copy{flex:1;min-width:0}.gb-rom-complete-copy strong{display:block;font-size:14px}.gb-rom-complete-copy small{display:block;margin-top:4px;color:var(--muted,var(--text,#ddd));font-size:11px;overflow-wrap:anywhere}
+.gb-rom-complete-close{align-self:flex-start;flex:0 0 32px;width:32px;height:32px;padding:0;border:1px solid var(--border,#555);border-radius:8px;background:transparent;color:var(--text,#fff);font:700 24px/1 sans-serif;cursor:pointer}.gb-rom-complete-close:focus-visible{outline:3px solid var(--accent,#e3350d);outline-offset:2px}
+@media(max-width:650px){.gb-rom-complete{left:16px;right:16px;max-width:none}}@media(prefers-reduced-motion:reduce){.gb-rom-complete{transition:none}}
+</style></head>`);
+ }else console.warn('ROM success popup skipped: anchors missing');
+}
+
 // Minimal display-only ROM source labels. Do not alter game loading, image loading, or data fetching.
 if(new URLSearchParams(location.search).get('emu')!=='3ds'){
   const romBaseHelper = `
