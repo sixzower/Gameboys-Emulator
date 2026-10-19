@@ -171,9 +171,15 @@ if(new URLSearchParams(location.search).get('emu')!=='3ds'){
   const romBaseHelper = `
 function getRomBaseLabel(item){
  const name=String(item&&item.name||'').normalize('NFKC').toLowerCase().replace(/pok[eé]mon|pokemon/g,'').trim();
+ // Known database record IDs: keep labels accurate even when the displayed game title changes.
+ const gameId=String(item&&(item.id||item.game_id)||'').toLowerCase();
+ if(gameId==='2cd10bea-75dc-472f-b25e-4316a0797c06'||gameId==='825d6ea7-3ee8-4576-934f-ce5bbe1a5ad9')return 'ROM Hack : Emerald';
+ // Accept punctuation, spacing and version suffixes in these two newer game titles.
+ const simpleName=name.replace(/[^a-z0-9]+/g,' ').trim();
+ if(/\bvestiges\s+wah\b/.test(simpleName)||/\bfire\s+of\s+sky\b/.test(simpleName))return 'ROM Hack : Emerald';
  const known={
  'digimon emerald':'Emerald','amethyst':'Emerald','ash gray':'FireRed','beyond hoenn':'Emerald',
- 'crystal advance redux':'FireRed',
+ 'crystal advance redux':'FireRed','vestiges wah':'Emerald','fire of sky':'Emerald',
  'black & white':'FireRed','blaze black 2':'Black 2','darkfire':'Emerald',
  'distorted platinum':'Platinum','eliteredux':'Emerald','emerald arena':'Emerald',
  'emerald imperium':'Emerald','emerald rogue':'Emerald','fire red rocket edition':'FireRed',
@@ -200,6 +206,71 @@ function getRomBaseLabel(item){
  return 'ROM Hack : '+(Object.prototype.hasOwnProperty.call(known,name)?known[name]:'ไม่ระบุ');
 }
 `;
+  // Read ROM base from Supabase per-game site_settings; keep bundled lookup only as an offline fallback.
+  const romBaseRemoteHelper = `
+const ROM_BASE_KEY_PREFIX='romBase:';
+const romBaseRemoteCache=new Map();
+async function refreshRomBaseLabel(item, element){
+ if(!item||!item.id||!element)return;
+ const id=String(item.id),key=ROM_BASE_KEY_PREFIX+id;
+ try{
+  const {data,error}=await sb.from('site_settings').select('value').eq('key',key).limit(1);
+  if(error)throw error;
+  const raw=data?.[0]?.value;
+  if(raw===undefined||raw===null)return;
+  const value=String(raw).trim();
+  romBaseRemoteCache.set(id,value);
+  if(element.isConnected && (element.dataset.romBaseId||'')===id){
+   element.textContent= value ? (/^(ROM Hack|เกมต้นฉบับ)\\s*:/i.test(value)?value:'ROM Hack : '+value) : 'ROM Hack : ไม่ระบุ';
+  }
+ }catch(e){console.warn('ROM base fetch failed; showing fallback',e);}
+}
+function getRemoteRomBaseLabel(item){
+ const id=String(item?.id||'');
+ if(romBaseRemoteCache.has(id)){
+  const val=romBaseRemoteCache.get(id);
+  return val ? (/^(ROM Hack|เกมต้นฉบับ)\\s*:/i.test(val)?val:'ROM Hack : '+val) : 'ROM Hack : ไม่ระบุ';
+ }
+ return getRomBaseLabel(item);
+}
+function createRomBaseEditor(item,host,sourceLabel){
+ if(!item?.id||!marqueeAuthorized)return;
+ const wrap=document.createElement('div');wrap.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
+ const input=document.createElement('input');input.type='text';input.placeholder='เช่น Emerald, FireRed';input.setAttribute('aria-label','ROM ต้นฉบับของเกม');
+ input.style.cssText='flex:1 1 170px;min-width:0;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font:inherit';
+ const button=document.createElement('button');button.type='button';button.className='btn btn-outline';button.textContent='บันทึก ROM Hack';
+ const feedback=document.createElement('div');feedback.className='field-hint';feedback.style.width='100%';feedback.setAttribute('role','status');
+ wrap.append(input,button,feedback);host.append(wrap);
+ const id=String(item.id),key=ROM_BASE_KEY_PREFIX+id;
+ const fill=async()=>{
+  try{
+   const {data,error}=await sb.from('site_settings').select('value').eq('key',key).limit(1);
+   if(error)throw error;
+   const raw=data?.[0]?.value;
+   if(raw!==undefined){input.value=String(raw).replace(/^(ROM Hack|เกมต้นฉบับ)\\s*:\\s*/i,'');}
+   else input.value=getRomBaseLabel(item).replace(/^(ROM Hack|เกมต้นฉบับ)\\s*:\\s*/i,'').replace(/^ไม่ระบุ$/,'');
+  }catch(e){feedback.textContent='อ่านข้อมูล ROM ไม่สำเร็จ';}
+ };
+ void fill();
+ button.onclick=async()=>{
+  if(!marqueeAuthorized)return;
+  const value=input.value.trim();if(!value){feedback.textContent='กรุณาระบุ ROM ต้นฉบับ';return;}
+  button.disabled=true;feedback.textContent='กำลังบันทึก…';
+  try{
+   const payload={key,value};
+   const {data:rows,error:err}=await sb.from('site_settings').update({value}).eq('key',key).select('key');
+   if(err)throw err;
+   if(!rows?.length){const {error:insertError}=await sb.from('site_settings').insert(payload);if(insertError)throw insertError;}
+   romBaseRemoteCache.set(id,value);
+   if(sourceLabel){sourceLabel.textContent='ROM Hack : '+value;sourceLabel.dataset.romBaseId=id;}
+   if(detailItem&&String(detailItem.id)===id){const detail=document.getElementById('detailRomBaseLabel');if(detail){detail.textContent='ROM Hack : '+value;detail.dataset.romBaseId=id;}}
+   feedback.textContent='บันทึก ROM Hack ลง Supabase แล้ว';
+  }catch(e){feedback.textContent='บันทึกไม่สำเร็จ: '+(e.message||e);}
+  finally{button.disabled=false;}
+ };
+}
+`;
+  bundledPage=bundledPage.replace('function openDetailModal(item){',romBaseRemoteHelper+'\nfunction openDetailModal(item){');
   const detailEntry='function openDetailModal(item){';
   const detailAnchor="detailDesc.textContent=item.description || 'ไม่มีคำอธิบายเพิ่มเติม';";
   const filenameAnchor='box.append(filename);';
@@ -208,13 +279,13 @@ function getRomBaseLabel(item){
     bundledPage=bundledPage.replace(detailAnchor,`{
       let line=document.getElementById('detailRomBaseLabel');
       if(!line){line=document.createElement('div');line.id='detailRomBaseLabel';line.style.cssText='font-size:13px;color:var(--text);line-height:1.5;margin:3px 0';detailVersion.insertAdjacentElement('afterend',line);}
-      line.textContent=getRomBaseLabel(item);line.hidden=!line.textContent;
+      line.dataset.romBaseId=String(item.id||'');line.textContent=getRemoteRomBaseLabel(item);line.hidden=!line.textContent;void refreshRomBaseLabel(item,line);
     }
     `+detailAnchor);
     bundledPage=bundledPage.replace(filenameAnchor,filenameAnchor+`
     const romSource=document.createElement('div');romSource.className='field-hint';
-    romSource.style.cssText='overflow-wrap:anywhere;margin-top:2px';romSource.textContent=getRomBaseLabel(item);romSource.hidden=!romSource.textContent;
-    box.append(romSource);`);
+    romSource.style.cssText='overflow-wrap:anywhere;margin-top:2px';romSource.dataset.romBaseId=String(item.id||'');romSource.textContent=getRemoteRomBaseLabel(item);romSource.hidden=!romSource.textContent;
+    box.append(romSource);void refreshRomBaseLabel(item,romSource);createRomBaseEditor(item,box,romSource);`);
   }else console.warn('ROM source labels skipped: page anchors not found');
 }
 if(new URLSearchParams(location.search).get('emu')!=='3ds'){
