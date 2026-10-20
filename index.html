@@ -166,6 +166,17 @@ function showAdminRomDownloadComplete(name,diskSaved){
  }else console.warn('ROM success popup skipped: anchors missing');
 }
 
+// Keep dashboard buttons in step with admin-edit buttons; compact only the ROM download action.
+if(new URLSearchParams(location.search).get('emu')!=='3ds'){
+  const downloadAnchor="button.className='btn btn-outline';button.textContent='ดาวน์โหลด ROM';";
+  if(bundledPage.includes(downloadAnchor)){
+    bundledPage=bundledPage.replace(downloadAnchor,"button.className='btn btn-outline gb-rom-download-compact';button.textContent='ดาวน์โหลด ROM';");
+  }else console.warn('ROM download compact style skipped: anchor not found');
+  bundledPage=bundledPage.replace('</head>', `<style id="gb-dashboard-button-typography">
+#dashRefreshBtn,#dashCloseBtn{font-family:inherit;font-size:14px!important;font-weight:700!important;line-height:1.5!important;letter-spacing:0!important;word-spacing:normal!important}
+#modalBg .modal .gb-rom-download-compact{padding:5px 10px!important;min-width:0!important;min-height:32px!important;width:auto!important;max-width:100%;flex:0 0 auto!important;box-sizing:border-box}
+</style></head>`);
+}
 // Minimal display-only ROM source labels. Do not alter game loading, image loading, or data fetching.
 if(new URLSearchParams(location.search).get('emu')!=='3ds'){
   const romBaseHelper = `
