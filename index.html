@@ -172,6 +172,13 @@ if(new URLSearchParams(location.search).get('emu')!=='3ds'){
   if(bundledPage.includes(downloadAnchor)){
     bundledPage=bundledPage.replace(downloadAnchor,"button.className='btn btn-outline gb-rom-download-compact';button.textContent='ดาวน์โหลด ROM';");
   }else console.warn('ROM download compact style skipped: anchor not found');
+  // Swap only the dashboard refresh/close button colors; retain typography and layout.
+  const refreshOriginal='<button id="dashRefreshBtn" style="background:var(--border);color:var(--text)">';
+  const closeOriginal='<button id="dashCloseBtn" style="background:var(--accent);color:#fff">';
+  if(bundledPage.includes(refreshOriginal)&&bundledPage.includes(closeOriginal)){
+    bundledPage=bundledPage.replace(refreshOriginal,'<button id="dashRefreshBtn" style="background:var(--accent);color:#fff">');
+    bundledPage=bundledPage.replace(closeOriginal,'<button id="dashCloseBtn" style="background:var(--border);color:var(--text)">');
+  }else console.warn('Dashboard color swap skipped: buttons not found');
   bundledPage=bundledPage.replace('</head>', `<style id="gb-dashboard-button-typography">
 #dashRefreshBtn,#dashCloseBtn{font-family:inherit;font-size:14px!important;font-weight:700!important;line-height:1.5!important;letter-spacing:0!important;word-spacing:normal!important}
 #modalBg .modal .gb-rom-download-compact{padding:5px 10px!important;min-width:0!important;min-height:32px!important;width:auto!important;max-width:100%;flex:0 0 auto!important;box-sizing:border-box}
