@@ -596,9 +596,110 @@
     previous.textContent = '.controller-disconnect-notice,.controller-notice{display:none!important}';
     document.head.append(previous);
   }
+
+  // Gamepad navigation on the game-selection screen only. Never synthesize
+  // emulator inputs while the player, a dialog, or a text field is active.
+  function initLibraryGamepadNavigation() {
+    const style = document.createElement('style');
+    style.textContent = `
+      .gb-pad-game-selected{outline:3px solid var(--accent,#f3a64c)!important;
+        outline-offset:3px!important;box-shadow:0 0 0 6px #f3a64c25!important}
+    `;
+    document.head.append(style);
+    const cardSelectors = [
+      '[data-game-id]','[data-rom-id]','.game-card','.rom-card',
+      '.game-item','.rom-item','.game-tile','.library-card',
+      '[class*="gameCard"]','[class*="romCard"]'
+    ].join(',');
+    let selected = null, nextMove = 0, wasConfirm = false, lastDirection = '';
+    const visible = el => {
+      const rect = el.getBoundingClientRect(), css = getComputedStyle(el);
+      return rect.width > 25 && rect.height > 25 &&
+        css.display !== 'none' && css.visibility !== 'hidden' &&
+        !el.closest('[hidden],[inert],[aria-hidden="true"],dialog:not([open])');
+    };
+    const candidates = () => {
+      const found = [...document.querySelectorAll(cardSelectors)]
+        .filter(visible);
+      return found.filter(el => !found.some(other =>
+        other !== el && other.contains(el)));
+    };
+    function playing() {
+      return document.body.classList.contains('in-play') ||
+        document.body.classList.contains('player-focus') ||
+        !!document.fullscreenElement ||
+        !!document.querySelector('dialog[open],input:focus,textarea:focus,select:focus') ||
+        !!document.querySelector('#playerHeader:not([hidden])');
+    }
+    function choose(el) {
+      if (selected && selected !== el) selected.classList.remove('gb-pad-game-selected');
+      selected = el;
+      if (!el) return;
+      el.classList.add('gb-pad-game-selected');
+      el.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
+    }
+    function move(dx,dy,items) {
+      const current = items.includes(selected) ? selected : null;
+      if (!current) {choose(items[0]);return;}
+      const a = current.getBoundingClientRect();
+      const cx = a.left+a.width/2,cy = a.top+a.height/2;
+      let best = null,score = Infinity;
+      for (const item of items) {
+        if (item === current) continue;
+        const b = item.getBoundingClientRect();
+        const x = b.left+b.width/2-cx,y = b.top+b.height/2-cy;
+        const along = x*dx+y*dy,side = Math.abs(x*dy-y*dx);
+        if (along <= 6) continue;
+        const candidate = along+side*2.5;
+        if (candidate < score) {score=candidate;best=item;}
+      }
+      if (best) choose(best);
+    }
+    function activate() {
+      if (!selected || !visible(selected)) return;
+      const target = selected.matches('button,a,[role="button"]') ? selected :
+        selected.querySelector('button[data-action="play"],button.play-btn,.play-button,[aria-label*="เล่น"],[aria-label*="Play"],a[href],button');
+      (target || selected).click();
+    }
+    function frame(now) {
+      requestAnimationFrame(frame);
+      if (playing()) {
+        if (selected) selected.classList.remove('gb-pad-game-selected');
+        selected = null;wasConfirm = false;lastDirection = '';
+        return;
+      }
+      const items = candidates();
+      if (!items.length) {
+        if (selected) selected.classList.remove('gb-pad-game-selected');
+        selected = null;wasConfirm = false;lastDirection = '';
+        return;
+      }
+      const pad = pads()[0];
+      if (!pad) {wasConfirm=false;lastDirection='';return;}
+      const buttons = pad.buttons || [];
+      const pressed = index => !!buttons[index]?.pressed;
+      const x = Math.abs(pad.axes?.[0]||0) > .55 ? Math.sign(pad.axes[0]) :
+        (pressed(14)?-1:pressed(15)?1:0);
+      const y = Math.abs(pad.axes?.[1]||0) > .55 ? Math.sign(pad.axes[1]) :
+        (pressed(12)?-1:pressed(13)?1:0);
+      const direction = Math.abs(x)>Math.abs(y) ? (x<0?'left':x>0?'right':'') :
+        (y<0?'up':y>0?'down':'');
+      if (direction && (direction!==lastDirection || now>=nextMove)) {
+        move(direction==='left'?-1:direction==='right'?1:0,
+          direction==='up'?-1:direction==='down'?1:0,items);
+        nextMove=now+190;
+      }
+      lastDirection=direction;
+      const confirm = pressed(0);
+      if (confirm && !wasConfirm) activate();
+      wasConfirm=confirm;
+    }
+    requestAnimationFrame(frame);
+  }
   function init() {
     if (!document.body) return;
     initDisconnectNotice();
+    initLibraryGamepadNavigation();
     const check = () => {
       const a = enhanceRightPanel();
       const b = enhanceClassicTester();
