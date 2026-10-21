@@ -314,18 +314,15 @@
   `;
   testerStyle.textContent += `
     .gb-pad-connect-toast{position:fixed;z-index:2147483008;right:14px;
-      top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:9px;
-      width:max-content;max-width:min(260px,calc(100vw - 28px));box-sizing:border-box;
-      padding:9px 12px;border-radius:10px;
-      border:1px solid color-mix(in srgb,var(--accent,#f3a64c) 50%,transparent);
-      background:linear-gradient(125deg,
-        color-mix(in srgb,var(--card,var(--panel,#202026)) 94%,var(--accent,#f3a64c) 6%),
-        var(--card,var(--panel,#202026)));
-      color:var(--text,#f4f7fa);box-shadow:0 10px 28px #0008,
-        inset 0 1px 0 color-mix(in srgb,var(--accent,#f3a64c) 17%,transparent);
-      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-      pointer-events:none;font:inherit}
+      top:max(14px,env(safe-area-inset-top));display:block;box-sizing:border-box;
+      width:min(270px,calc(100vw - 28px));padding:0;border-radius:11px;
+      border:1px solid #343b44;background:#11151bf5;color:#f4f7fa;
+      box-shadow:0 12px 30px #0009;backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);font:inherit}
     .gb-pad-connect-toast[hidden]{display:none!important}
+    .gb-pad-connect-trigger{width:100%;display:flex;align-items:center;gap:9px;
+      text-align:left;padding:10px 12px;background:transparent;border:0;
+      color:inherit;font:inherit;cursor:pointer}
     .gb-pad-connect-dot{width:9px;height:9px;flex:none;border-radius:50%;
       background:#22c55e;box-shadow:0 0 0 3px #22c55e20,0 0 9px #22c55e75;
       animation:gb-pad-connected-pulse 1.2s ease-in-out infinite}
@@ -333,13 +330,19 @@
       0%,100%{opacity:1;box-shadow:0 0 0 3px #22c55e24,0 0 9px #22c55e85}
       50%{opacity:.38;box-shadow:0 0 0 1px #22c55e18,0 0 2px #22c55e35}
     }
-    @media(prefers-reduced-motion:reduce){
-      .gb-pad-connect-dot{animation:none!important}
-    }
-    .gb-pad-connect-copy{min-width:0;max-width:218px}
+    @media(prefers-reduced-motion:reduce){.gb-pad-connect-dot{animation:none!important}}
+    .gb-pad-connect-copy{min-width:0;flex:1}
     .gb-pad-connect-title{font-size:11px;line-height:1.4;font-weight:800}
     .gb-pad-connect-name{font-size:10px;line-height:1.4;opacity:.76;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .gb-pad-connect-chevron{font-size:12px;opacity:.65}
+    .gb-pad-connect-details{border-top:1px solid #ffffff19;padding:9px 12px 11px;
+      font-size:10px;line-height:1.6;color:#cbd2da}
+    .gb-pad-connect-details[hidden]{display:none!important}
+    .gb-pad-connect-action{margin-top:9px;padding:7px 10px;border-radius:7px;
+      border:1px solid #56606d;background:#ffffff12;color:#f4f7fa;
+      font:inherit;font-size:10px;cursor:pointer}
+    .gb-pad-connect-action:hover{background:#ffffff24}
   `;
   document.head.appendChild(testerStyle);
 
@@ -805,11 +808,19 @@
     update();
   }
   function initCompactConnectNotice() {
+    // One black connection notification; do not stack the legacy popup.
+    const style = document.createElement('style');
+    style.textContent = '.controller-connect-notice,.controller-connected-notice,' +
+      '.gamepad-connected-toast,.gamepad-connect-toast{display:none!important}';
+    document.head.append(style);
     const toast = document.createElement('div');
     toast.className = 'gb-pad-connect-toast';
     toast.hidden = true;
     toast.setAttribute('role','status');
-    toast.setAttribute('aria-live','polite');
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'gb-pad-connect-trigger';
+    trigger.setAttribute('aria-expanded','false');
     const dot = document.createElement('span');
     dot.className = 'gb-pad-connect-dot';
     const copy = document.createElement('div');
@@ -819,22 +830,58 @@
     heading.textContent = 'เชื่อมต่อจอยแล้ว';
     const name = document.createElement('div');
     name.className = 'gb-pad-connect-name';
+    const arrow = document.createElement('span');
+    arrow.className = 'gb-pad-connect-chevron';
+    arrow.textContent = '⌄';
     copy.append(heading,name);
-    toast.append(dot,copy);
+    trigger.append(dot,copy,arrow);
+    const details = document.createElement('div');
+    details.className = 'gb-pad-connect-details';
+    details.hidden = true;
+    const help = document.createElement('div');
+    help.textContent = 'จอยพร้อมใช้งาน กดปุ่ม A/B เพื่อเลือกเกม และใช้ก้านซ้ายหรือ D-pad เพื่อเลื่อนรายการ';
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'gb-pad-connect-action';
+    action.textContent = 'ตั้งค่า / ทดสอบจอย';
+    action.addEventListener('click',()=>{
+      const dialog = document.querySelector('dialog.controller-panel');
+      if (dialog && !dialog.open) {
+        try {dialog.showModal();} catch {}
+      }
+      details.hidden = true;
+      trigger.setAttribute('aria-expanded','false');
+      toast.hidden = true;
+    });
+    details.append(help,action);
+    toast.append(trigger,details);
     document.body.append(toast);
     let timer;
+    const dismiss = () => {
+      clearTimeout(timer);
+      timer = setTimeout(()=>{if(details.hidden) toast.hidden=true;},4500);
+    };
+    trigger.addEventListener('click',()=>{
+      details.hidden = !details.hidden;
+      trigger.setAttribute('aria-expanded',String(!details.hidden));
+      arrow.textContent = details.hidden ? '⌄' : '⌃';
+      clearTimeout(timer);
+      if (details.hidden) dismiss();
+    });
     window.addEventListener('gamepadconnected',event=>{
-      // Keep the tester on the home screen; use the small notice in gameplay.
       if (!document.body.classList.contains('in-play') &&
           !document.body.classList.contains('player-focus') &&
           !document.fullscreenElement) return;
       name.textContent = actualName(event.gamepad).name;
+      details.hidden = true;
+      trigger.setAttribute('aria-expanded','false');
+      arrow.textContent = '⌄';
       toast.hidden = false;
-      clearTimeout(timer);
-      timer = setTimeout(()=>{toast.hidden=true;},3100);
+      dismiss();
     });
     window.addEventListener('gamepaddisconnected',()=>{
       toast.hidden = true;
+      details.hidden = true;
       clearTimeout(timer);
     });
   }
