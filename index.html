@@ -295,7 +295,7 @@ if(introStart>=0&&introEnd>introStart){
     const frag=document.createDocumentFragment();
     [...list,...list].forEach((src,k)=>{
       const img=document.createElement('img');img.crossOrigin='anonymous';
-      img.loading=k<3?'eager':'lazy';img.decoding='async';img.alt='';img.draggable=false;
+      img.loading='eager';img.decoding='async';img.alt='';img.draggable=false;
       // Only the first three covers per row need priority for initial painting.
       const priority=k<3;img.fetchPriority=priority?'high':'low';
       if(priority)firstFrame.push(new Promise(resolve=>{
@@ -341,7 +341,6 @@ function routeOracleAssets(page){
 
  once('const warmedGameCovers=new Map();', `function activateOracleCover(image){if(image?.dataset.coverSrc){image.src=image.dataset.coverSrc;delete image.dataset.coverSrc;}}\nconst warmedGameCovers=new Map();`);
  once("function warmGameCover(image){if(image){image.loading='eager';image.fetchPriority='high';}","function warmGameCover(image){activateOracleCover(image);if(image){image.loading='eager';image.fetchPriority='auto';}");
- once('class="cover" src="${escapeHtml(coverSrc)}"', 'class="cover" ${visibleIndex<6?\'src\':\'data-cover-src\'}="${escapeHtml(coverSrc)}"');
  once(" if(typeof IntersectionObserver!=='function')return;\n nearbyCoverObserver=", " if(typeof IntersectionObserver!=='function'){for(const image of grid.querySelectorAll('.cover'))activateOracleCover(image);return;}\n nearbyCoverObserver=");
  once('void warmGameCover(entry.target).then(()=>cartridgeCoverSource(entry.target));','void warmGameCover(entry.target);');
  once("      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);\n      img.alt=''; img.loading='eager';img.decoding='async';", "      img.alt='';img.loading='lazy';img.decoding='async';\n      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);");
