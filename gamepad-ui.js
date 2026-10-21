@@ -267,9 +267,257 @@
     userExpanded = !expanded;
     setExpanded(!expanded);
   });
+
+  // Progressive visual upgrade of the emulator's existing tester. Retain the
+  // original nodes, handlers and Gamepad API polling so input remains unchanged.
+  function enhanceControllerTester() {
+    const dialog = document.querySelector('dialog.controller-panel');
+    if (!dialog || dialog.dataset.gbTesterEnhanced) return !!dialog;
+    dialog.dataset.gbTesterEnhanced = 'true';
+    dialog.setAttribute('aria-label','หน้าทดสอบจอย');
+    const heading = dialog.querySelector('h3');
+    const picker = dialog.querySelector('.controller-picker');
+    const status = dialog.querySelector('.controller-status');
+    const buttons = dialog.querySelector('.controller-test');
+    const sticks = dialog.querySelector('.controller-sticks');
+    const axes = dialog.querySelector('.controller-axes');
+    const help = dialog.querySelector('.controller-help');
+    const close = dialog.querySelector('button[type="button"]');
+    if (![heading,picker,status,buttons,sticks,axes,help,close].every(Boolean)) return true;
+
+    heading.textContent = 'หน้าทดสอบจอย';
+    const header = document.createElement('div');
+    header.className = 'gb-test-header';
+    const emblem = document.createElement('div');
+    emblem.className = 'gb-test-emblem';
+    emblem.innerHTML = controllerIcon;
+    const title = document.createElement('div');
+    title.className = 'gb-test-titles';
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'gb-test-eyebrow';
+    eyebrow.textContent = 'CONTROLLER DIAGNOSTICS';
+    title.append(eyebrow,heading);
+    const live = document.createElement('span');
+    live.className = 'gb-test-live';
+    live.textContent = 'LIVE';
+    close.classList.add('gb-test-close');
+    close.textContent = '✕';
+    close.setAttribute('aria-label','ปิดหน้าทดสอบจอย');
+    close.title = 'ปิด';
+    header.append(emblem,title,live,close);
+
+    const body = document.createElement('div');
+    body.className = 'gb-test-body';
+    const device = document.createElement('section');
+    device.className = 'gb-test-section gb-test-device';
+    const deviceLabel = document.createElement('label');
+    deviceLabel.className = 'gb-test-section-label';
+    deviceLabel.textContent = 'อุปกรณ์ที่เชื่อมต่อ';
+    const pickerId = 'gb-test-picker';
+    picker.id = pickerId;
+    deviceLabel.htmlFor = pickerId;
+    const identityName = document.createElement('div');
+    identityName.className = 'gb-test-device-name';
+    identityName.textContent = 'รอการเชื่อมต่อจอย';
+    const identityMeta = document.createElement('div');
+    identityMeta.className = 'gb-test-device-meta';
+    identityMeta.textContent = 'กดปุ่มบนจอยเพื่อให้เบราว์เซอร์ตรวจพบ';
+    status.classList.add('gb-test-raw-status');
+    device.append(deviceLabel,picker,identityName,identityMeta,status);
+
+    const inputs = document.createElement('section');
+    inputs.className = 'gb-test-section gb-test-inputs';
+    const inputTitle = document.createElement('h4');
+    inputTitle.className = 'gb-test-section-label';
+    inputTitle.textContent = 'ทดสอบการกดปุ่ม';
+    const inputHint = document.createElement('span');
+    inputHint.className = 'gb-test-section-hint';
+    inputHint.textContent = 'ปุ่มที่กดจะสว่างขึ้น';
+    const inputHeading = document.createElement('div');
+    inputHeading.className = 'gb-test-section-heading';
+    inputHeading.append(inputTitle,inputHint);
+    inputs.append(inputHeading,buttons);
+
+    const analog = document.createElement('section');
+    analog.className = 'gb-test-section gb-test-analog';
+    const analogTitle = document.createElement('h4');
+    analogTitle.className = 'gb-test-section-label';
+    analogTitle.textContent = 'ทดสอบอนาล็อก';
+    analog.append(analogTitle,sticks);
+    const axisDetails = document.createElement('details');
+    axisDetails.className = 'gb-test-axis-details';
+    const axisSummary = document.createElement('summary');
+    axisSummary.textContent = 'ดูค่าตัวเลขแกนอนาล็อก';
+    axisDetails.append(axisSummary,axes);
+    analog.append(axisDetails);
+
+    const footer = document.createElement('div');
+    footer.className = 'gb-test-footer';
+    footer.append(help);
+    body.append(device,inputs,analog,footer);
+    dialog.replaceChildren(header,body);
+
+    let updater = null;
+    function updateIdentity() {
+      if (!dialog.open) return;
+      let pad = null;
+      try {
+        const pads = Array.from(navigator.getGamepads?.() || []).filter(p => p?.connected);
+        pad = pads.find(p => String(p.index) === picker.value) || pads[0];
+      } catch {}
+      if (!pad) {
+        identityName.textContent = 'ยังไม่พบจอยที่เชื่อมต่อ';
+        identityMeta.textContent = 'เชื่อมต่อ USB หรือ Bluetooth แล้วกดปุ่มบนจอย';
+        live.dataset.connected = 'false';
+        return;
+      }
+      const info = identity(pad);
+      identityName.textContent = info.name;
+      identityName.title = info.raw || info.name;
+      identityMeta.textContent = info.source + (info.vidpid ? ' · VID:PID ' + info.vidpid : '') +
+        (pad.mapping === 'standard' ? ' · Standard mapping' : ' · Custom mapping');
+      live.dataset.connected = 'true';
+    }
+    function syncUpdater() {
+      clearInterval(updater);
+      updater = null;
+      if (dialog.open) {
+        updateIdentity();
+        updater = setInterval(updateIdentity, 450);
+      }
+    }
+    const observer = new MutationObserver(syncUpdater);
+    observer.observe(dialog,{attributes:true,attributeFilter:['open']});
+    picker.addEventListener('change',updateIdentity);
+    dialog.addEventListener('close',()=>{clearInterval(updater);updater=null;});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInterval(updater);updater=null;}else syncUpdater();});
+    syncUpdater();
+    return true;
+  }
+  function initControllerTester() {
+    if (enhanceControllerTester()) return;
+    const observer = new MutationObserver(() => {
+      if (enhanceControllerTester()) observer.disconnect();
+    });
+    observer.observe(document.body,{childList:true,subtree:true});
+  }
+
+  const testerStyle = document.createElement('style');
+  testerStyle.id = 'gb-controller-tester-theme';
+  testerStyle.textContent = `
+    dialog.controller-panel[data-gb-tester-enhanced="true"]{
+      --gb-test-accent:var(--accent,#f3a64c);
+      --gb-test-ink:var(--text,#f8f8fc);
+      --gb-test-surface:var(--panel,var(--card,#191d29));
+      box-sizing:border-box;width:min(640px,calc(100vw - 24px));max-width:640px;
+      max-height:min(90dvh,860px);margin:auto;padding:0!important;
+      border:1px solid color-mix(in srgb,var(--gb-test-accent) 45%,transparent);
+      border-radius:24px;background:var(--gb-test-surface);color:var(--gb-test-ink);
+      box-shadow:0 32px 90px #000b,0 0 0 1px #ffffff0d,inset 0 1px #ffffff18;
+      overflow:auto;overscroll-behavior:contain;font-family:inherit;
+      scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--gb-test-accent) 30%,transparent) transparent
+    }
+    dialog.controller-panel[data-gb-tester-enhanced="true"]::backdrop{
+      background:rgba(4,7,17,.76);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+    }
+    .gb-test-header{display:flex;align-items:center;gap:13px;padding:19px 22px;
+      border-bottom:1px solid #ffffff16;
+      background:linear-gradient(112deg,color-mix(in srgb,var(--gb-test-accent) 15%,transparent),transparent 66%)}
+    .gb-test-emblem{flex:none;width:48px;height:48px;display:grid;place-items:center;
+      border:1px solid color-mix(in srgb,var(--gb-test-accent) 45%,transparent);
+      border-radius:15px;color:var(--gb-test-accent);
+      background:color-mix(in srgb,var(--gb-test-accent) 12%,transparent);
+      box-shadow:inset 0 1px #ffffff16}
+    .gb-test-emblem svg{width:28px;height:28px}
+    .gb-test-titles{flex:1;min-width:0}
+    .gb-test-eyebrow{display:block;font-size:10px;font-weight:800;letter-spacing:.15em;
+      color:var(--gb-test-accent);line-height:1.5}
+    dialog.controller-panel .gb-test-titles h3{margin:2px 0 0;font-size:clamp(18px,4vw,23px);
+      font-weight:800;line-height:1.35;letter-spacing:-.02em}
+    .gb-test-live{display:inline-flex;align-items:center;gap:7px;border:1px solid #43dca344;
+      border-radius:999px;padding:5px 9px;color:#53e0aa;background:#43dca310;
+      font-size:10px;font-weight:800;letter-spacing:.1em}
+    .gb-test-live::before{content:"";width:7px;height:7px;border-radius:50%;
+      background:currentColor;box-shadow:0 0 10px currentColor}
+    .gb-test-live[data-connected="false"]{color:var(--gb-test-accent);
+      border-color:color-mix(in srgb,var(--gb-test-accent) 30%,transparent)}
+    dialog.controller-panel button.gb-test-close{flex:none;display:grid;place-items:center;
+      width:36px;height:36px;padding:0;border-radius:11px;border:1px solid #ffffff22;
+      background:#ffffff0c;color:var(--gb-test-ink);font-size:17px;cursor:pointer}
+    dialog.controller-panel button.gb-test-close:hover{background:color-mix(in srgb,var(--gb-test-accent) 18%,transparent)}
+    .gb-test-body{display:grid;gap:15px;padding:19px 22px 22px}
+    .gb-test-section{min-width:0;padding:17px;border:1px solid #ffffff16;border-radius:17px;
+      background:linear-gradient(150deg,#ffffff0b,#ffffff03);
+      box-shadow:inset 0 1px #ffffff0c}
+    .gb-test-section-label{display:block;margin:0 0 11px;font-size:13px;font-weight:800;
+      color:var(--gb-test-ink);line-height:1.5}
+    .gb-test-section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .gb-test-section-hint{font-size:11px;opacity:.65}
+    dialog.controller-panel .controller-picker{display:block;width:100%;min-height:42px;
+      padding:10px 35px 10px 12px;border:1px solid #ffffff25;border-radius:11px;
+      color:var(--gb-test-ink);background:var(--card,#242634);font:inherit;font-size:13px;
+      outline-offset:2px;cursor:pointer}
+    dialog.controller-panel .controller-picker:focus-visible{outline:2px solid var(--gb-test-accent)}
+    .gb-test-device-name{margin-top:13px;font-size:15px;font-weight:800;line-height:1.5;overflow-wrap:anywhere}
+    .gb-test-device-meta{margin-top:3px;font-size:11px;line-height:1.65;opacity:.72;overflow-wrap:anywhere}
+    dialog.controller-panel .gb-test-raw-status{margin:9px 0 0;padding:9px 11px;
+      border-left:2px solid var(--gb-test-accent);border-radius:6px;
+      background:#ffffff09;font-size:11px;line-height:1.6;opacity:.75;overflow-wrap:anywhere}
+    dialog.controller-panel .controller-test{display:flex;flex-wrap:wrap;gap:8px;margin:0}
+    dialog.controller-panel .controller-test span{display:grid;place-items:center;
+      min-width:39px;min-height:37px;padding:7px 9px;border:1px solid #ffffff28;
+      border-radius:10px;background:#ffffff0b;color:var(--gb-test-ink);
+      font-size:12px;font-weight:800;line-height:1.2;
+      transition:background .1s ease,border-color .1s ease,box-shadow .1s ease}
+    dialog.controller-panel .controller-test span.active{
+      border-color:var(--gb-test-accent);background:var(--gb-test-accent);
+      color:#15151b;box-shadow:0 0 17px color-mix(in srgb,var(--gb-test-accent) 40%,transparent)}
+    dialog.controller-panel .controller-test[data-standard="true"]{
+      display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;
+      margin:0;padding:15px;border:1px solid #ffffff17;border-radius:23px;
+      background:radial-gradient(ellipse at 50% 20%,#ffffff0d,transparent 78%),#00000018}
+    dialog.controller-panel .controller-test[data-standard="true"] span{min-width:0;padding:6px 2px}
+    dialog.controller-panel .controller-sticks{display:flex;justify-content:center;
+      flex-wrap:wrap;gap:18px;margin:0}
+    dialog.controller-panel .controller-stick{padding:10px 16px;border:1px solid #ffffff13;
+      border-radius:14px;background:#00000015;min-width:130px}
+    dialog.controller-panel .controller-stick-track{margin:0 auto 10px;width:82px;height:82px;
+      border:1px solid #ffffff35;background:
+      linear-gradient(transparent 49%,#ffffff25 49%,#ffffff25 51%,transparent 51%),
+      linear-gradient(90deg,transparent 49%,#ffffff25 49%,#ffffff25 51%,transparent 51%),
+      radial-gradient(circle,#ffffff0c,#00000023)}
+    dialog.controller-panel .controller-stick-track i{background:var(--gb-test-accent);
+      box-shadow:0 0 12px color-mix(in srgb,var(--gb-test-accent) 30%,transparent)}
+    dialog.controller-panel .controller-stick small{font-size:11px;opacity:.8}
+    .gb-test-axis-details{margin-top:13px;border-top:1px solid #ffffff17;padding-top:11px}
+    .gb-test-axis-details summary{font-size:11px;font-weight:700;opacity:.78;cursor:pointer}
+    .gb-test-axis-details .controller-axes{margin:9px 0 0;font-size:11px;
+      line-height:1.7;overflow-wrap:anywhere;opacity:.75}
+    .gb-test-footer{padding:1px 4px}
+    .gb-test-footer .controller-help{margin:0;font-size:11px;line-height:1.75;opacity:.7}
+    @media(max-width:480px){
+      dialog.controller-panel[data-gb-tester-enhanced="true"]{width:calc(100vw - 16px);
+        max-height:calc(100dvh - 24px);border-radius:19px}
+      .gb-test-header{padding:14px;gap:9px}
+      .gb-test-emblem{width:39px;height:39px;border-radius:12px}
+      .gb-test-emblem svg{width:23px;height:23px}
+      .gb-test-live{font-size:9px;padding:4px 7px}
+      dialog.controller-panel button.gb-test-close{width:32px;height:32px}
+      .gb-test-body{padding:12px;gap:10px}
+      .gb-test-section{padding:12px;border-radius:13px}
+      dialog.controller-panel .controller-test[data-standard="true"]{padding:8px;gap:4px}
+      dialog.controller-panel .controller-test[data-standard="true"] span{font-size:10px;min-height:31px}
+      dialog.controller-panel .controller-stick{min-width:115px;padding:9px}
+    }
+    @media(prefers-reduced-motion:reduce){
+      dialog.controller-panel .controller-test span{transition:none}
+    }
+  `;
+  document.head.appendChild(testerStyle);
   function start() {
     if (!document.body) return;
     syncFullscreenHost();
+    initControllerTester();
     refresh();
     window.addEventListener('gamepadconnected', refresh);
     window.addEventListener('gamepaddisconnected', refresh);
