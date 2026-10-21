@@ -291,6 +291,27 @@
       background-color:transparent!important}
     .controller-disconnect-notice,.controller-notice{display:none!important}
   `;
+  testerStyle.textContent += `
+    dialog.controller-panel>h3::before{
+      background-image:none!important;background-color:var(--accent,#f3a64c)!important;
+      -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.4 8h9.2c2.2 0 3.7 1.3 4.2 3.5l.9 3.7c.6 2.4-1.6 3.9-3.5 2.5l-2.3-1.8H8.1l-2.3 1.8c-1.9 1.4-4.1-.1-3.5-2.5l.9-3.7C3.7 9.3 5.2 8 7.4 8Z'/%3E%3Cpath d='M7.5 11v4m-2-2h4'/%3E%3Ccircle cx='16.3' cy='11.5' r='.75'/%3E%3Ccircle cx='18.5' cy='13.5' r='.75'/%3E%3C/svg%3E") center/25px 25px no-repeat;
+      mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.4 8h9.2c2.2 0 3.7 1.3 4.2 3.5l.9 3.7c.6 2.4-1.6 3.9-3.5 2.5l-2.3-1.8H8.1l-2.3 1.8c-1.9 1.4-4.1-.1-3.5-2.5l.9-3.7C3.7 9.3 5.2 8 7.4 8Z'/%3E%3Cpath d='M7.5 11v4m-2-2h4'/%3E%3Ccircle cx='16.3' cy='11.5' r='.75'/%3E%3Ccircle cx='18.5' cy='13.5' r='.75'/%3E%3C/svg%3E") center/25px 25px no-repeat
+    }
+    .gb-pad-landscape-button{display:none;align-items:center;justify-content:center;
+      width:34px;height:34px;border:1px solid #ffffff36;border-radius:9px;
+      background:#ffffff12;color:var(--accent,#f3a64c);cursor:pointer}
+    .gb-pad-landscape-button svg{width:20px;height:20px}
+    @media(pointer:coarse) and (max-width:900px){
+      body.gb-pad-connected .gb-pad-landscape-button{display:inline-flex}
+    }
+    .gb-pad-landscape-mode canvas,.gb-pad-landscape-mode video{
+      object-fit:contain!important;max-width:100vw!important;max-height:100dvh!important}
+    .gb-pad-landscape-mode:fullscreen{display:flex!important;align-items:center!important;
+      justify-content:center!important;background:#000!important}
+    .gb-pad-landscape-mode:fullscreen canvas,.gb-pad-landscape-mode:fullscreen video{
+      width:auto!important;height:auto!important;max-width:100vw!important;
+      max-height:100dvh!important;object-fit:contain!important}
+  `;
   document.head.appendChild(testerStyle);
 
   // The Gamepad API may expose only an emulated XInput identity. The browser
@@ -657,9 +678,28 @@
     }
     function activate() {
       if (!selected || !visible(selected)) return;
-      const target = selected.matches('button,a,[role="button"]') ? selected :
-        selected.querySelector('button[data-action="play"],button.play-btn,.play-button,[aria-label*="เล่น"],[aria-label*="Play"],a[href],button');
-      (target || selected).click();
+      // Never use the first arbitrary button: on favorite cards that is
+      // often the destructive "remove favorite" control.
+      const forbidden = /favorite|favourite|bookmark|heart|remove|delete|trash|ลบ|รายการโปรด|ชอบ/i;
+      const playable = [...selected.querySelectorAll('button,a,[role="button"]')]
+        .filter(el=>visible(el) && !forbidden.test([
+          el.className,el.getAttribute('aria-label'),el.getAttribute('title'),
+          el.dataset.action,el.textContent?.slice(0,50)
+        ].join(' ')));
+      const target = playable.find(el=>
+        /play|start|launch|open|เล่น|เริ่ม/i.test([
+          el.className,el.getAttribute('aria-label'),el.getAttribute('title'),
+          el.dataset.action,el.textContent?.slice(0,40)
+        ].join(' '))) || playable.find(el=>el.matches('a[href]'));
+      if (target) target.click();
+      else if (selected.matches('a[href],button,[role="button"]') &&
+        !forbidden.test([selected.className,selected.getAttribute('aria-label'),
+          selected.getAttribute('title')].join(' '))) selected.click();
+      else {
+        // Most game tiles launch by clicking their non-button card surface.
+        const surface = selected.querySelector('[data-action="play"],[data-action="launch"],.game-cover,.game-image,.rom-cover');
+        (surface || selected).click();
+      }
     }
     function frame(now) {
       requestAnimationFrame(frame);
@@ -690,16 +730,56 @@
         nextMove=now+190;
       }
       lastDirection=direction;
-      const confirm = pressed(0);
+      const confirm = pressed(0) || pressed(1);
       if (confirm && !wasConfirm) activate();
       wasConfirm=confirm;
     }
     requestAnimationFrame(frame);
   }
+  function initMobileLandscape() {
+    const button = document.createElement('button');
+    button.className = 'gb-pad-landscape-button';
+    button.type = 'button';
+    button.title = 'เล่นเต็มจอแนวนอน (คงสัดส่วนภาพ)';
+    button.setAttribute('aria-label',button.title);
+    button.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="m6 10 3-3m-3 0h3v3m9 4-3 3m3 0h-3v-3"/></svg>';
+    const findPlayer = () => document.querySelector('#playerScreen,#playerContainer,.player-screen,.player-container,.emulator-container,#emulator-container') ||
+      [...document.querySelectorAll('canvas')].find(el=>el.getBoundingClientRect().width>100)?.parentElement;
+    const findBar = () => document.querySelector('#playerHeader,.player-toolbar,.player-header,.mobile-toolbar,.player-controls,.top-bar,header');
+    const update = () => {
+      const connected = pads().length>0;
+      document.body.classList.toggle('gb-pad-connected',connected);
+      const bar = findBar();
+      if (bar && button.parentElement!==bar) bar.append(button);
+    };
+    button.addEventListener('click',async()=>{
+      const target = findPlayer();
+      if (!target) return;
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+          target.classList.remove('gb-pad-landscape-mode');
+          return;
+        }
+        target.classList.add('gb-pad-landscape-mode');
+        await target.requestFullscreen();
+        try {await screen.orientation.lock('landscape');} catch {}
+      } catch {target.classList.remove('gb-pad-landscape-mode');}
+    });
+    document.addEventListener('fullscreenchange',()=>{
+      if (!document.fullscreenElement)
+        document.querySelectorAll('.gb-pad-landscape-mode').forEach(el=>el.classList.remove('gb-pad-landscape-mode'));
+    });
+    window.addEventListener('gamepadconnected',update);
+    window.addEventListener('gamepaddisconnected',update);
+    setInterval(update,1600);
+    update();
+  }
   function init() {
     if (!document.body) return;
     initDisconnectNotice();
     initLibraryGamepadNavigation();
+    initMobileLandscape();
     const check = () => {
       const a = enhanceRightPanel();
       const b = enhanceClassicTester();
