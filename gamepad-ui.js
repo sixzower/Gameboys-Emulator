@@ -302,7 +302,8 @@
       background:#ffffff12;color:var(--accent,#f3a64c);cursor:pointer}
     .gb-pad-landscape-button svg{width:20px;height:20px}
     @media(pointer:coarse) and (max-width:900px){
-      body.gb-pad-connected .gb-pad-landscape-button{display:inline-flex!important}
+      body.gb-pad-connected .gb-pad-landscape-button:not([hidden]){display:inline-flex!important}
+      .gb-pad-landscape-button[hidden]{display:none!important}
     }
     .gb-pad-landscape-mode canvas,.gb-pad-landscape-mode video{
       object-fit:contain!important;max-width:100vw!important;max-height:100dvh!important}
@@ -670,12 +671,33 @@
     const findPlayer = () => document.querySelector('#playerScreen,#playerContainer,.player-screen,.player-container,.emulator-container,#emulator-container') ||
       [...document.querySelectorAll('canvas')].find(el=>el.getBoundingClientRect().width>100)?.parentElement;
     const findBar = () => document.querySelector('#playerHeader,.player-toolbar,.player-header,.mobile-toolbar,.player-controls,.top-bar,header');
+    const preferGamepad = () => {
+      if (!matchMedia('(pointer:coarse) and (max-width:900px)').matches || !pads().length) return;
+      // Prefer physical controls when a connected pad is available.
+      // Only update existing selector controls; never replace the emulator's input API.
+      for (const select of document.querySelectorAll('select')) {
+        const options=Array.from(select.options);
+        const target=options.find(o=>/^(gamepad|controller|joypad|จอย)$/i.test(o.value.trim()) ||
+          /^(gamepad|controller|joypad|จอย|จอยเกม)$/i.test(o.textContent.trim()));
+        if (!target || !/touch|สัมผัส|keyboard|คีย์บอร์ด|gamepad|controller|จอย/i.test(options.map(o=>o.textContent).join(' '))) continue;
+        if (select.value!==target.value) {
+          select.value=target.value;
+          select.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+      }
+    };
     const update = () => {
       const connected = pads().length>0;
+      if (connected) preferGamepad();
       document.body.classList.toggle('gb-pad-connected',connected);
       const bar = findBar();
       if (bar && button.parentElement!==bar) bar.append(button);
-      button.hidden = !connected;
+      const playing = document.body.classList.contains('in-play') ||
+        document.body.classList.contains('player-focus') ||
+        !!document.fullscreenElement ||
+        !!document.querySelector('#playerHeader:not([hidden])') &&
+          getComputedStyle(document.querySelector('#playerHeader:not([hidden])')).display !== 'none';
+      button.hidden = !(connected && playing);
     };
     button.addEventListener('click',async()=>{
       const target = findPlayer();
