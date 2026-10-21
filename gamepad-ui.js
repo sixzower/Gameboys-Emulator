@@ -676,44 +676,10 @@
     heading.textContent = 'เชื่อมต่อจอยแล้ว';
     const name = document.createElement('div');
     name.className = 'gb-pad-connect-name';
-    const arrow = document.createElement('span');
-    arrow.className = 'gb-pad-connect-chevron';
-    arrow.textContent = '⌄';
     copy.append(heading,name);
-    trigger.append(dot,copy,arrow);
-    const details = document.createElement('div');
-    details.className = 'gb-pad-connect-details';
-    details.hidden = true;
-    const help = document.createElement('div');
-    help.textContent = 'สถานะ: เชื่อมต่อแล้ว · รอรับอินพุตจากจอย';
-    const action = document.createElement('button');
-    action.type = 'button';
-    action.className = 'gb-pad-connect-action';
-    action.textContent = 'ตั้งค่าจอย';
-    action.addEventListener('click',()=>{
-      // Prefer the original in-game settings panel, which contains on-screen
-      // button layout and vibration controls. Never open the controller tester.
-      const isSettings = el => /ตั้งค่า|settings|options|gear|config/i.test([
-        el.id,el.className,el.getAttribute('aria-label'),
-        el.getAttribute('title'),el.textContent?.trim().slice(0,32)
-      ].join(' '));
-      const buttons = [...document.querySelectorAll('button,[role="button"],a')];
-      const candidates = buttons.filter(el=>!toast.contains(el) &&
-        !el.closest('dialog.controller-panel') && el.getClientRects().length &&
-        isSettings(el));
-      const gameArea = document.querySelector('#playerHeader,.player-toolbar,.player-header,.emulator-toolbar,.game-toolbar');
-      const preferred = candidates.find(el=>gameArea?.contains(el)) ||
-        candidates.find(el=>/setting|config|gear/i.test(el.id+' '+el.className)) ||
-        candidates.find(el=>/ตั้งค่า|settings/i.test(el.getAttribute('aria-label')||''));
-      if (preferred) preferred.click();
-      details.hidden = true;
-      trigger.setAttribute('aria-expanded','false');
-      // Keep the connected indicator visible while the game is running.
-    });
-    details.append(help,action);
-    toast.append(trigger,details);
+    trigger.append(dot,copy);
+    toast.append(trigger);
     document.body.append(toast);
-    let timer;
     let drag = null;
     const dock = () => {
       if (toast.dataset.gbMoved === 'true') return;
@@ -766,11 +732,7 @@
       const pad = pads()[0];
       const show = !!pad && inGame();
       toast.hidden = !show;
-      if (!show) {
-        details.hidden = true;
-        trigger.setAttribute('aria-expanded','false');
-        arrow.textContent = '⌄';
-      } else {
+      if (show) {
         const info = actualName(pad);
         name.textContent = info.name;
         help.textContent = 'สถานะ: เชื่อมต่อแล้ว · ' +
@@ -778,13 +740,6 @@
           ' · ' + pad.buttons.length + ' ปุ่ม · ' + pad.axes.length + ' แกน';
       }
     };
-    trigger.addEventListener('click',()=>{
-      if (movedRecently) return;
-      details.hidden = !details.hidden;
-      trigger.setAttribute('aria-expanded',String(!details.hidden));
-      arrow.textContent = details.hidden ? '⌄' : '⌃';
-      refresh();
-    });
     window.addEventListener('gamepadconnected',refresh);
     window.addEventListener('gamepaddisconnected',refresh);
     document.addEventListener('fullscreenchange',refresh);
