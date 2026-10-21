@@ -404,7 +404,7 @@
     // Prevent the auto-test from interrupting gameplay / game startup.
     const show = dialog.showModal.bind(dialog);
     dialog.showModal = function() {
-      if (isPlaying()) return;
+      if (isPlaying() && !dialog.dataset.gbUserRequested) return;
       return show();
     };
     function showRealName() {
@@ -693,7 +693,9 @@
     action.addEventListener('click',()=>{
       const dialog = document.querySelector('dialog.controller-panel');
       if (dialog && !dialog.open) {
+        dialog.dataset.gbUserRequested = 'true';
         try {dialog.showModal();} catch {}
+        delete dialog.dataset.gbUserRequested;
       }
       details.hidden = true;
       trigger.setAttribute('aria-expanded','false');
