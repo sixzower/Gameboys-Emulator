@@ -682,7 +682,7 @@
     document.body.append(toast);
     let drag = null;
     const dock = () => {
-      if (toast.dataset.gbMoved === 'true') return;
+      delete toast.dataset.gbMoved;
       Object.assign(toast.style,{left:'auto',right:'14px',top:'auto',bottom:'max(14px,env(safe-area-inset-bottom))'});
     };
     dock();
@@ -707,30 +707,28 @@
       movedRecently=drag.moved;
       if (drag.moved) {
         toast.dataset.gbMoved='true';
-        try {localStorage.setItem('gb-pad-connect-position:v1',JSON.stringify({x:toast.offsetLeft,y:toast.offsetTop}));} catch {}
       }
       drag=null;
       toast.classList.remove('gb-pad-dragging');
       if (movedRecently) setTimeout(()=>{movedRecently=false;},0);
     };
     for(const type of ['pointerup','pointercancel','lostpointercapture']) trigger.addEventListener(type,finish);
-    try {
-      const pos=JSON.parse(localStorage.getItem('gb-pad-connect-position:v1'));
-      if (Number.isFinite(pos?.x)&&Number.isFinite(pos?.y)) {
-        toast.dataset.gbMoved='true';
-        Object.assign(toast.style,{
-          left:Math.max(0,Math.min(innerWidth-toast.offsetWidth,pos.x))+'px',
-          top:Math.max(0,Math.min(innerHeight-50,pos.y))+'px',right:'auto',bottom:'auto'});
-      }
-    } catch {}
     const inGame = () => document.body.classList.contains('in-play') ||
       document.body.classList.contains('player-focus') ||
       !!document.fullscreenElement ||
       !!document.querySelector('#playerHeader:not([hidden])') &&
         getComputedStyle(document.querySelector('#playerHeader:not([hidden])')).display !== 'none';
+    let wasPlaying = false;
     const refresh = () => {
+      const playing = inGame();
+      if (playing && !wasPlaying) dock();
+      if (!playing && wasPlaying) dock();
+      wasPlaying = playing;
+      const fullscreenHost = document.fullscreenElement;
+      if (fullscreenHost && !fullscreenHost.contains(toast)) fullscreenHost.append(toast);
+      else if (!fullscreenHost && toast.parentElement !== document.body) document.body.append(toast);
       const pad = pads()[0];
-      const show = !!pad && inGame();
+      const show = !!pad && playing;
       toast.hidden = !show;
       if (show) {
         const info = actualName(pad);
