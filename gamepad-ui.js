@@ -78,6 +78,11 @@
     '@media(max-width:650px){#gb-controller-panel{left:10px;bottom:max(10px,env(safe-area-inset-bottom));width:min(310px,calc(100vw - 20px))}.gb-controller-toggle{min-height:54px;padding:8px 10px;gap:9px}.gb-controller-icon{width:35px;height:35px}.gb-controller-details{padding:4px 10px 9px}}',
     '@media(prefers-reduced-motion:reduce){.gb-controller-shell{animation:none}.gb-controller-arrow{transition:none}}'
   ].join('\n');
+  style.textContent += `
+    #gb-controller-panel .gb-controller-toggle{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+    #gb-controller-panel[data-dragging="true"] .gb-controller-toggle{cursor:grabbing}
+    #gb-controller-panel[data-dragging="true"] .gb-controller-shell{box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 0 1px color-mix(in srgb,var(--gb-accent) 38%,transparent)}
+  `;
   document.head.appendChild(style);
 
   const panel = document.createElement('aside');
@@ -126,6 +131,7 @@
     expanded = !!next;
     panel.dataset.expanded = String(expanded);
     details.hidden = !expanded;
+    requestAnimationFrame(place);
     toggle.setAttribute('aria-expanded', String(expanded));
   }
   function clearCollapse() {
@@ -185,6 +191,7 @@
       details.append(item);
     }
     panel.hidden = pads.length === 0;
+    if (pads.length) requestAnimationFrame(place);
     kicker.lastChild.textContent = pads.length > 1 ? 'เชื่อมต่อ ' + pads.length + ' จอย' : 'เชื่อมต่อจอยแล้ว';
     summary.textContent = pads.length === 1 ? names[0] : pads.length + ' อุปกรณ์พร้อมใช้งาน';
     toggle.title = pads.length === 1 ? names[0] : names.join(', ');
@@ -196,14 +203,73 @@
       autoExpand();
     }
   }
+  // Drag only the connection indicator. Gamepad input and mappings stay untouched.
+  const positionKey = 'gb-controller-hud-position:v1';
+  let savedPosition = null;
+  try {
+    const value = JSON.parse(localStorage.getItem(positionKey) || 'null');
+    if (value && Number.isFinite(value.x) && Number.isFinite(value.y))
+      savedPosition = {x:value.x, y:value.y};
+  } catch {}
+  function place() {
+    if (!savedPosition || panel.hidden) return;
+    const rect = panel.getBoundingClientRect();
+    const x = Math.max(0, Math.min(savedPosition.x, Math.max(0, innerWidth - rect.width)));
+    const y = Math.max(0, Math.min(savedPosition.y, Math.max(0, innerHeight - rect.height)));
+    Object.assign(panel.style, {left:x+'px',top:y+'px',right:'auto',bottom:'auto'});
+  }
+  let drag = null, suppressClick = false;
+  toggle.setAttribute('aria-label','แตะเพื่อดูรายละเอียดจอย หรือลากเพื่อย้ายตำแหน่ง');
+  toggle.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || !event.isPrimary) return;
+    const rect = panel.getBoundingClientRect();
+    drag = {id:event.pointerId, px:event.clientX, py:event.clientY,
+            x:rect.left, y:rect.top, moved:false};
+    try {toggle.setPointerCapture(event.pointerId);} catch {}
+  });
+  toggle.addEventListener('pointermove', event => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const dx = event.clientX-drag.px, dy = event.clientY-drag.py;
+    if (!drag.moved && Math.hypot(dx,dy)<7) return;
+    drag.moved = true;
+    suppressClick = true;
+    panel.dataset.dragging = 'true';
+    savedPosition = {x:drag.x+dx,y:drag.y+dy};
+    place();
+  });
+  function finishDrag(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    const moved = drag.moved;
+    drag = null;
+    delete panel.dataset.dragging;
+    if (moved) {
+      const rect = panel.getBoundingClientRect();
+      savedPosition = {x:rect.left,y:rect.top};
+      try {localStorage.setItem(positionKey,JSON.stringify(savedPosition));} catch {}
+      setTimeout(()=>{suppressClick=false;},0);
+    }
+  }
+  for (const name of ['pointerup','pointercancel','lostpointercapture'])
+    toggle.addEventListener(name,finishDrag);
+  window.addEventListener('resize',place,{passive:true});
+  window.addEventListener('orientationchange',place,{passive:true});
+  function syncFullscreenHost() {
+    const fs = document.fullscreenElement || document.webkitFullscreenElement;
+    const host = fs && fs.tagName !== 'CANVAS' ? fs : document.body;
+    if (host && panel.parentElement !== host) host.appendChild(panel);
+    requestAnimationFrame(place);
+  }
+  document.addEventListener('fullscreenchange',syncFullscreenHost);
+  document.addEventListener('webkitfullscreenchange',syncFullscreenHost);
   toggle.addEventListener('click', () => {
+    if (suppressClick) return;
     clearCollapse();
     userExpanded = !expanded;
     setExpanded(!expanded);
   });
   function start() {
     if (!document.body) return;
-    document.body.appendChild(panel);
+    syncFullscreenHost();
     refresh();
     window.addEventListener('gamepadconnected', refresh);
     window.addEventListener('gamepaddisconnected', refresh);
