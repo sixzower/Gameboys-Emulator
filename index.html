@@ -295,7 +295,7 @@ if(introStart>=0&&introEnd>introStart){
     const frag=document.createDocumentFragment();
     [...list,...list].forEach((src,k)=>{
       const img=document.createElement('img');img.crossOrigin='anonymous';
-      img.loading='eager';img.decoding='async';img.alt='';img.draggable=false;
+      img.loading=k<3?'eager':'lazy';img.decoding='async';img.alt='';img.draggable=false;
       // Only the first three covers per row need priority for initial painting.
       const priority=k<3;img.fetchPriority=priority?'high':'low';
       if(priority)firstFrame.push(new Promise(resolve=>{
