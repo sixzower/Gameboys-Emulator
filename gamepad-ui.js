@@ -319,10 +319,10 @@
       border:1px solid #343b44;background:#11151bf5;color:#f4f7fa;
       box-shadow:0 12px 30px #0009;backdrop-filter:blur(12px);
       -webkit-backdrop-filter:blur(12px);font:inherit}
-    .gb-pad-connect-toast.gb-pad-minimized{width:42px;height:42px;border-radius:50%;overflow:visible}
-    .gb-pad-minimized .gb-pad-connect-trigger{width:42px;height:42px;border-radius:50%;padding:0;justify-content:center}
+    .gb-pad-connect-toast.gb-pad-minimized{width:30px;height:30px;border-radius:50%;overflow:visible}
+    .gb-pad-minimized .gb-pad-connect-trigger{width:30px;height:30px;border-radius:50%;padding:0;justify-content:center}
     .gb-pad-minimized .gb-pad-connect-copy,.gb-pad-minimized .gb-pad-connect-dot{display:none}
-    .gb-pad-connect-game-icon{display:none;width:34px;height:34px;flex:none;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .gb-pad-connect-game-icon{display:none;width:28px;height:28px;flex:none;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
     .gb-pad-minimized .gb-pad-connect-game-icon{display:block}
     .gb-pad-connect-mini-led{display:none;position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #11151b;box-sizing:content-box;box-shadow:0 0 7px #22c55e99;pointer-events:none}
     .gb-pad-minimized .gb-pad-connect-mini-led{display:block;animation:gb-pad-mini-blink 1.2s ease-in-out infinite}
