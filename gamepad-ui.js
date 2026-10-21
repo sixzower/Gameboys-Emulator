@@ -238,6 +238,53 @@
     .gb-pad-disconnect-sub{font-size:10px;opacity:.7;line-height:1.5;margin-top:2px}
     @media(max-width:480px){.gb-pad-disconnect-toast{padding:10px 12px;gap:9px}}
   `;
+
+  testerStyle.textContent += `
+    /* Minimal controller tile from the previous HUD, with a proper close X. */
+    dialog.controller-panel{position:relative!important;padding-top:64px!important}
+    dialog.controller-panel>h3{position:absolute;top:21px;left:73px;right:56px;
+      min-height:32px;margin:0;padding:0;border:0;display:flex;align-items:center;
+      font-size:19px;line-height:1.4}
+    dialog.controller-panel>h3::before{
+      content:"";position:absolute;left:-53px;top:-5px;display:block;
+      width:40px;height:40px;border-radius:11px;
+      border:1px solid color-mix(in srgb,var(--accent,#f3a64c) 40%,transparent);
+      background-color:color-mix(in srgb,var(--accent,#f3a64c) 12%,transparent);
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9a85b' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.4 8h9.2c2.2 0 3.7 1.3 4.2 3.5l.9 3.7c.6 2.4-1.6 3.9-3.5 2.5l-2.3-1.8H8.1l-2.3 1.8c-1.9 1.4-4.1-.1-3.5-2.5l.9-3.7C3.7 9.3 5.2 8 7.4 8Z'/%3E%3Cpath d='M7.5 11v4m-2-2h4'/%3E%3Ccircle cx='16.3' cy='11.5' r='.75'/%3E%3Ccircle cx='18.5' cy='13.5' r='.75'/%3E%3C/svg%3E");
+      background-position:center;background-repeat:no-repeat;background-size:25px 25px
+    }
+    dialog.controller-panel>button.gb-test-x{
+      position:absolute;top:17px;right:17px;margin:0;display:grid;place-items:center;
+      width:33px;height:33px;padding:0;border-radius:9px;
+      border:1px solid #ffffff24;background:#ffffff0a;
+      color:var(--text,#fff);font-size:20px;font-weight:400;line-height:1;
+      cursor:pointer
+    }
+    dialog.controller-panel>button.gb-test-x:hover{
+      background:color-mix(in srgb,var(--accent,#f3a64c) 18%,transparent)}
+    dialog.controller-panel .gb-test-guide{
+      margin:13px 0 0;padding:12px 13px;border:1px solid #ffffff19;
+      border-radius:12px;background:linear-gradient(130deg,#ffffff0b,#ffffff04);
+      color:var(--text,#fff);font-size:11px;line-height:1.75
+    }
+    dialog.controller-panel .gb-test-guide strong{
+      display:block;margin-bottom:5px;font-size:12px;font-weight:800}
+    dialog.controller-panel .gb-test-guide .gb-guide-row{
+      display:flex;align-items:baseline;gap:8px;margin:4px 0}
+    dialog.controller-panel .gb-test-guide .gb-guide-tag{
+      flex:none;min-width:50px;color:var(--accent,#f3a64c);font-weight:800}
+    dialog.controller-panel .gb-test-guide .gb-guide-note{
+      margin-top:9px;padding-top:8px;border-top:1px solid #ffffff17;opacity:.7}
+    /* The right-side connected indicator is now status-only. */
+    .controller-status-panel.gb-pad-refined .controller-status-body{display:none!important}
+    .controller-status-panel.gb-pad-refined>summary{cursor:grab}
+    @media(max-width:480px){
+      dialog.controller-panel{padding-top:61px!important}
+      dialog.controller-panel>h3{top:18px;left:65px;right:52px;font-size:17px}
+      dialog.controller-panel>h3::before{left:-49px;width:36px;height:36px}
+      dialog.controller-panel>button.gb-test-x{top:15px;right:13px}
+    }
+  `;
   document.head.appendChild(testerStyle);
 
   // The Gamepad API may expose only an emulated XInput identity. The browser
@@ -249,6 +296,8 @@
     panel.classList.add('gb-pad-refined');
     const summary = panel.querySelector(':scope>summary');
     const body = panel.querySelector('.controller-status-body');
+    // Status-only indicator: no renaming controls or signal detail UI.
+    panel.removeAttribute('open');
     if (!summary || !body) return true;
     const name = document.createElement('div');
     name.className = 'gb-pad-real-name';
@@ -260,6 +309,7 @@
     edit.type = 'button';
     edit.className = 'gb-pad-edit';
     edit.textContent = 'แก้ชื่อจอย';
+    edit.hidden = true;
     const editor = document.createElement('form');
     editor.className = 'gb-pad-editor';
     editor.hidden = true;
@@ -410,6 +460,39 @@
     dialog.setAttribute('aria-label','หน้าทดสอบจอย');
     const heading = dialog.querySelector('h3');
     if (heading) heading.textContent = 'หน้าทดสอบจอย';
+    const close = dialog.querySelector(':scope>button[type="button"]');
+    if (close) {
+      close.classList.add('gb-test-x');
+      close.textContent = '×';
+      close.title = 'ปิดหน้าทดสอบจอย';
+      close.setAttribute('aria-label','ปิดหน้าทดสอบจอย');
+    }
+    const help = dialog.querySelector('.controller-help');
+    if (help) {
+      help.classList.add('gb-test-guide');
+      const title = document.createElement('strong');
+      title.textContent = 'วิธีทดสอบจอย';
+      const rows = [
+        ['ปุ่มกด','กดปุ่มบนจอย ช่องปุ่มที่ตอบสนองจะสว่างขึ้น'],
+        ['ก้านซ้าย','โยกเพื่อทดสอบการเคลื่อนที่แนวนอนและแนวตั้ง'],
+        ['ก้านขวา','โยกเพื่อดูทิศทางและการตอบสนองของก้านขวา']
+      ];
+      const nodes = rows.map(([label,description])=>{
+        const row = document.createElement('div');
+        row.className = 'gb-guide-row';
+        const tag = document.createElement('span');
+        tag.className = 'gb-guide-tag';
+        tag.textContent = label;
+        const detail = document.createElement('span');
+        detail.textContent = description;
+        row.append(tag,detail);
+        return row;
+      });
+      const note = document.createElement('div');
+      note.className = 'gb-guide-note';
+      note.textContent = 'หน้านี้ใช้ตรวจสอบสัญญาณจอยเท่านั้น ไม่เปลี่ยนการตั้งค่าปุ่มในเกม';
+      help.replaceChildren(title,...nodes,note);
+    }
     const picker = dialog.querySelector('.controller-picker');
     const status = dialog.querySelector('.controller-status');
     // Keep all the classic tester's existing nodes and event handlers.
