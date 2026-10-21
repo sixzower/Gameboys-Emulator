@@ -504,20 +504,9 @@
     // Keep all the classic tester's existing nodes and event handlers.
     // Its original script uses showModal() for auto-open on controller connect.
     // Prevent the auto-test from interrupting gameplay / game startup.
-    // The welcome/landing screen must never auto-open the tester.
-    // Only the library screen after entering the site may show it.
-    let enteredSite = false;
-    const entered = () => {
-      const inLibrary = document.body.classList.contains('in-app') ||
-        document.body.classList.contains('app-open') ||
-        document.body.classList.contains('entered') ||
-        !!document.querySelector('#libraryScreen:not([hidden]),#gameLibrary:not([hidden])');
-      if (inLibrary) enteredSite = true;
-      return enteredSite;
-    };
     const show = dialog.showModal.bind(dialog);
     dialog.showModal = function() {
-      if (isPlaying() || !entered()) return;
+      if (isPlaying()) return;
       return show();
     };
     function showRealName() {
@@ -538,7 +527,7 @@
     }
     const timer = setInterval(()=>{
       if (!document.contains(dialog)) {clearInterval(timer);return;}
-      if ((isPlaying() || !entered()) && dialog.open) dialog.close();
+      if (isPlaying() && dialog.open) dialog.close();
       else showRealName();
     },500);
     document.addEventListener('visibilitychange',()=>{
