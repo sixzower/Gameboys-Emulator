@@ -316,13 +316,26 @@
     .gb-pad-connect-toast{position:fixed;z-index:2147483008;right:14px;
       top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:9px;
       width:max-content;max-width:min(260px,calc(100vw - 28px));box-sizing:border-box;
-      padding:9px 12px;border-radius:10px;border:1px solid #ffffff22;
-      background:#11151bed;color:#f4f7fa;box-shadow:0 10px 28px #0008;
+      padding:9px 12px;border-radius:10px;
+      border:1px solid color-mix(in srgb,var(--accent,#f3a64c) 50%,transparent);
+      background:linear-gradient(125deg,
+        color-mix(in srgb,var(--card,var(--panel,#202026)) 94%,var(--accent,#f3a64c) 6%),
+        var(--card,var(--panel,#202026)));
+      color:var(--text,#f4f7fa);box-shadow:0 10px 28px #0008,
+        inset 0 1px 0 color-mix(in srgb,var(--accent,#f3a64c) 17%,transparent);
       backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
       pointer-events:none;font:inherit}
     .gb-pad-connect-toast[hidden]{display:none!important}
     .gb-pad-connect-dot{width:9px;height:9px;flex:none;border-radius:50%;
-      background:#22c55e;box-shadow:0 0 0 3px #22c55e20}
+      background:#22c55e;box-shadow:0 0 0 3px #22c55e20,0 0 9px #22c55e75;
+      animation:gb-pad-connected-pulse 1.2s ease-in-out infinite}
+    @keyframes gb-pad-connected-pulse{
+      0%,100%{opacity:1;box-shadow:0 0 0 3px #22c55e24,0 0 9px #22c55e85}
+      50%{opacity:.38;box-shadow:0 0 0 1px #22c55e18,0 0 2px #22c55e35}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .gb-pad-connect-dot{animation:none!important}
+    }
     .gb-pad-connect-copy{min-width:0;max-width:218px}
     .gb-pad-connect-title{font-size:11px;line-height:1.4;font-weight:800}
     .gb-pad-connect-name{font-size:10px;line-height:1.4;opacity:.76;
