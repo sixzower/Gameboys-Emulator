@@ -312,6 +312,22 @@
       width:auto!important;height:auto!important;max-width:100vw!important;
       max-height:100dvh!important;object-fit:contain!important}
   `;
+  testerStyle.textContent += `
+    .gb-pad-connect-toast{position:fixed;z-index:2147483008;right:14px;
+      top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:9px;
+      width:max-content;max-width:min(260px,calc(100vw - 28px));box-sizing:border-box;
+      padding:9px 12px;border-radius:10px;border:1px solid #ffffff22;
+      background:#11151bed;color:#f4f7fa;box-shadow:0 10px 28px #0008;
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+      pointer-events:none;font:inherit}
+    .gb-pad-connect-toast[hidden]{display:none!important}
+    .gb-pad-connect-dot{width:9px;height:9px;flex:none;border-radius:50%;
+      background:#22c55e;box-shadow:0 0 0 3px #22c55e20}
+    .gb-pad-connect-copy{min-width:0;max-width:218px}
+    .gb-pad-connect-title{font-size:11px;line-height:1.4;font-weight:800}
+    .gb-pad-connect-name{font-size:10px;line-height:1.4;opacity:.76;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  `;
   document.head.appendChild(testerStyle);
 
   // The Gamepad API may expose only an emulated XInput identity. The browser
@@ -775,9 +791,44 @@
     setInterval(update,1600);
     update();
   }
+  function initCompactConnectNotice() {
+    const toast = document.createElement('div');
+    toast.className = 'gb-pad-connect-toast';
+    toast.hidden = true;
+    toast.setAttribute('role','status');
+    toast.setAttribute('aria-live','polite');
+    const dot = document.createElement('span');
+    dot.className = 'gb-pad-connect-dot';
+    const copy = document.createElement('div');
+    copy.className = 'gb-pad-connect-copy';
+    const heading = document.createElement('div');
+    heading.className = 'gb-pad-connect-title';
+    heading.textContent = 'เชื่อมต่อจอยแล้ว';
+    const name = document.createElement('div');
+    name.className = 'gb-pad-connect-name';
+    copy.append(heading,name);
+    toast.append(dot,copy);
+    document.body.append(toast);
+    let timer;
+    window.addEventListener('gamepadconnected',event=>{
+      // Keep the tester on the home screen; use the small notice in gameplay.
+      if (!document.body.classList.contains('in-play') &&
+          !document.body.classList.contains('player-focus') &&
+          !document.fullscreenElement) return;
+      name.textContent = actualName(event.gamepad).name;
+      toast.hidden = false;
+      clearTimeout(timer);
+      timer = setTimeout(()=>{toast.hidden=true;},3100);
+    });
+    window.addEventListener('gamepaddisconnected',()=>{
+      toast.hidden = true;
+      clearTimeout(timer);
+    });
+  }
   function init() {
     if (!document.body) return;
     initDisconnectNotice();
+    initCompactConnectNotice();
     initLibraryGamepadNavigation();
     initMobileLandscape();
     const check = () => {
