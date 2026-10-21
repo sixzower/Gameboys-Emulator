@@ -627,32 +627,36 @@
   // Save a standard-layout reference per controller on this browser.
   // Do not rewrite Gamepad API inputs: the emulator must keep receiving raw data.
   function initControllerButtonMemory() {
-    const key = 'gb-pad-standard-labels:v1';
-    const labels = ['A','B','X','Y','L1','R1','L2','R2','Select','Start','L3','R3',
+    // Mapping data is device/browser-local. A desktop browser's localStorage
+    // cannot be read by a mobile browser without explicit transfer or sync.
+    const key='gb-pad-standard-labels:v2';
+    const labels=['A','B','X','Y','L1','R1','L2','R2','Select','Start','L3','R3',
       'D-Pad ↑','D-Pad ↓','D-Pad ←','D-Pad →','Home'];
-    const read = () => {try {return JSON.parse(localStorage.getItem(key))||{};} catch {return {};}};
-    const fingerprint = pad => (pad?.id||'unknown').trim().toLowerCase();
-    const remember = pad => {
+    const read=()=>{try{return JSON.parse(localStorage.getItem(key)||'{}')||{};}catch{return {};}};
+    const identityKey=pad=>(pad?.id||'unknown').trim().toLowerCase();
+    const remember=pad=>{
       if (!pad || pad.mapping!=='standard') return;
-      const stored=read();
-      stored[fingerprint(pad)]={labels,updated:Date.now()};
-      try {localStorage.setItem(key,JSON.stringify(stored));} catch {}
+      const data=read(), id=identityKey(pad);
+      if (data[id]) return;
+      data[id]={labels:labels.slice(),mapping:'standard'};
+      try{localStorage.setItem(key,JSON.stringify(data));}catch{}
     };
-    const decorate = () => {
+    const decorate=()=>{
       const dialog=document.querySelector('dialog.controller-panel');
       if (!dialog?.open) return;
-      const selected=pads().find(p=>String(p.index)===dialog.querySelector('.controller-picker')?.value)||pads()[0];
-      if (!selected) return;
-      remember(selected);
-      const saved=read()[fingerprint(selected)];
-      if (!saved || selected.mapping!=='standard') return;
+      const pad=pads().find(p=>String(p.index)===dialog.querySelector('.controller-picker')?.value)||pads()[0];
+      if (!pad) return;
+      remember(pad);
+      // Never claim a non-standard mobile mapping matches the desktop.
+      if (pad.mapping!=='standard') return;
+      const saved=read()[identityKey(pad)];
       const test=dialog.querySelector('.controller-test');
-      if (!test) return;
-      [...test.querySelectorAll('[data-button], [data-index]')].forEach(el=>{
+      if (!saved||!test) return;
+      test.querySelectorAll('[data-button],[data-index]').forEach(el=>{
         const i=Number(el.dataset.button??el.dataset.index);
-        if (Number.isInteger(i)&&saved.labels[i]) {
-          el.setAttribute('aria-label',saved.labels[i]);
+        if (Number.isInteger(i)&&saved.labels[i]){
           el.title=saved.labels[i];
+          el.setAttribute('aria-label',saved.labels[i]);
         }
       });
     };
@@ -717,8 +721,21 @@
       if (!document.fullscreenElement)
         document.querySelectorAll('.gb-pad-landscape-mode').forEach(el=>el.classList.remove('gb-pad-landscape-mode'));
     });
-    window.addEventListener('gamepadconnected',update);
-    window.addEventListener('gamepaddisconnected',update);
+    // Some mobile browsers expose a controller only after its first button press.
+    // Re-evaluate immediately when it becomes available, without requiring a reload.
+    window.addEventListener('gamepadconnected',event=>{
+      update();
+      if (event.gamepad) {
+        document.body.dataset.gbActiveGamepad=String(event.gamepad.index);
+        document.dispatchEvent(new CustomEvent('gb:gamepad-ready',{
+          detail:{index:event.gamepad.index,id:event.gamepad.id,mapping:event.gamepad.mapping}
+        }));
+      }
+    });
+    window.addEventListener('gamepaddisconnected',()=>{
+      if (!pads().length) delete document.body.dataset.gbActiveGamepad;
+      update();
+    });
     setInterval(update,1600);
     update();
   }
