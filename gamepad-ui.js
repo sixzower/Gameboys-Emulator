@@ -302,12 +302,13 @@
       background:#ffffff12;color:var(--accent,#f3a64c);cursor:pointer}
     .gb-pad-landscape-button svg{width:20px;height:20px}
     @media(pointer:coarse) and (max-width:900px){
-      body.gb-pad-connected .gb-pad-landscape-button{display:inline-flex}
+      body.gb-pad-connected .gb-pad-landscape-button{display:inline-flex!important}
     }
     .gb-pad-landscape-mode canvas,.gb-pad-landscape-mode video{
       object-fit:contain!important;max-width:100vw!important;max-height:100dvh!important}
     .gb-pad-landscape-mode:fullscreen{display:flex!important;align-items:center!important;
       justify-content:center!important;background:#000!important}
+    .gb-pad-landscape-mode:fullscreen :is(.touch-controls,.virtual-controls,.onscreen-controls,.on-screen-controls,.gamepad-overlay,.mobile-controls,.emulator-controls,.gba-controls,.control-pad,.dpad,.d-pad,.action-buttons,.joystick-overlay){display:none!important}
     .gb-pad-landscape-mode:fullscreen canvas,.gb-pad-landscape-mode:fullscreen video{
       width:auto!important;height:auto!important;max-width:100vw!important;
       max-height:100dvh!important;object-fit:contain!important}
@@ -622,6 +623,43 @@
     }
     requestAnimationFrame(frame);
   }
+  // Save a standard-layout reference per controller on this browser.
+  // Do not rewrite Gamepad API inputs: the emulator must keep receiving raw data.
+  function initControllerButtonMemory() {
+    const key = 'gb-pad-standard-labels:v1';
+    const labels = ['A','B','X','Y','L1','R1','L2','R2','Select','Start','L3','R3',
+      'D-Pad ↑','D-Pad ↓','D-Pad ←','D-Pad →','Home'];
+    const read = () => {try {return JSON.parse(localStorage.getItem(key))||{};} catch {return {};}};
+    const fingerprint = pad => (pad?.id||'unknown').trim().toLowerCase();
+    const remember = pad => {
+      if (!pad || pad.mapping!=='standard') return;
+      const stored=read();
+      stored[fingerprint(pad)]={labels,updated:Date.now()};
+      try {localStorage.setItem(key,JSON.stringify(stored));} catch {}
+    };
+    const decorate = () => {
+      const dialog=document.querySelector('dialog.controller-panel');
+      if (!dialog?.open) return;
+      const selected=pads().find(p=>String(p.index)===dialog.querySelector('.controller-picker')?.value)||pads()[0];
+      if (!selected) return;
+      remember(selected);
+      const saved=read()[fingerprint(selected)];
+      if (!saved || selected.mapping!=='standard') return;
+      const test=dialog.querySelector('.controller-test');
+      if (!test) return;
+      [...test.querySelectorAll('[data-button], [data-index]')].forEach(el=>{
+        const i=Number(el.dataset.button??el.dataset.index);
+        if (Number.isInteger(i)&&saved.labels[i]) {
+          el.setAttribute('aria-label',saved.labels[i]);
+          el.title=saved.labels[i];
+        }
+      });
+    };
+    window.addEventListener('gamepadconnected',e=>remember(e.gamepad));
+    pads().forEach(remember);
+    setInterval(decorate,750);
+  }
+
   function initMobileLandscape() {
     const button = document.createElement('button');
     button.className = 'gb-pad-landscape-button';
@@ -637,6 +675,7 @@
       document.body.classList.toggle('gb-pad-connected',connected);
       const bar = findBar();
       if (bar && button.parentElement!==bar) bar.append(button);
+      button.hidden = !connected;
     };
     button.addEventListener('click',async()=>{
       const target = findPlayer();
@@ -782,6 +821,7 @@
     initCompactConnectNotice();
     initLibraryGamepadNavigation();
     initMobileLandscape();
+    initControllerButtonMemory();
     const removeLegacyStatus = () => {
       document.querySelectorAll('details.controller-status-panel').forEach(el=>el.remove());
     };
