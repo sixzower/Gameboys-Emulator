@@ -285,6 +285,12 @@
       dialog.controller-panel>button.gb-test-x{top:15px;right:13px}
     }
   `;
+
+  testerStyle.textContent += `
+    dialog.controller-panel>h3::before{border:0!important;border-radius:0!important;
+      background-color:transparent!important}
+    .controller-disconnect-notice,.controller-notice{display:none!important}
+  `;
   document.head.appendChild(testerStyle);
 
   // The Gamepad API may expose only an emulated XInput identity. The browser
@@ -498,9 +504,20 @@
     // Keep all the classic tester's existing nodes and event handlers.
     // Its original script uses showModal() for auto-open on controller connect.
     // Prevent the auto-test from interrupting gameplay / game startup.
+    // The welcome/landing screen must never auto-open the tester.
+    // Only the library screen after entering the site may show it.
+    let enteredSite = false;
+    const entered = () => {
+      const inLibrary = document.body.classList.contains('in-app') ||
+        document.body.classList.contains('app-open') ||
+        document.body.classList.contains('entered') ||
+        !!document.querySelector('#libraryScreen:not([hidden]),#gameLibrary:not([hidden])');
+      if (inLibrary) enteredSite = true;
+      return enteredSite;
+    };
     const show = dialog.showModal.bind(dialog);
     dialog.showModal = function() {
-      if (isPlaying()) return;
+      if (isPlaying() || !entered()) return;
       return show();
     };
     function showRealName() {
@@ -521,7 +538,7 @@
     }
     const timer = setInterval(()=>{
       if (!document.contains(dialog)) {clearInterval(timer);return;}
-      if (isPlaying() && dialog.open) dialog.close();
+      if ((isPlaying() || !entered()) && dialog.open) dialog.close();
       else showRealName();
     },500);
     document.addEventListener('visibilitychange',()=>{
@@ -587,7 +604,7 @@
     });
     observer.observe(document.body,{childList:true,subtree:true});
     const previous = document.createElement('style');
-    previous.textContent = '.controller-disconnect-notice{display:none!important}';
+    previous.textContent = '.controller-disconnect-notice,.controller-notice{display:none!important}';
     document.head.append(previous);
   }
   function init() {
