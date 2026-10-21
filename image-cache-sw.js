@@ -1,21 +1,21 @@
 'use strict';
 // A bounded device cache for public Supabase images. Preserve original image quality.
-const CACHE_NAME='gameboys-public-images-v1';
+const CACHE_NAME='gameboys-public-images-v2';
 const IMAGE_ORIGIN='https://opceuxrvzwbzuwzmubsh.supabase.co';
 const IMAGE_PREFIX='/storage/v1/object/public/gameboysemulator/';
-const MAX_AGE=24*60*60*1000,MAX_ENTRIES=80,MAX_BYTES=32*1024*1024,MAX_IMAGE_BYTES=2*1024*1024;
+const MAX_AGE=24*60*60*1000,MAX_ENTRIES=48,MAX_BYTES=16*1024*1024,MAX_IMAGE_BYTES=4*1024*1024;
 const inflight=new Map();
 let writes=Promise.resolve();
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('gameboys-public-images-')&&name!==CACHE_NAME)await caches.delete(name);await self.clients.claim();})()));
 function eligible(request){
  const url=new URL(request.url);
- return request.method==='GET'&&request.destination==='image'&&request.mode==='cors'&&
-  request.credentials!=='include'&&url.origin===IMAGE_ORIGIN&&url.pathname.startsWith(IMAGE_PREFIX)&&
+ return request.method==='GET'&&request.destination==='image'&&['cors','same-origin','no-cors'].includes(request.mode)&&
+  request.credentials!=='include'&&((url.origin===self.location.origin&&url.pathname==='/api/asset'&&/^(covers|marquee|skins|site-assets|splash)\//.test(url.searchParams.get('key')||''))||(url.origin===IMAGE_ORIGIN&&url.pathname.startsWith(IMAGE_PREFIX)))&&
   !request.headers.has('range')&&!['reload','no-store','no-cache'].includes(request.cache);
 }
 async function storeImage(cache,request,response){
- if(!response.ok||response.status!==200||!/^image\//i.test(response.headers.get('content-type')||''))return;
+ if(response.redirected||!response.ok||response.status!==200||!/^image\//i.test(response.headers.get('content-type')||''))return;
  if(/no-store|private/i.test(response.headers.get('cache-control')||''))return;
  const declared=Number(response.headers.get('content-length'));
  if(declared>MAX_IMAGE_BYTES)return;

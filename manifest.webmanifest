@@ -10,7 +10,7 @@
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "https://opceuxrvzwbzuwzmubsh.supabase.co/storage/v1/object/public/gameboysemulator/splash/browser-logo-v3.png",
+      "src": "/api/asset?key=splash/browser-logo-v3.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
