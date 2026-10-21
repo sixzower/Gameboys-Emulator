@@ -691,14 +691,21 @@
     action.className = 'gb-pad-connect-action';
     action.textContent = 'ตั้งค่าจอย';
     action.addEventListener('click',()=>{
-      // Open the site's actual settings, not the controller button tester.
-      const settings = [...document.querySelectorAll('button,a,[role="button"]')]
-        .find(el => /ตั้งค่า|settings/i.test([
-          el.getAttribute('aria-label'),el.getAttribute('title'),
-          el.textContent?.trim().slice(0,35)
-        ].join(' ')) && !toast.contains(el) &&
-          el.getClientRects().length && !el.closest('dialog:not([open])'));
-      if (settings) settings.click();
+      // Prefer the original in-game settings panel, which contains on-screen
+      // button layout and vibration controls. Never open the controller tester.
+      const isSettings = el => /ตั้งค่า|settings|options|gear|config/i.test([
+        el.id,el.className,el.getAttribute('aria-label'),
+        el.getAttribute('title'),el.textContent?.trim().slice(0,32)
+      ].join(' '));
+      const buttons = [...document.querySelectorAll('button,[role="button"],a')];
+      const candidates = buttons.filter(el=>!toast.contains(el) &&
+        !el.closest('dialog.controller-panel') && el.getClientRects().length &&
+        isSettings(el));
+      const gameArea = document.querySelector('#playerHeader,.player-toolbar,.player-header,.emulator-toolbar,.game-toolbar');
+      const preferred = candidates.find(el=>gameArea?.contains(el)) ||
+        candidates.find(el=>/setting|config|gear/i.test(el.id+' '+el.className)) ||
+        candidates.find(el=>/ตั้งค่า|settings/i.test(el.getAttribute('aria-label')||''));
+      if (preferred) preferred.click();
       details.hidden = true;
       trigger.setAttribute('aria-expanded','false');
       // Keep the connected indicator visible while the game is running.
