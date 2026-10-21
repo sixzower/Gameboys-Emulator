@@ -676,17 +676,27 @@
       [...document.querySelectorAll('canvas')].find(el=>el.getBoundingClientRect().width>100)?.parentElement;
     const findBar = () => document.querySelector('#playerHeader,.player-toolbar,.player-header,.mobile-toolbar,.player-controls,.top-bar,header');
     const preferGamepad = () => {
-      if (!matchMedia('(pointer:coarse) and (max-width:900px)').matches || !pads().length) return;
-      // Prefer physical controls when a connected pad is available.
-      // Only update existing selector controls; never replace the emulator's input API.
+      const available=pads();
+      if (!available.length) return;
+      // The original player may create its connection selector after startup.
+      // Select the actual device index, not a generic "gamepad" option.
       for (const select of document.querySelectorAll('select')) {
         const options=Array.from(select.options);
-        const target=options.find(o=>/^(gamepad|controller|joypad|จอย)$/i.test(o.value.trim()) ||
-          /^(gamepad|controller|joypad|จอย|จอยเกม)$/i.test(o.textContent.trim()));
-        if (!target || !/touch|สัมผัส|keyboard|คีย์บอร์ด|gamepad|controller|จอย/i.test(options.map(o=>o.textContent).join(' '))) continue;
-        if (select.value!==target.value) {
-          select.value=target.value;
+        const placeholder=options.some(o=>/not connected|disconnected|ไม่เชื่อมต่อ|ยังไม่เชื่อมต่อ/i.test(o.textContent));
+        const gamepadPicker=select.matches('.controller-picker') ||
+          /gamepad|controller|จอย/i.test([select.id,select.name,select.getAttribute('aria-label'),select.closest('label')?.textContent].filter(Boolean).join(' '));
+        if (!placeholder && !gamepadPicker) continue;
+        const current=available.find(p=>String(p.index)===select.value);
+        if (current) continue;
+        const match=options.find(o=>available.some(p=>String(p.index)===o.value ||
+          o.textContent.trim()===p.id || o.textContent.includes(actualName(p).name)));
+        if (match) {
+          select.value=match.value;
+          select.dispatchEvent(new Event('input',{bubbles:true}));
           select.dispatchEvent(new Event('change',{bubbles:true}));
+        } else if (placeholder) {
+          // Ask the original UI to refresh its device list; never fabricate options.
+          select.dispatchEvent(new Event('gamepadconnected',{bubbles:true}));
         }
       }
     };
