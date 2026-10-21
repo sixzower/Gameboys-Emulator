@@ -327,7 +327,7 @@
       color:inherit;font:inherit;cursor:pointer}
     .gb-pad-connect-dot{width:9px;height:9px;flex:none;border-radius:50%;
       background:#22c55e;box-shadow:0 0 0 3px #22c55e20,0 0 9px #22c55e75;
-      animation:gb-pad-connected-pulse 1.2s ease-in-out infinite}
+      animation:none!important;opacity:1!important}
     @keyframes gb-pad-connected-pulse{
       0%,100%{opacity:1;box-shadow:0 0 0 3px #22c55e24,0 0 9px #22c55e85}
       50%{opacity:.38;box-shadow:0 0 0 1px #22c55e18,0 0 2px #22c55e35}
@@ -691,12 +691,14 @@
     action.className = 'gb-pad-connect-action';
     action.textContent = 'ตั้งค่าจอย';
     action.addEventListener('click',()=>{
-      const dialog = document.querySelector('dialog.controller-panel');
-      if (dialog && !dialog.open) {
-        dialog.dataset.gbUserRequested = 'true';
-        try {dialog.showModal();} catch {}
-        delete dialog.dataset.gbUserRequested;
-      }
+      // Open the site's actual settings, not the controller button tester.
+      const settings = [...document.querySelectorAll('button,a,[role="button"]')]
+        .find(el => /ตั้งค่า|settings/i.test([
+          el.getAttribute('aria-label'),el.getAttribute('title'),
+          el.textContent?.trim().slice(0,35)
+        ].join(' ')) && !toast.contains(el) &&
+          el.getClientRects().length && !el.closest('dialog:not([open])'));
+      if (settings) settings.click();
       details.hidden = true;
       trigger.setAttribute('aria-expanded','false');
       // Keep the connected indicator visible while the game is running.
@@ -706,6 +708,11 @@
     document.body.append(toast);
     let timer;
     let drag = null;
+    const dock = () => {
+      if (toast.dataset.gbMoved === 'true') return;
+      Object.assign(toast.style,{left:'auto',right:'14px',top:'auto',bottom:'max(14px,env(safe-area-inset-bottom))'});
+    };
+    dock();
     let movedRecently = false;
     trigger.addEventListener('pointerdown',event=>{
       if (event.button!==0 || !event.isPrimary) return;
@@ -720,12 +727,13 @@
       drag.moved=true;
       toast.classList.add('gb-pad-dragging');
       Object.assign(toast.style,{left:Math.max(0,Math.min(innerWidth-toast.offsetWidth,drag.left+dx))+'px',
-        top:Math.max(0,Math.min(innerHeight-toast.offsetHeight,drag.top+dy))+'px',right:'auto'});
+        top:Math.max(0,Math.min(innerHeight-toast.offsetHeight,drag.top+dy))+'px',right:'auto',bottom:'auto'});
     });
     const finish=event=>{
       if (!drag || drag.id!==event.pointerId) return;
       movedRecently=drag.moved;
       if (drag.moved) {
+        toast.dataset.gbMoved='true';
         try {localStorage.setItem('gb-pad-connect-position:v1',JSON.stringify({x:toast.offsetLeft,y:toast.offsetTop}));} catch {}
       }
       drag=null;
@@ -735,9 +743,12 @@
     for(const type of ['pointerup','pointercancel','lostpointercapture']) trigger.addEventListener(type,finish);
     try {
       const pos=JSON.parse(localStorage.getItem('gb-pad-connect-position:v1'));
-      if (Number.isFinite(pos?.x)&&Number.isFinite(pos?.y)) Object.assign(toast.style,{
-        left:Math.max(0,Math.min(innerWidth-270,pos.x))+'px',
-        top:Math.max(0,Math.min(innerHeight-50,pos.y))+'px',right:'auto'});
+      if (Number.isFinite(pos?.x)&&Number.isFinite(pos?.y)) {
+        toast.dataset.gbMoved='true';
+        Object.assign(toast.style,{
+          left:Math.max(0,Math.min(innerWidth-toast.offsetWidth,pos.x))+'px',
+          top:Math.max(0,Math.min(innerHeight-50,pos.y))+'px',right:'auto',bottom:'auto'});
+      }
     } catch {}
     const inGame = () => document.body.classList.contains('in-play') ||
       document.body.classList.contains('player-focus') ||
