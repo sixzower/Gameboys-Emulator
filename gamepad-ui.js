@@ -320,6 +320,8 @@
       box-shadow:0 12px 30px #0009;backdrop-filter:blur(12px);
       -webkit-backdrop-filter:blur(12px);font:inherit}
     .gb-pad-connect-toast[hidden]{display:none!important}
+    .gb-pad-connect-toast.gb-pad-dragging .gb-pad-connect-trigger{cursor:grabbing}
+    .gb-pad-connect-trigger{touch-action:none}
     .gb-pad-connect-trigger{width:100%;display:flex;align-items:center;gap:9px;
       text-align:left;padding:10px 12px;background:transparent;border:0;
       color:inherit;font:inherit;cursor:pointer}
@@ -811,7 +813,8 @@
     // One black connection notification; do not stack the legacy popup.
     const style = document.createElement('style');
     style.textContent = '.controller-connect-notice,.controller-connected-notice,' +
-      '.gamepad-connected-toast,.gamepad-connect-toast{display:none!important}';
+      '.gamepad-connected-toast,.gamepad-connect-toast,' +
+      'details.controller-status-panel{display:none!important}';
     document.head.append(style);
     const toast = document.createElement('div');
     toast.className = 'gb-pad-connect-toast';
@@ -839,11 +842,11 @@
     details.className = 'gb-pad-connect-details';
     details.hidden = true;
     const help = document.createElement('div');
-    help.textContent = 'จอยพร้อมใช้งาน กดปุ่ม A/B เพื่อเลือกเกม และใช้ก้านซ้ายหรือ D-pad เพื่อเลื่อนรายการ';
+    help.textContent = 'สถานะ: เชื่อมต่อแล้ว · รอรับอินพุตจากจอย';
     const action = document.createElement('button');
     action.type = 'button';
     action.className = 'gb-pad-connect-action';
-    action.textContent = 'ตั้งค่า / ทดสอบจอย';
+    action.textContent = 'ตั้งค่าจอย';
     action.addEventListener('click',()=>{
       const dialog = document.querySelector('dialog.controller-panel');
       if (dialog && !dialog.open) {
@@ -857,11 +860,46 @@
     toast.append(trigger,details);
     document.body.append(toast);
     let timer;
+    let drag = null;
+    let movedRecently = false;
+    trigger.addEventListener('pointerdown',event=>{
+      if (event.button!==0 || !event.isPrimary) return;
+      const rect = toast.getBoundingClientRect();
+      drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:rect.left,top:rect.top,moved:false};
+      try {trigger.setPointerCapture(event.pointerId);} catch {}
+    });
+    trigger.addEventListener('pointermove',event=>{
+      if (!drag || drag.id!==event.pointerId) return;
+      const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+      if (!drag.moved && Math.hypot(dx,dy)<7) return;
+      drag.moved=true;
+      toast.classList.add('gb-pad-dragging');
+      Object.assign(toast.style,{left:Math.max(0,Math.min(innerWidth-toast.offsetWidth,drag.left+dx))+'px',
+        top:Math.max(0,Math.min(innerHeight-toast.offsetHeight,drag.top+dy))+'px',right:'auto'});
+    });
+    const finish=event=>{
+      if (!drag || drag.id!==event.pointerId) return;
+      movedRecently=drag.moved;
+      if (drag.moved) {
+        try {localStorage.setItem('gb-pad-connect-position:v1',JSON.stringify({x:toast.offsetLeft,y:toast.offsetTop}));} catch {}
+      }
+      drag=null;
+      toast.classList.remove('gb-pad-dragging');
+      if (movedRecently) setTimeout(()=>{movedRecently=false;},0);
+    };
+    for(const type of ['pointerup','pointercancel','lostpointercapture']) trigger.addEventListener(type,finish);
+    try {
+      const pos=JSON.parse(localStorage.getItem('gb-pad-connect-position:v1'));
+      if (Number.isFinite(pos?.x)&&Number.isFinite(pos?.y)) Object.assign(toast.style,{
+        left:Math.max(0,Math.min(innerWidth-270,pos.x))+'px',
+        top:Math.max(0,Math.min(innerHeight-50,pos.y))+'px',right:'auto'});
+    } catch {}
     const dismiss = () => {
       clearTimeout(timer);
       timer = setTimeout(()=>{if(details.hidden) toast.hidden=true;},4500);
     };
     trigger.addEventListener('click',()=>{
+      if (movedRecently) return;
       details.hidden = !details.hidden;
       trigger.setAttribute('aria-expanded',String(!details.hidden));
       arrow.textContent = details.hidden ? '⌄' : '⌃';
@@ -873,6 +911,7 @@
           !document.body.classList.contains('player-focus') &&
           !document.fullscreenElement) return;
       name.textContent = actualName(event.gamepad).name;
+      help.textContent = 'สถานะ: เชื่อมต่อแล้ว · '+(event.gamepad.mapping==='standard'?'รองรับปุ่มมาตรฐาน':'ใช้รูปแบบปุ่มจากอุปกรณ์')+' · '+event.gamepad.buttons.length+' ปุ่ม · '+event.gamepad.axes.length+' แกน';
       details.hidden = true;
       trigger.setAttribute('aria-expanded','false');
       arrow.textContent = '⌄';
