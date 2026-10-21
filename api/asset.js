@@ -21,14 +21,47 @@ export default async function handler(req,res){
  let key;
  try{
   key=validKey(req.query.key);const asset=ASSET_PREFIXES.some(p=>key.startsWith(p));
+  // Public artwork is the hot path: one OCI GET instead of HEAD followed by GET.
+  // The Vercel edge caches successful responses, so repeat views avoid the function entirely.
+  if(asset&&req.method==='GET'){
+   let object;
+   try{
+    object=await oracle().send(new GetObjectCommand({Bucket:bucketFor(key),Key:key}),{abortSignal:AbortSignal.timeout(20000)});
+   }catch(e){
+    if(e.$metadata?.httpStatusCode===404||e.name==='NoSuchKey'||e.name==='NotFound'){
+     try{await recoverMissingAsset(key);
+      object=await oracle().send(new GetObjectCommand({Bucket:bucketFor(key),Key:key}),{abortSignal:AbortSignal.timeout(20000)});
+     }catch{}
+    }
+    if(!object)throw e;
+   }
+   const size=Number(object.ContentLength||0);
+   if(size>4*1024*1024){
+    object.Body?.destroy?.();
+    const url=await getSignedUrl(oracle(),new GetObjectCommand({Bucket:bucketFor(key),Key:key}),{expiresIn:3600});
+    res.setHeader('Cache-Control','private, no-store');return res.redirect(307,url);
+   }
+   // Buffer before sending headers: truncated origin responses can still fall back safely.
+   const body=Buffer.from(await object.Body.transformToByteArray());
+   if(!body.length||(size&&body.length!==size))throw Error('Incomplete asset');
+   res.setHeader('X-Asset-Storage','oracle');
+   res.setHeader('Cross-Origin-Resource-Policy','cross-origin');
+   res.setHeader('Cache-Control','public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400');
+   res.setHeader('Content-Type',object.ContentType||'application/octet-stream');
+   res.setHeader('X-Content-Type-Options','nosniff');
+   if(object.ETag)res.setHeader('ETag',object.ETag);
+   if(req.headers['if-none-match']&&req.headers['if-none-match']===object.ETag)return res.status(304).end();
+   res.setHeader('Content-Length',String(body.length));
+   return res.status(200).send(body);
+  }
+  // HEAD requests and private ROM/download objects retain the existing verification path.
   let head;try{head=await objectHead(key);}catch(e){if(!asset)throw e;}
   if(!head&&asset){try{head=await recoverMissingAsset(key);}catch{}}
   if(!head){
-   // Missing copies must not make the existing website blank. Retain the source and retry Oracle soon.
-   res.setHeader('Cache-Control','public, max-age=15, s-maxage=15');res.setHeader('X-Asset-Storage','supabase-fallback');return res.redirect(307,sourceUrl(key));
+   res.setHeader('Cache-Control','public, max-age=15, s-maxage=15');
+   res.setHeader('X-Asset-Storage','supabase-fallback');return res.redirect(307,sourceUrl(key));
   }
   res.setHeader('X-Asset-Storage','oracle');res.setHeader('Cross-Origin-Resource-Policy','cross-origin');
-  // Large downloads go directly to Object Storage; preserve Range and avoid Vercel's body limit.
   if(!asset||Number(head.ContentLength)>4*1024*1024){
    const url=await getSignedUrl(oracle(),new GetObjectCommand({Bucket:bucketFor(key),Key:key}),{expiresIn:3600});
    res.setHeader('Cache-Control','private, max-age=0, no-store');return res.redirect(307,url);
@@ -36,12 +69,10 @@ export default async function handler(req,res){
   res.setHeader('Cache-Control','public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400');
   if(head.ETag)res.setHeader('ETag',head.ETag);
   if(req.headers['if-none-match']&&req.headers['if-none-match']===head.ETag)return res.status(304).end();
-  res.setHeader('Content-Type',head.ContentType||'application/octet-stream');res.setHeader('X-Content-Type-Options','nosniff');
-  if(req.method==='HEAD'){res.setHeader('Content-Length',String(head.ContentLength));return res.status(200).end();}
-  const object=await oracle().send(new GetObjectCommand({Bucket:bucketFor(key),Key:key}),{abortSignal:AbortSignal.timeout(20000)});
-  // Fully receive only small assets before sending headers, so errors return a source fallback rather than truncated images.
-  const body=Buffer.from(await object.Body.transformToByteArray());if(body.length!==Number(head.ContentLength))throw Error('Incomplete asset');
-  res.setHeader('Content-Length',String(body.length));return res.status(200).send(body);
+  res.setHeader('Content-Type',head.ContentType||'application/octet-stream');
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('Content-Length',String(head.ContentLength));
+  return res.status(200).end();
  }catch(error){
   if(key&&ASSET_PREFIXES.some(p=>key.startsWith(p))&&!res.headersSent){res.setHeader('Cache-Control','no-store');res.setHeader('X-Asset-Storage','supabase-fallback');return res.redirect(307,sourceUrl(key));}
   res.setHeader('Cache-Control','no-store');return res.status(error.status||502).json({error:'Unable to read asset'});
