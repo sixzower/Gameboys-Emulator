@@ -697,7 +697,7 @@
       }
       details.hidden = true;
       trigger.setAttribute('aria-expanded','false');
-      toast.hidden = true;
+      // Keep the connected indicator visible while the game is running.
     });
     details.append(help,action);
     toast.append(trigger,details);
@@ -737,35 +737,41 @@
         left:Math.max(0,Math.min(innerWidth-270,pos.x))+'px',
         top:Math.max(0,Math.min(innerHeight-50,pos.y))+'px',right:'auto'});
     } catch {}
-    const dismiss = () => {
-      clearTimeout(timer);
-      timer = setTimeout(()=>{if(details.hidden) toast.hidden=true;},4500);
+    const inGame = () => document.body.classList.contains('in-play') ||
+      document.body.classList.contains('player-focus') ||
+      !!document.fullscreenElement ||
+      !!document.querySelector('#playerHeader:not([hidden])') &&
+        getComputedStyle(document.querySelector('#playerHeader:not([hidden])')).display !== 'none';
+    const refresh = () => {
+      const pad = pads()[0];
+      const show = !!pad && inGame();
+      toast.hidden = !show;
+      if (!show) {
+        details.hidden = true;
+        trigger.setAttribute('aria-expanded','false');
+        arrow.textContent = '⌄';
+      } else {
+        const info = actualName(pad);
+        name.textContent = info.name;
+        help.textContent = 'สถานะ: เชื่อมต่อแล้ว · ' +
+          (pad.mapping === 'standard' ? 'รองรับปุ่มมาตรฐาน' : 'รูปแบบปุ่มจากอุปกรณ์') +
+          ' · ' + pad.buttons.length + ' ปุ่ม · ' + pad.axes.length + ' แกน';
+      }
     };
     trigger.addEventListener('click',()=>{
       if (movedRecently) return;
       details.hidden = !details.hidden;
       trigger.setAttribute('aria-expanded',String(!details.hidden));
       arrow.textContent = details.hidden ? '⌄' : '⌃';
-      clearTimeout(timer);
-      if (details.hidden) dismiss();
+      refresh();
     });
-    window.addEventListener('gamepadconnected',event=>{
-      if (!document.body.classList.contains('in-play') &&
-          !document.body.classList.contains('player-focus') &&
-          !document.fullscreenElement) return;
-      name.textContent = actualName(event.gamepad).name;
-      help.textContent = 'สถานะ: เชื่อมต่อแล้ว · '+(event.gamepad.mapping==='standard'?'รองรับปุ่มมาตรฐาน':'ใช้รูปแบบปุ่มจากอุปกรณ์')+' · '+event.gamepad.buttons.length+' ปุ่ม · '+event.gamepad.axes.length+' แกน';
-      details.hidden = true;
-      trigger.setAttribute('aria-expanded','false');
-      arrow.textContent = '⌄';
-      toast.hidden = false;
-      dismiss();
-    });
-    window.addEventListener('gamepaddisconnected',()=>{
-      toast.hidden = true;
-      details.hidden = true;
-      clearTimeout(timer);
-    });
+    window.addEventListener('gamepadconnected',refresh);
+    window.addEventListener('gamepaddisconnected',refresh);
+    document.addEventListener('fullscreenchange',refresh);
+    const observer = new MutationObserver(refresh);
+    observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+    setInterval(refresh,450);
+    refresh();
   }
   function init() {
     if (!document.body) return;
