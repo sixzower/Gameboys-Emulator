@@ -214,6 +214,30 @@
       dialog.controller-panel .controller-test span{transition:none}
     }
   `;
+
+  testerStyle.textContent += `
+    .gb-pad-disconnect-toast{
+      position:fixed;z-index:2147483007;left:50%;bottom:max(24px,env(safe-area-inset-bottom));
+      transform:translateX(-50%);box-sizing:border-box;display:flex;align-items:center;gap:11px;
+      width:max-content;max-width:min(370px,calc(100vw - 28px));padding:12px 15px;
+      border:1px solid color-mix(in srgb,var(--accent,#f3a64c) 42%,#ffffff20);
+      border-radius:14px;background:linear-gradient(130deg,var(--card,#252124),var(--panel,#1a1b20));
+      color:var(--text,#f4f4f8);box-shadow:0 18px 55px #000a,inset 0 1px #ffffff14;
+      font:inherit;pointer-events:none;backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px)
+    }
+    .gb-pad-disconnect-toast[hidden]{display:none!important}
+    .gb-pad-disconnect-icon{flex:none;display:grid;place-items:center;width:37px;height:37px;
+      border-radius:11px;border:1px solid color-mix(in srgb,var(--accent,#f3a64c) 35%,transparent);
+      background:color-mix(in srgb,var(--accent,#f3a64c) 12%,transparent);
+      color:var(--accent,#f3a64c)}
+    .gb-pad-disconnect-icon svg{width:22px;height:22px}
+    .gb-pad-disconnect-copy{min-width:0;flex:1}
+    .gb-pad-disconnect-title{font-size:12px;font-weight:800;line-height:1.5}
+    .gb-pad-disconnect-name{font-size:12px;font-weight:700;line-height:1.5;
+      overflow-wrap:anywhere}
+    .gb-pad-disconnect-sub{font-size:10px;opacity:.7;line-height:1.5;margin-top:2px}
+    @media(max-width:480px){.gb-pad-disconnect-toast{padding:10px 12px;gap:9px}}
+  `;
   document.head.appendChild(testerStyle);
 
   // The Gamepad API may expose only an emulated XInput identity. The browser
@@ -422,8 +446,70 @@
     });
     return true;
   }
+
+  // The built-in emulator popup displays the raw XInput ID. Suppress that
+  // duplicate and show one themed notice using the same saved identity.
+  function initDisconnectNotice() {
+    const toast = document.createElement('div');
+    toast.className = 'gb-pad-disconnect-toast';
+    toast.hidden = true;
+    toast.setAttribute('role','status');
+    toast.setAttribute('aria-live','polite');
+    const emblem = document.createElement('span');
+    emblem.className = 'gb-pad-disconnect-icon';
+    emblem.innerHTML = controllerIcon;
+    const copy = document.createElement('div');
+    copy.className = 'gb-pad-disconnect-copy';
+    const title = document.createElement('div');
+    title.className = 'gb-pad-disconnect-title';
+    title.textContent = 'จอยยกเลิกการเชื่อมต่อ';
+    const name = document.createElement('div');
+    name.className = 'gb-pad-disconnect-name';
+    const sub = document.createElement('div');
+    sub.className = 'gb-pad-disconnect-sub';
+    sub.textContent = 'ตรวจสอบ Bluetooth หรือสายเชื่อมต่อ';
+    copy.append(title,name,sub);
+    toast.append(emblem,copy);
+    document.body.append(toast);
+    let timer = null;
+    let last = new Map();
+    function record() {
+      for (const pad of pads()) last.set(pad.index,{id:pad.id});
+    }
+    function show(pad) {
+      if (!pad?.id) return;
+      const info = actualName(pad);
+      name.textContent = info.name;
+      toast.hidden = false;
+      clearTimeout(timer);
+      timer = setTimeout(()=>{toast.hidden=true;},4100);
+      // The old notification has no stable device identity, so hide only
+      // that notification; leave controller HUD and tester untouched.
+      for (const old of document.querySelectorAll('.controller-disconnect-notice')) {
+        old.style.setProperty('display','none','important');
+      }
+    }
+    record();
+    window.addEventListener('gamepadconnected',record);
+    window.addEventListener('gamepaddisconnected',event=>{
+      const remembered = last.get(event.gamepad?.index);
+      const disconnected = event.gamepad?.id ? event.gamepad : remembered;
+      show(disconnected);
+      last.delete(event.gamepad?.index);
+    });
+    // Legacy code may insert its own popup after our event handler.
+    const observer = new MutationObserver(()=>{
+      for (const old of document.querySelectorAll('.controller-disconnect-notice'))
+        old.style.setProperty('display','none','important');
+    });
+    observer.observe(document.body,{childList:true,subtree:true});
+    const previous = document.createElement('style');
+    previous.textContent = '.controller-disconnect-notice{display:none!important}';
+    document.head.append(previous);
+  }
   function init() {
     if (!document.body) return;
+    initDisconnectNotice();
     const check = () => {
       const a = enhanceRightPanel();
       const b = enhanceClassicTester();
