@@ -99,6 +99,10 @@
     dialog.controller-panel .controller-picker{min-height:39px;padding:8px 11px;
       border-radius:10px;border:1px solid #ffffff30;background:var(--card,#28252a);
       color:var(--text,#fff);font-size:12px}
+    dialog.controller-panel .controller-status[data-real-name]{font-size:0!important}
+    dialog.controller-panel .controller-status[data-real-name]::after{
+      content:attr(data-real-name);font-size:12px;line-height:1.5
+    }
     dialog.controller-panel .controller-status{margin:11px 0;padding:10px 11px;
       border-radius:10px;background:#ffffff0b;border-left:3px solid var(--accent,#f3a64c);
       line-height:1.5;font-size:12px}
@@ -266,7 +270,10 @@
     edit.addEventListener('click',()=>{
       editor.hidden = !editor.hidden;
       if (!editor.hidden) {
-        field.value = activePad ? actualName(activePad).name : '';
+        const current = activePad ? actualName(activePad) : null;
+        field.value = current ? (current.custom ? current.name :
+          /Xbox 360 Controller for Windows/i.test(current.raw) ?
+          '8BitDo Ultimate 2 Wireless Controller for PC' : current.name) : '';
         field.focus();
         field.select();
       }
@@ -401,7 +408,9 @@
       }
       // Existing status text is updated every frame by the emulator;
       // the picker and compact status widget show the user-saved real name.
-      if (status) status.title = info.name;
+      if (status) {status.title = info.name;status.dataset.realName = info.name +
+        (selected.mapping === 'standard' ? ' · พร้อมใช้งาน' : ' · รูปแบบเฉพาะ');
+        status.setAttribute('aria-label',status.dataset.realName);}
     }
     const timer = setInterval(()=>{
       if (!document.contains(dialog)) {clearInterval(timer);return;}
