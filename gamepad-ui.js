@@ -351,163 +351,6 @@
   // The Gamepad API may expose only an emulated XInput identity. The browser
   // cannot recover the physical 8BitDo model from "Xbox 360 Controller".
   // Let the owner explicitly save the driver-reported name for that ID.
-  function enhanceRightPanel() {
-    const panel = document.querySelector('details.controller-status-panel');
-    if (!panel || panel.classList.contains('gb-pad-refined')) return !!panel;
-    panel.classList.add('gb-pad-refined');
-    const summary = panel.querySelector(':scope>summary');
-    const body = panel.querySelector('.controller-status-body');
-    // Status-only indicator: no renaming controls or signal detail UI.
-    panel.removeAttribute('open');
-    if (!summary || !body) return true;
-    const name = document.createElement('div');
-    name.className = 'gb-pad-real-name';
-    const description = document.createElement('div');
-    description.className = 'gb-pad-description';
-    const tools = document.createElement('div');
-    tools.className = 'gb-pad-tools';
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.className = 'gb-pad-edit';
-    edit.textContent = 'แก้ชื่อจอย';
-    edit.hidden = true;
-    const editor = document.createElement('form');
-    editor.className = 'gb-pad-editor';
-    editor.hidden = true;
-    const field = document.createElement('input');
-    field.type = 'text';
-    field.maxLength = 120;
-    field.setAttribute('aria-label','ชื่อรุ่นจอยจริง');
-    field.placeholder = 'เช่น 8BitDo Ultimate 2 Wireless Controller for PC';
-    const save = document.createElement('button');
-    save.type = 'submit';
-    save.textContent = 'บันทึกชื่อ';
-    const reset = document.createElement('button');
-    reset.type = 'button';
-    reset.textContent = 'ใช้ชื่อจากระบบ';
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap';
-    actions.append(save,reset);
-    editor.append(field,actions);
-    tools.append(edit);
-    const more = document.createElement('details');
-    more.className = 'gb-pad-more';
-    const moreTitle = document.createElement('summary');
-    moreTitle.textContent = 'รายละเอียดสัญญาณจอย';
-    more.append(moreTitle);
-    for (const selector of ['[data-pad-name]','[data-pad-mapping]','[data-pad-buttons]','[data-pad-axes]','small']) {
-      const node = body.querySelector(selector);
-      if (node) more.append(node);
-    }
-    body.prepend(name,description,tools,editor);
-    body.append(more);
-    let activePad = null;
-    edit.addEventListener('click',()=>{
-      editor.hidden = !editor.hidden;
-      if (!editor.hidden) {
-        const current = activePad ? actualName(activePad) : null;
-        field.value = current ? (current.custom ? current.name :
-          /Xbox 360 Controller for Windows/i.test(current.raw) ?
-          '8BitDo Ultimate 2 Wireless Controller for PC' : current.name) : '';
-        field.focus();
-        field.select();
-      }
-    });
-    editor.addEventListener('submit',event=>{
-      event.preventDefault();
-      if (!activePad) return;
-      const text = field.value.trim();
-      if (!text) {field.focus();return;}
-      overrides[activePad.id] = text;
-      try {localStorage.setItem(nameKey,JSON.stringify(overrides));} catch {}
-      editor.hidden = true;
-      updateName();
-    });
-    reset.addEventListener('click',()=>{
-      if (!activePad) return;
-      delete overrides[activePad.id];
-      try {localStorage.setItem(nameKey,JSON.stringify(overrides));} catch {}
-      editor.hidden = true;
-      updateName();
-    });
-    function updateName() {
-      const list = pads();
-      // The built-in panel chooses the most recently active pad.
-      const rawSummary = summary.textContent || '';
-      activePad = list.find(p => rawSummary.includes(p.id)) || list[0] || null;
-      if (!activePad) {
-        summary.dataset.display = 'จอยยังไม่เชื่อมต่อ';
-        name.textContent = 'ไม่มีจอย';
-        description.textContent = '';
-        return;
-      }
-      const info = actualName(activePad);
-      summary.dataset.display = info.name;
-      summary.title = info.name + ' · ลากเพื่อย้าย';
-      summary.setAttribute('aria-label',info.name + ' แตะเพื่อขยายรายละเอียด หรือลากเพื่อย้าย');
-      name.textContent = info.name;
-      description.textContent = info.custom ? 'ชื่อรุ่นที่บันทึกไว้ · เชื่อมต่อแล้ว' :
-        (info.source + ' · เชื่อมต่อแล้ว');
-      if (!info.custom && /Xbox 360 Controller for Windows/i.test(info.raw)) {
-        description.textContent = 'เบราว์เซอร์รายงานชื่อ XInput · แก้ชื่อให้ตรงรุ่นได้';
-      }
-    }
-    const observer = new MutationObserver(()=>{
-      updateName();
-      requestAnimationFrame(place);
-    });
-    observer.observe(summary,{childList:true,characterData:true,subtree:true});
-    observer.observe(panel,{attributes:true,attributeFilter:['hidden','open']});
-    function place() {
-      if (!savedPosition || panel.hidden) return;
-      const rect = panel.getBoundingClientRect();
-      const x = Math.max(0,Math.min(savedPosition.x,Math.max(0,innerWidth-rect.width)));
-      const y = Math.max(0,Math.min(savedPosition.y,Math.max(0,innerHeight-rect.height)));
-      Object.assign(panel.style,{left:x+'px',top:y+'px',right:'auto',bottom:'auto'});
-    }
-    let drag = null, suppress = false;
-    summary.addEventListener('pointerdown',event=>{
-      if (event.button !== 0 || !event.isPrimary) return;
-      const rect = panel.getBoundingClientRect();
-      drag = {id:event.pointerId,px:event.clientX,py:event.clientY,
-        x:rect.left,y:rect.top,moved:false};
-      try {summary.setPointerCapture(event.pointerId);} catch {}
-    });
-    summary.addEventListener('pointermove',event=>{
-      if (!drag || drag.id !== event.pointerId) return;
-      const dx = event.clientX-drag.px,dy=event.clientY-drag.py;
-      if (!drag.moved && Math.hypot(dx,dy)<7) return;
-      drag.moved = true;
-      suppress = true;
-      panel.classList.add('gb-pad-dragging');
-      savedPosition = {x:drag.x+dx,y:drag.y+dy};
-      place();
-    });
-    function finish(event) {
-      if (!drag || drag.id !== event.pointerId) return;
-      const moved = drag.moved;
-      drag = null;
-      panel.classList.remove('gb-pad-dragging');
-      if (moved) {
-        const rect = panel.getBoundingClientRect();
-        savedPosition = {x:rect.left,y:rect.top};
-        try {localStorage.setItem(positionKey,JSON.stringify(savedPosition));} catch {}
-        setTimeout(()=>{suppress=false;},0);
-      }
-    }
-    for (const type of ['pointerup','pointercancel','lostpointercapture'])
-      summary.addEventListener(type,finish);
-    summary.addEventListener('click',event=>{
-      if (suppress) {event.preventDefault();event.stopImmediatePropagation();}
-    },true);
-    window.addEventListener('resize',place,{passive:true});
-    window.addEventListener('orientationchange',place,{passive:true});
-    document.addEventListener('fullscreenchange',()=>requestAnimationFrame(place));
-    document.addEventListener('webkitfullscreenchange',()=>requestAnimationFrame(place));
-    updateName();
-    return true;
-  }
-
   function isPlaying() {
     return document.body.classList.contains('in-play') ||
       document.body.classList.contains('player-focus') ||
@@ -814,7 +657,7 @@
     const style = document.createElement('style');
     style.textContent = '.controller-connect-notice,.controller-connected-notice,' +
       '.gamepad-connected-toast,.gamepad-connect-toast,' +
-      'details.controller-status-panel{display:none!important}';
+      '.controller-status-panel{display:none!important}';
     document.head.append(style);
     const toast = document.createElement('div');
     toast.className = 'gb-pad-connect-toast';
@@ -930,14 +773,17 @@
     initCompactConnectNotice();
     initLibraryGamepadNavigation();
     initMobileLandscape();
-    const check = () => {
-      const a = enhanceRightPanel();
-      const b = enhanceClassicTester();
-      return a && b;
+    const removeLegacyStatus = () => {
+      document.querySelectorAll('details.controller-status-panel').forEach(el=>el.remove());
     };
-    if (check()) return;
+    removeLegacyStatus();
+    const check = () => {
+      removeLegacyStatus();
+      return enhanceClassicTester();
+    };
+    check();
     const observer = new MutationObserver(()=>{
-      if (check()) observer.disconnect();
+      check();
     });
     observer.observe(document.body,{childList:true,subtree:true});
   }
