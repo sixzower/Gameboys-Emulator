@@ -319,6 +319,15 @@
       border:1px solid #343b44;background:#11151bf5;color:#f4f7fa;
       box-shadow:0 12px 30px #0009;backdrop-filter:blur(12px);
       -webkit-backdrop-filter:blur(12px);font:inherit}
+    .gb-pad-connect-toast.gb-pad-minimized{width:52px;height:52px;border-radius:50%;overflow:visible}
+    .gb-pad-minimized .gb-pad-connect-trigger{width:52px;height:52px;border-radius:50%;padding:0;justify-content:center}
+    .gb-pad-minimized .gb-pad-connect-copy,.gb-pad-minimized .gb-pad-connect-dot{display:none}
+    .gb-pad-connect-game-icon{display:none;width:26px;height:26px;flex:none;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .gb-pad-minimized .gb-pad-connect-game-icon{display:block}
+    .gb-pad-connect-mini-led{display:none;position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #11151b;box-sizing:content-box;box-shadow:0 0 7px #22c55e99;pointer-events:none}
+    .gb-pad-minimized .gb-pad-connect-mini-led{display:block;animation:gb-pad-mini-blink 1.2s ease-in-out infinite}
+    @keyframes gb-pad-mini-blink{0%,100%{opacity:1;box-shadow:0 0 8px #22c55eaa}50%{opacity:.3;box-shadow:0 0 2px #22c55e33}}
+    @media(prefers-reduced-motion:reduce){.gb-pad-connect-mini-led{animation:none!important}}
     .gb-pad-connect-toast[hidden]{display:none!important}
     .gb-pad-connect-toast.gb-pad-dragging .gb-pad-connect-trigger{cursor:grabbing}
     .gb-pad-connect-trigger{touch-action:none}
@@ -666,7 +675,9 @@
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'gb-pad-connect-trigger';
-    trigger.setAttribute('aria-expanded','false');
+    trigger.setAttribute('aria-expanded','true');
+    trigger.setAttribute('aria-label','ย่อช่องสถานะจอย');
+    trigger.title = 'กดเพื่อย่อหรือขยายสถานะจอย ลากเพื่อย้ายตำแหน่ง';
     const dot = document.createElement('span');
     dot.className = 'gb-pad-connect-dot';
     const copy = document.createElement('div');
@@ -677,8 +688,15 @@
     const name = document.createElement('div');
     name.className = 'gb-pad-connect-name';
     copy.append(heading,name);
-    trigger.append(dot,copy);
-    toast.append(trigger);
+    const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    icon.setAttribute('viewBox','0 0 24 24');
+    icon.setAttribute('aria-hidden','true');
+    icon.classList.add('gb-pad-connect-game-icon');
+    icon.innerHTML = '<path d="M6.5 8h11a4 4 0 0 1 3.9 3.1l1.1 5a2.2 2.2 0 0 1-3.5 2.2L16.5 16h-9l-2.5 2.3a2.2 2.2 0 0 1-3.5-2.2l1.1-5A4 4 0 0 1 6.5 8Z"/><path d="M7 11v4m-2-2h4"/><circle cx="16" cy="11.8" r=".8"/><circle cx="18.5" cy="14" r=".8"/>';
+    const miniLed = document.createElement('span');
+    miniLed.className = 'gb-pad-connect-mini-led';
+    trigger.append(dot,copy,icon);
+    toast.append(trigger,miniLed);
     document.body.append(toast);
     let drag = null;
     const dock = () => {
@@ -687,6 +705,15 @@
     };
     dock();
     let movedRecently = false;
+    const setMinimized = value => {
+      toast.classList.toggle('gb-pad-minimized',value);
+      trigger.setAttribute('aria-expanded',String(!value));
+      trigger.setAttribute('aria-label',value?'ขยายช่องสถานะจอย':'ย่อช่องสถานะจอย');
+    };
+    trigger.addEventListener('click',()=>{
+      if (movedRecently) return;
+      setMinimized(!toast.classList.contains('gb-pad-minimized'));
+    });
     trigger.addEventListener('pointerdown',event=>{
       if (event.button!==0 || !event.isPrimary) return;
       const rect = toast.getBoundingClientRect();
@@ -733,14 +760,17 @@
       if (show) {
         const info = actualName(pad);
         name.textContent = info.name;
-        help.textContent = 'สถานะ: เชื่อมต่อแล้ว · ' +
-          (pad.mapping === 'standard' ? 'รองรับปุ่มมาตรฐาน' : 'รูปแบบปุ่มจากอุปกรณ์') +
-          ' · ' + pad.buttons.length + ' ปุ่ม · ' + pad.axes.length + ' แกน';
       }
     };
     window.addEventListener('gamepadconnected',refresh);
     window.addEventListener('gamepaddisconnected',refresh);
-    document.addEventListener('fullscreenchange',refresh);
+    let previousFullscreen = !!document.fullscreenElement;
+    document.addEventListener('fullscreenchange',()=>{
+      const nowFullscreen = !!document.fullscreenElement;
+      if (previousFullscreen && !nowFullscreen) dock();
+      previousFullscreen = nowFullscreen;
+      refresh();
+    });
     const observer = new MutationObserver(refresh);
     observer.observe(document.body,{attributes:true,attributeFilter:['class']});
     setInterval(refresh,450);
