@@ -309,16 +309,18 @@ if(introStart>=0&&introEnd>introStart){
   const urls=[...(rows.length?rows.map(r=>publicUrl(r.image_path)):DEFAULT_MARQUEE_IMAGES)].filter(Boolean);
   for(let i=urls.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[urls[i],urls[j]]=[urls[j],urls[i]];}
   const cols=[[],[],[],[]];urls.forEach((src,i)=>cols[i%4].push(src));
-  const firstFrame=[];
+  const initialCovers=[];
   cols.forEach((list,i)=>{
     const col=document.createElement('div');col.className='intro-col c'+(i+1);
     const frag=document.createDocumentFragment();
     [...list,...list].forEach((src,k)=>{
       const img=document.createElement('img');img.crossOrigin='anonymous';
       img.loading='eager';img.decoding='async';img.alt='';img.draggable=false;
-      // Only the first three covers per row need priority for initial painting.
-      const priority=k<3;img.fetchPriority=priority?'high':'low';
-      if(priority)firstFrame.push(new Promise(resolve=>{
+      // Preload one full unique image set per row before revealing the wall.
+      // Duplicates reuse the browser cache; keep transfer priority fair.
+      const priority=k<Math.min(6,list.length);
+      img.fetchPriority=priority?'high':'auto';
+      if(k<list.length)initialCovers.push(new Promise(resolve=>{
         img.addEventListener('load',resolve,{once:true});
         img.addEventListener('error',resolve,{once:true});
       }));
@@ -326,8 +328,9 @@ if(introStart>=0&&introEnd>introStart){
     });
     col.appendChild(frag);grid.appendChild(col);
   });
-  // A synchronized initial fade without waiting for all offscreen covers.
-  await Promise.race([Promise.all(firstFrame),new Promise(resolve=>setTimeout(resolve,1200))]);
+  // Reveal together rather than letting each visible cover appear one by one.
+  // A bounded fallback avoids blocking entry when an image server stalls.
+  await Promise.race([Promise.all(initialCovers),new Promise(resolve=>setTimeout(resolve,8000))]);
   grid.classList.add('ready');
 }
 `;
