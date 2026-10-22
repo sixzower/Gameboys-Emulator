@@ -305,34 +305,40 @@ if(introStart>=0&&introEnd>introStart){
  const introFast=`async function buildIntroMarquee(){
   const grid=document.getElementById('introGrid');
   if(!grid)return;
-  grid.classList.remove('ready');grid.replaceChildren();
+  grid.classList.remove('ready');
   const rows=await fetchMarqueeRows();
-  const urls=[...(rows.length?rows.map(r=>publicUrl(r.image_path)):DEFAULT_MARQUEE_IMAGES)].filter(Boolean);
+  const urls=[...new Set((rows.length?rows.map(r=>publicUrl(r.image_path)):DEFAULT_MARQUEE_IMAGES).filter(Boolean))];
   for(let i=urls.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[urls[i],urls[j]]=[urls[j],urls[i]];}
+  // Fetch each distinct source just once before building the doubled marquee.
+  // This prevents the offscreen duplicate columns from competing with
+  // visible images for bandwidth on slower mobile connections.
+  const decoded=new Map();
+  const preload=urls.map((url,i)=>new Promise(resolve=>{
+    const img=new Image();
+    img.decoding='async';
+    img.fetchPriority=i<20?'high':'auto';
+    let done=false;
+    const finish=()=>{if(done)return;done=true;decoded.set(url,img.complete&&img.naturalWidth>0);resolve();};
+    img.onload=()=>{if(img.decode)img.decode().catch(()=>{}).then(finish);else finish();};
+    img.onerror=finish;
+    img.src=url;
+    if(img.complete)finish();
+  }));
+  await Promise.race([Promise.all(preload),new Promise(resolve=>setTimeout(resolve,6500))]);
   const cols=[[],[],[],[]];urls.forEach((src,i)=>cols[i%4].push(src));
-  const initialCovers=[];
+  const fragment=document.createDocumentFragment();
   cols.forEach((list,i)=>{
     const col=document.createElement('div');col.className='intro-col c'+(i+1);
-    const frag=document.createDocumentFragment();
-    [...list,...list].forEach((src,k)=>{
-      const img=document.createElement('img');img.crossOrigin='anonymous';
+    const pictures=document.createDocumentFragment();
+    [...list,...list].forEach(src=>{
+      const img=document.createElement('img');
       img.loading='eager';img.decoding='async';img.alt='';img.draggable=false;
-      // Preload one full unique image set per row before revealing the wall.
-      // Duplicates reuse the browser cache; keep transfer priority fair.
-      const priority=k<Math.min(6,list.length);
-      img.fetchPriority=priority?'high':'auto';
-      if(k<list.length)initialCovers.push(new Promise(resolve=>{
-        img.addEventListener('load',resolve,{once:true});
-        img.addEventListener('error',resolve,{once:true});
-      }));
-      img.src=src;frag.appendChild(img);
+      img.fetchPriority='auto';img.src=src;pictures.appendChild(img);
     });
-    col.appendChild(frag);grid.appendChild(col);
+    col.appendChild(pictures);fragment.appendChild(col);
   });
-  // Reveal together rather than letting each visible cover appear one by one.
-  // A bounded fallback avoids blocking entry when an image server stalls.
-  await Promise.race([Promise.all(initialCovers),new Promise(resolve=>setTimeout(resolve,8000))]);
-  grid.classList.add('ready');
+  grid.replaceChildren(fragment);
+  requestAnimationFrame(()=>grid.classList.add('ready'));
 }
 `;
  bundledPage=bundledPage.slice(0,introStart)+introFast+bundledPage.slice(introEnd);
