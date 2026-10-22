@@ -393,54 +393,53 @@ function routeOracleAssets(page){
       "    uploadJob.fraction=0.98;document.getElementById('romUploadProgressBar').value=0.98;if(isFileOperation)UploadFloat.set(uploadJob);\n    try{await renderLibrary();}catch(error){");
  once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
       "    modalBg.classList.remove('show');resetModalToAdd();\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
- // Marquee editor: visual progress UI around existing resize/upload/save steps.
- // Network adapter exposes no byte progress, so upload uses indeterminate motion
- // rather than a misleading percentage. No storage or database APIs changed.
- once("document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{",
- `function gbMarqueeProgress(){
-  let box=document.getElementById('gbMarqueeProgress');
-  if(!box){
-   box=document.createElement('div');box.id='gbMarqueeProgress';box.setAttribute('role','status');box.setAttribute('aria-live','polite');
-   box.innerHTML='<div class="gb-marquee-progress-title">กำลังอัปโหลดรูปภาพ</div><div class="gb-marquee-progress-detail"></div><div class="gb-marquee-track"><div class="gb-marquee-fill"></div></div>';
-   const input=document.getElementById('marqueeImgFile');
-   const host=input?.closest('.modal')||document.getElementById('imgModalBg')||input?.parentElement;
-   if(host)host.appendChild(box);
-  }
-  return {box,detail:box.querySelector('.gb-marquee-progress-detail'),fill:box.querySelector('.gb-marquee-fill')};
- }
- document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{`);
- once("  for(const f of files){\\n    try{\\n      const blob=await resizeImageFileToBlob(f);",
- `  const progress=gbMarqueeProgress();progress.box.hidden=!files.length;
-  let imageNumber=0;
-  for(const f of files){
-    imageNumber++;
-    const caption='รูป '+imageNumber+'/'+files.length+' · ';
-    progress.box.classList.remove('gb-marquee-busy');
-    progress.fill.style.width='12%';progress.detail.textContent=caption+'กำลังเตรียมรูปภาพ';
-    try{
-      const blob=await resizeImageFileToBlob(f);
-      progress.fill.style.width='35%';progress.detail.textContent=caption+'กำลังส่งรูปภาพไปยังเซิร์ฟเวอร์';
-      progress.box.classList.add('gb-marquee-busy');`);
- once("      const path=await uploadToLibrary(blob,'marquee','jpg');",
-      "      const path=await uploadToLibrary(blob,'marquee','jpg');\\n      progress.box.classList.remove('gb-marquee-busy');progress.fill.style.width='90%';progress.detail.textContent=caption+'กำลังบันทึกลงคลังภาพ';");
- once("      stagedImages.push(data);\\n      renderThumbs();",
-      "      stagedImages.push(data);\\n      renderThumbs();\\n      progress.fill.style.width='100%';progress.detail.textContent=caption+'อัปโหลดและบันทึกสำเร็จ';");
- once("    }catch(err){ console.warn('upload failed', err); alert(",
-      "    }catch(err){progress.box.classList.remove('gb-marquee-busy');progress.detail.textContent=caption+'อัปโหลดไม่สำเร็จ'; console.warn('upload failed', err); alert(");
- once("  e.target.value='';\\n  marqueeImgFileNameEl.textContent=FILE_PICKER_EMPTY;",
-      "  progress.box.classList.remove('gb-marquee-busy');\\n  e.target.value='';\\n  marqueeImgFileNameEl.textContent=FILE_PICKER_EMPTY;");
- page=page.replace('</head>',`<style id="gb-marquee-upload-progress-style">
-#gbMarqueeProgress{margin:14px 0;padding:13px 14px;background:var(--card,#242424);border:1px solid var(--border,#555);border-radius:12px;color:var(--text,#fff)}
-#gbMarqueeProgress[hidden]{display:none!important}
-.gb-marquee-progress-title{font-size:14px;font-weight:700;margin-bottom:5px}
-.gb-marquee-progress-detail{font-size:12px;color:var(--muted,#bdbdbd);margin-bottom:9px}
-.gb-marquee-track{height:8px;border-radius:999px;background:#6b6b6b44;overflow:hidden}
-.gb-marquee-fill{height:100%;width:0;background:var(--accent,#e3350d);border-radius:999px;transition:width .24s ease}
-.gb-marquee-busy .gb-marquee-fill{width:55%!important;animation:gbMarqueeUploading 1.45s ease-in-out infinite alternate}
-@keyframes gbMarqueeUploading{from{transform:translateX(-30%) scaleX(.6);opacity:.65}to{transform:translateX(105%) scaleX(.85);opacity:1}}
-@media(prefers-reduced-motion:reduce){.gb-marquee-busy .gb-marquee-fill{animation:none;width:60%!important}}
-</style></head>`);
 
+ // One theme-consistent progress panel for front-page scrolling images and game covers.
+ // Upload adapters do not expose byte-level progress; show explicit stage progress.
+ const commonStyle=`<style id="gb-image-progress-style">
+.gb-image-upload-progress{margin:12px 0;padding:12px 14px;border:1px solid var(--border,#555);border-radius:12px;background:var(--card,#242424);color:var(--text,#fff)}
+.gb-image-upload-progress[hidden]{display:none!important}
+.gb-image-upload-progress strong{display:block;font-size:13px;margin-bottom:5px}
+.gb-image-upload-progress .gb-image-progress-detail{font-size:12px;color:var(--muted,var(--sub,#bbb));margin-bottom:9px}
+.gb-image-upload-progress progress{display:block;width:100%;height:9px;accent-color:var(--accent,#e3350d)}
+.gb-image-upload-progress .gb-image-progress-foot{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--muted,var(--sub,#bbb))}
+</style>`;
+ page=page.replace('</head>',commonStyle+'</head>');
+ const helper=`function gbImageProgress(kind,percent,label){
+  const id=kind==='marquee'?'gbMarqueeProgress':'gbCoverProgress';
+  let box=document.getElementById(id);
+  if(!box){
+    box=document.createElement('section');box.id=id;box.className='gb-image-upload-progress';box.setAttribute('role','status');box.setAttribute('aria-live','polite');
+    box.innerHTML='<strong></strong><div class="gb-image-progress-detail"></div><progress max="100" value="0"></progress><div class="gb-image-progress-foot"><span>ความคืบหน้าการดำเนินการ</span><span class="gb-image-progress-pct">0%</span></div>';
+    const input=document.getElementById(kind==='marquee'?'marqueeImgFile':'coverFile');
+    const host=input?.closest('.modal')||document.getElementById(kind==='marquee'?'imgModalBg':'modalBg')?.querySelector('.modal')||input?.parentElement;
+    if(host)host.appendChild(box);
+  }
+  box.hidden=false;
+  box.querySelector('strong').textContent=kind==='marquee'?'อัปโหลดรูปภาพเลื่อนหน้าแรก':'อัปโหลดภาพปกเกม';
+  box.querySelector('.gb-image-progress-detail').textContent=label||'กำลังเตรียมไฟล์';
+  const value=Math.max(0,Math.min(100,Number(percent)||0));
+  box.querySelector('progress').value=value;
+  box.querySelector('.gb-image-progress-pct').textContent=value===100?'100%':value+'%';
+  return box;
+}`;
+ once("document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{",
+      helper+"\\ndocument.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{");
+ once("  for(const f of files){\\n    try{\\n      const blob=await resizeImageFileToBlob(f);",
+      "  let gbImageNumber=0;\\n  for(const f of files){\\n    gbImageNumber++;const gbCaption='ภาพ '+gbImageNumber+'/'+files.length+' · ';\\n    gbImageProgress('marquee',8,gbCaption+'กำลังเตรียมรูปภาพ');\\n    try{\\n      const blob=await resizeImageFileToBlob(f);\\n      gbImageProgress('marquee',25,gbCaption+'กำลังส่งรูปภาพ');");
+ once("      const path=await uploadToLibrary(blob,'marquee','jpg');",
+      "      const path=await uploadToLibrary(blob,'marquee','jpg');\\n      gbImageProgress('marquee',88,gbCaption+'กำลังบันทึกลงคลังภาพ');");
+ once("      stagedImages.push(data);\\n      renderThumbs();",
+      "      stagedImages.push(data);\\n      renderThumbs();\\n      gbImageProgress('marquee',100,gbCaption+'เพิ่มภาพสำเร็จ');");
+ once("    }catch(err){ console.warn('upload failed', err); alert(",
+      "    }catch(err){gbImageProgress('marquee',0,gbCaption+'อัปโหลดไม่สำเร็จ'); console.warn('upload failed', err); alert(");
+ // Game covers follow the same progress design without changing their ROM flow.
+ once("updateData.cover_path=await uploadToLibrary(coverFile,'covers');",
+      "gbImageProgress('cover',25,'กำลังอัปโหลดภาพปกเกม');updateData.cover_path=await uploadToLibrary(coverFile,'covers');gbImageProgress('cover',88,'ส่งภาพครบแล้ว · กำลังบันทึกข้อมูลเกม');");
+ once("coverPath=await uploadToLibrary(coverFile,'covers');",
+      "gbImageProgress('cover',25,'กำลังอัปโหลดภาพปกเกม');coverPath=await uploadToLibrary(coverFile,'covers');gbImageProgress('cover',88,'ส่งภาพครบแล้ว · กำลังบันทึกข้อมูลเกม');");
+ once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
+      "    if(coverFile)gbImageProgress('cover',100,'บันทึกภาพปกเกมสำเร็จ');\\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;");
  // Existing save IDs, ROM provider paths, engine code and all visual effects stay byte-for-byte intact.
  return page;
 }
