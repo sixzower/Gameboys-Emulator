@@ -384,15 +384,15 @@ function routeOracleAssets(page){
  once("Object.assign(uploadJob,{fraction,rate:info.rate,remaining:info.remaining,message:info.message,phase:info.phase==='done'?'saving':info.phase});",
       "Object.assign(uploadJob,{fraction:info.phase==='done'?0.9:Math.min(0.9,fraction*0.9),rate:info.rate,remaining:info.remaining,message:info.message,phase:info.phase==='done'?'saving':info.phase});");
  once("  text.textContent=info.phase==='stalled'?",
-      "  if(info.phase==='done'){text.textContent='ส่งไฟล์ครบแล้ว · กำลังบันทึกเกมลงคลัง...';return;}\\n  text.textContent=info.phase==='stalled'?");
+      "  if(info.phase==='done'){text.textContent='ส่งไฟล์ครบแล้ว · กำลังบันทึกเกมลงคลัง...';return;}\n  text.textContent=info.phase==='stalled'?");
  once("uploadJob.phase='saving';if(isFileOperation)UploadFloat.set(uploadJob);",
       "uploadJob.phase='saving';uploadJob.fraction=Math.max(uploadJob.fraction||0,0.93);document.getElementById('romUploadProgressBar').value=0.93;if(isFileOperation)UploadFloat.set(uploadJob);");
- once("    modalBg.classList.remove('show');\\n    resetModalToAdd();\\n    if(!wasEditing){",
+ once("    modalBg.classList.remove('show');\n    resetModalToAdd();\n    if(!wasEditing){",
       "    if(!wasEditing){");
  once("    try{await renderLibrary();}catch(error){",
-      "    uploadJob.fraction=0.98;document.getElementById('romUploadProgressBar').value=0.98;if(isFileOperation)UploadFloat.set(uploadJob);\\n    try{await renderLibrary();}catch(error){");
+      "    uploadJob.fraction=0.98;document.getElementById('romUploadProgressBar').value=0.98;if(isFileOperation)UploadFloat.set(uploadJob);\n    try{await renderLibrary();}catch(error){");
  once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
-      "    modalBg.classList.remove('show');resetModalToAdd();\\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
+      "    modalBg.classList.remove('show');resetModalToAdd();\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
  // Marquee editor: visual progress UI around existing resize/upload/save steps.
  // Network adapter exposes no byte progress, so upload uses indeterminate motion
  // rather than a misleading percentage. No storage or database APIs changed.
