@@ -108,6 +108,57 @@ if(new URLSearchParams(location.search).get("emu")!=="3ds"){
   if(bundledPage.includes("currentGames.splice(toIdx,0,moved);\n      renderGridFromCurrent();")) bundledPage=bundledPage.replace("currentGames.splice(toIdx,0,moved);\n      renderGridFromCurrent();","currentGames.splice(toIdx,0,moved);\n      {const rank={gb:0,gbc:1,gba:2,nds:3,'3ds':4,psp:5};currentGames.sort((a,b)=>(rank[String(a.core||'').toLowerCase()]??99)-(rank[String(b.core||'').toLowerCase()]??99));}\n      renderGridFromCurrent();"); else console.warn("Gameboys patch: expected source not found");
   bundledPage=bundledPage.replace("</body>","<style id=\"gb-modal-layout-patch\">\n.modal-bg .modal{position:relative}\n.modal-bg .modal-actions{display:flex;gap:8px}\n.modal-bg .modal-actions button{flex:1}\n/* Admin edit dialog: consistent button typography, without changing button dimensions */\n#modalBg .modal button:not(.gb-modal-x){font-size:14px!important;font-weight:700!important;line-height:1.5;letter-spacing:0;word-spacing:normal}\n#modalBg .modal button:not(.gb-modal-x) svg,#modalBg .modal button:not(.gb-modal-x) .icon{width:1em;height:1em;flex-shrink:0}\n#modalBg .modal button:not(.gb-modal-x){column-gap:6px}\n.modal-bg .modal-actions button[data-gb-dismiss=\"true\"],.modal-bg .modal-actions button.gb-close-right{margin-left:auto!important;order:99!important}\n.modal-bg .modal-actions #saveBtn,.modal-bg .modal-actions #detailPlayBtn{order:-5!important;margin-right:0!important}\n.modal-bg .modal-actions #cancelBtn,.modal-bg .modal-actions #detailCloseBtn,.modal-bg .modal-actions #keyCancelBtn{margin-left:auto!important;order:99!important}\n#detailModalBg #detailTopCloseBtn{display:none!important}\n.modal-bg .modal .gb-modal-x{display:none!important}\n.card-actions button[data-act=\"play\"]{order:-10;margin-right:auto}\n</style><script id=\"gb-modal-close-patch\">\n(function(){\n function setup(){\n  document.querySelectorAll('.modal-bg').forEach(bg=>{\n   const modal=bg.querySelector('.modal');if(!modal)return;\n   const actions=modal.querySelector('.modal-actions');\n   if(actions){\n    actions.querySelectorAll('button').forEach(btn=>{\n     if(/^(ปิด|ยกเลิก)$/.test(btn.textContent.trim())||/^(cancelBtn|detailCloseBtn|keyCancelBtn|imgCancelBtn|syncCancelBtn)$/.test(btn.id))btn.classList.add('gb-close-right');\n    });\n   }\n\n  });\n }\n if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();\n})();\n<\\/script>"+"</body>");
 }
+// Presentation-only upload success popup. Existing upload handlers remain untouched.
+if(new URLSearchParams(location.search).get('emu')!=='3ds'){
+ bundledPage=bundledPage.replace('</body>', `
+<style id="gb-upload-success-style">
+.gb-upload-success-backdrop{position:fixed;inset:0;z-index:2147483640;background:rgba(0,0,0,.73);backdrop-filter:blur(8px);display:grid;place-items:center;padding:18px;animation:gb-upload-fade .2s ease}
+.gb-upload-success-backdrop[hidden]{display:none!important}
+.gb-upload-success-card{box-sizing:border-box;width:min(100%,390px);background:linear-gradient(155deg,#24262b,#131519 80%);border:1px solid #d6a84d99;border-radius:22px;padding:32px 26px 24px;text-align:center;color:#f8f8f8;box-shadow:0 24px 90px #000a,0 0 35px #d5a24619;animation:gb-upload-rise .28s ease}
+.gb-upload-success-check{display:grid;place-items:center;margin:0 auto 16px;width:76px;height:76px;border:2px solid #e7b958;border-radius:50%;color:#92efb5;background:#19342a;box-shadow:0 0 25px #dcae4233;font-size:40px;font-weight:600}
+.gb-upload-success-kicker{color:#d8af5c;font-size:11px;letter-spacing:.3em;font-weight:800}
+.gb-upload-success-title{font-size:25px;font-weight:800;line-height:1.35;margin:12px 0 8px}
+.gb-upload-success-sub{font-size:14px;color:#b7bdc7;margin:0 0 24px}
+.gb-upload-success-ok{width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(180deg,#f5ce73,#dba848);color:#1c1710;font:700 16px inherit;cursor:pointer;box-shadow:0 4px 18px #d5a24633}
+.gb-upload-success-ok:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@keyframes gb-upload-fade{from{opacity:0}to{opacity:1}}
+@keyframes gb-upload-rise{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.gb-upload-success-backdrop,.gb-upload-success-card{animation:none}}
+</style>
+<script id="gb-upload-success-presentation">
+(function(){
+ let shown=false,overlay=null;
+ function close(){if(overlay){overlay.remove();overlay=null;}shown=false;}
+ function display(){
+  if(shown)return;shown=true;
+  overlay=document.createElement('div');overlay.className='gb-upload-success-backdrop';overlay.setAttribute('role','presentation');
+  const card=document.createElement('div');card.className='gb-upload-success-card';card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-labelledby','gb-upload-success-heading');
+  const check=document.createElement('div');check.className='gb-upload-success-check';check.textContent='✓';check.setAttribute('aria-hidden','true');
+  const kicker=document.createElement('div');kicker.className='gb-upload-success-kicker';kicker.textContent='SUCCESS';
+  const title=document.createElement('h2');title.className='gb-upload-success-title';title.id='gb-upload-success-heading';title.textContent='อัปโหลดเกมสำเร็จ!';
+  const sub=document.createElement('p');sub.className='gb-upload-success-sub';sub.textContent='เกมถูกเพิ่มในคลังของคุณแล้ว';
+  const ok=document.createElement('button');ok.type='button';ok.className='gb-upload-success-ok';ok.textContent='ตกลง';ok.addEventListener('click',close);
+  card.append(check,kicker,title,sub,ok);overlay.append(card);document.body.append(overlay);ok.focus();
+ }
+ // Observe only the site's existing success toast, never the upload process.
+ const success=/อัปโหลดเกมสำเร็จ|เพิ่มเกมเรียบร้อยแล้ว/;
+ const watch=()=>{
+  const candidates=document.querySelectorAll('[role="status"],[role="alert"],.toast,.toast-message,.notification');
+  for(const node of candidates){
+   if(node.closest('#gb-upload-success-presentation')||node.closest('.gb-upload-success-backdrop'))continue;
+   const content=(node.textContent||'').trim();
+   if(content.length<130&&success.test(content)&&node.dataset.gbUploadPopupSeen!=='1'){
+    node.dataset.gbUploadPopupSeen='1';display();break;
+   }
+  }
+ };
+ let queued=false;
+ const observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;watch()})});
+ const start=()=>{observer.observe(document.body,{childList:true,subtree:true,characterData:true});};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+<\/script></body>`);
+}
 // Success notification only for completed admin ROM downloads.
 if(new URLSearchParams(location.search).get('emu')!=='3ds'){
  const helper=`
