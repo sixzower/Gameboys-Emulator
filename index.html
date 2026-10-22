@@ -375,6 +375,17 @@ function routeOracleAssets(page){
  once('void warmGameCover(entry.target).then(()=>cartridgeCoverSource(entry.target));','void warmGameCover(entry.target);');
  once("      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);\n      img.alt=''; img.loading='eager';img.decoding='async';", "      img.alt='';img.loading='lazy';img.decoding='async';\n      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);");
  once("if(coverFile&&editTarget.cover_path)try{await deleteFromLibrary(editTarget.cover_path);}","if(coverFile&&editTarget.cover_path?.startsWith('oci:'))try{await deleteFromLibrary(editTarget.cover_path);}");
+
+ // Treat 100% as full completion, not merely completion of transferred bytes.
+ // Keep the upload dialog open while metadata and the library refresh finish.
+ once("bar.value=fraction;saveBtn.textContent=",
+      "bar.value=Math.min(fraction,0.99);saveBtn.textContent=");
+ once("  text.textContent=info.phase==='stalled'?",
+      "  if(info.phase==='done'){text.textContent='ส่งไฟล์ครบแล้ว · กำลังบันทึกเกมลงคลัง...';saveBtn.textContent='กำลังบันทึกเกม...';return;}\n  text.textContent=info.phase==='stalled'?");
+ once("    modalBg.classList.remove('show');\n    resetModalToAdd();\n    if(!wasEditing){",
+      "    if(!wasEditing){");
+ once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
+      "    modalBg.classList.remove('show');resetModalToAdd();\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
  // Existing save IDs, ROM provider paths, engine code and all visual effects stay byte-for-byte intact.
  return page;
 }
