@@ -434,6 +434,19 @@ function routeOracleAssets(page){
 @keyframes gbMarqueeUploading{from{transform:translateX(-30%) scaleX(.6);opacity:.65}to{transform:translateX(105%) scaleX(.85);opacity:1}}
 @media(prefers-reduced-motion:reduce){.gb-marquee-busy .gb-marquee-fill{animation:none;width:60%!important}}
 </style></head>`);
+
+ // Completed game uploads remain visible in the floating progress panel until
+ // the user dismisses them; no separate success modal is opened.
+ once("if(!data.active){box.hidden=true;drag=null;box.classList.remove('upload-dragging');}",
+      "if(!data.active){box.hidden=data.phase!=='success';drag=null;box.classList.remove('upload-dragging');}");
+ once("if(!next.active){clearTimeout(doneTimer);box.hidden=true;}",
+      "if(!next.active){clearTimeout(doneTimer);box.hidden=next.phase!=='success';}");
+ once("UploadFloat.set(uploadJob);UploadFloat.hide();\\n    showUploadResult(true,",
+      "UploadFloat.set(uploadJob);UploadFloat.show();\\n    /* Success is displayed in the persistent progress panel. */ void (");
+ // Remove the old success popup invocation while keeping upload result messages
+ // for errors. Match the complete statement without changing database operations.
+ page=page.replace(/\/\* Success is displayed in the persistent progress panel\. \*\/ void \(wasEditing\?[^;]+;(?=\s*\n\s*\}catch\(err\))/,
+   "/* Completion is reported by UploadFloat; no separate popup. */");
  // Existing save IDs, ROM provider paths, engine code and all visual effects stay byte-for-byte intact.
  return page;
 }
