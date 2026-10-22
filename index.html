@@ -376,17 +376,23 @@ function routeOracleAssets(page){
  once("      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);\n      img.alt=''; img.loading='eager';img.decoding='async';", "      img.alt='';img.loading='lazy';img.decoding='async';\n      img.src = item.cover_path ? publicUrl(item.cover_path) : placeholderCover(item.name, item.core);");
  once("if(coverFile&&editTarget.cover_path)try{await deleteFromLibrary(editTarget.cover_path);}","if(coverFile&&editTarget.cover_path?.startsWith('oci:'))try{await deleteFromLibrary(editTarget.cover_path);}");
 
- // Treat 100% as full completion, not merely completion of transferred bytes.
- // Keep the upload dialog open while metadata and the library refresh finish.
- once("bar.value=fraction;saveBtn.textContent=",
-      "bar.value=Math.min(fraction,0.99);saveBtn.textContent=");
- once("  text.textContent=info.phase==='stalled'?",
-      "  if(info.phase==='done'){text.textContent='ส่งไฟล์ครบแล้ว · กำลังบันทึกเกมลงคลัง...';saveBtn.textContent='กำลังบันทึกเกม...';return;}\n  text.textContent=info.phase==='stalled'?");
- once("    modalBg.classList.remove('show');\n    resetModalToAdd();\n    if(!wasEditing){",
-      "    if(!wasEditing){");
- once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
-      "    modalBg.classList.remove('show');resetModalToAdd();\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
 
+ // Progress combines file transfer (0-90%) with database and library work
+ // (90-100%). The save button itself no longer shows progress text.
+ once("bar.value=fraction;saveBtn.textContent='กำลังอัปโหลด '+Math.floor(fraction*100)+'%';",
+      "bar.value=Math.min(0.9,fraction*0.9);");
+ once("Object.assign(uploadJob,{fraction,rate:info.rate,remaining:info.remaining,message:info.message,phase:info.phase==='done'?'saving':info.phase});",
+      "Object.assign(uploadJob,{fraction:info.phase==='done'?0.9:Math.min(0.9,fraction*0.9),rate:info.rate,remaining:info.remaining,message:info.message,phase:info.phase==='done'?'saving':info.phase});");
+ once("  text.textContent=info.phase==='stalled'?",
+      "  if(info.phase==='done'){text.textContent='ส่งไฟล์ครบแล้ว · กำลังบันทึกเกมลงคลัง...';return;}\\n  text.textContent=info.phase==='stalled'?");
+ once("uploadJob.phase='saving';if(isFileOperation)UploadFloat.set(uploadJob);",
+      "uploadJob.phase='saving';uploadJob.fraction=Math.max(uploadJob.fraction||0,0.93);document.getElementById('romUploadProgressBar').value=0.93;if(isFileOperation)UploadFloat.set(uploadJob);");
+ once("    modalBg.classList.remove('show');\\n    resetModalToAdd();\\n    if(!wasEditing){",
+      "    if(!wasEditing){");
+ once("    try{await renderLibrary();}catch(error){",
+      "    uploadJob.fraction=0.98;document.getElementById('romUploadProgressBar').value=0.98;if(isFileOperation)UploadFloat.set(uploadJob);\\n    try{await renderLibrary();}catch(error){");
+ once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
+      "    modalBg.classList.remove('show');resetModalToAdd();\\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
  // Marquee editor: visual progress UI around existing resize/upload/save steps.
  // Network adapter exposes no byte progress, so upload uses indeterminate motion
  // rather than a misleading percentage. No storage or database APIs changed.
@@ -435,17 +441,6 @@ function routeOracleAssets(page){
 @media(prefers-reduced-motion:reduce){.gb-marquee-busy .gb-marquee-fill{animation:none;width:60%!important}}
 </style></head>`);
 
- // Completed uploads stay in the floating progress panel until dismissed.
- once("if(!data.active){box.hidden=true;drag=null;box.classList.remove('upload-dragging');}",
-      "if(!data.active){box.hidden=data.phase!=='success';drag=null;box.classList.remove('upload-dragging');}");
- once("if(!next.active){clearTimeout(doneTimer);box.hidden=true;}",
-      "if(!next.active){clearTimeout(doneTimer);box.hidden=next.phase!=='success';}");
- const successCall="UploadFloat.set(uploadJob);UploadFloat.hide();\n    showUploadResult(true,";
- if(!page.includes(successCall))throw Error('Upload completion hook missing');
- page=page.replace(successCall,"UploadFloat.set(uploadJob);UploadFloat.show();\n    /* Completion is shown in the progress panel. */ showUploadResult(true,");
- // Suppress only the success modal, retaining existing error/cancellation dialogs.
- once("function showUploadResult(success,title,message,options={}){",
-      "function showUploadResult(success,title,message,options={}){\n  if(success&&(options.sound==='upload'||options.sound==='summary'))return;");
  // Existing save IDs, ROM provider paths, engine code and all visual effects stay byte-for-byte intact.
  return page;
 }
