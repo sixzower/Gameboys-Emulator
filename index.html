@@ -394,52 +394,6 @@ function routeOracleAssets(page){
  once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
       "    modalBg.classList.remove('show');resetModalToAdd();\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;document.getElementById('romUploadProgressBar').value=1;");
 
- // One theme-consistent progress panel for front-page scrolling images and game covers.
- // Upload adapters do not expose byte-level progress; show explicit stage progress.
- const commonStyle=`<style id="gb-image-progress-style">
-.gb-image-upload-progress{margin:12px 0;padding:12px 14px;border:1px solid var(--border,#555);border-radius:12px;background:var(--card,#242424);color:var(--text,#fff)}
-.gb-image-upload-progress[hidden]{display:none!important}
-.gb-image-upload-progress strong{display:block;font-size:13px;margin-bottom:5px}
-.gb-image-upload-progress .gb-image-progress-detail{font-size:12px;color:var(--muted,var(--sub,#bbb));margin-bottom:9px}
-.gb-image-upload-progress progress{display:block;width:100%;height:9px;accent-color:var(--accent,#e3350d)}
-.gb-image-upload-progress .gb-image-progress-foot{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--muted,var(--sub,#bbb))}
-</style>`;
- page=page.replace('</head>',commonStyle+'</head>');
- const helper=`function gbImageProgress(kind,percent,label){
-  const id=kind==='marquee'?'gbMarqueeProgress':'gbCoverProgress';
-  let box=document.getElementById(id);
-  if(!box){
-    box=document.createElement('section');box.id=id;box.className='gb-image-upload-progress';box.setAttribute('role','status');box.setAttribute('aria-live','polite');
-    box.innerHTML='<strong></strong><div class="gb-image-progress-detail"></div><progress max="100" value="0"></progress><div class="gb-image-progress-foot"><span>ความคืบหน้าการดำเนินการ</span><span class="gb-image-progress-pct">0%</span></div>';
-    const input=document.getElementById(kind==='marquee'?'marqueeImgFile':'coverFile');
-    const host=input?.closest('.modal')||document.getElementById(kind==='marquee'?'imgModalBg':'modalBg')?.querySelector('.modal')||input?.parentElement;
-    if(host)host.appendChild(box);
-  }
-  box.hidden=false;
-  box.querySelector('strong').textContent=kind==='marquee'?'อัปโหลดรูปภาพเลื่อนหน้าแรก':'อัปโหลดภาพปกเกม';
-  box.querySelector('.gb-image-progress-detail').textContent=label||'กำลังเตรียมไฟล์';
-  const value=Math.max(0,Math.min(100,Number(percent)||0));
-  box.querySelector('progress').value=value;
-  box.querySelector('.gb-image-progress-pct').textContent=value===100?'100%':value+'%';
-  return box;
-}`;
- once("document.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{",
-      helper+"\\ndocument.getElementById('marqueeImgFile').addEventListener('change', async (e)=>{");
- once("  for(const f of files){\\n    try{\\n      const blob=await resizeImageFileToBlob(f);",
-      "  let gbImageNumber=0;\\n  for(const f of files){\\n    gbImageNumber++;const gbCaption='ภาพ '+gbImageNumber+'/'+files.length+' · ';\\n    gbImageProgress('marquee',8,gbCaption+'กำลังเตรียมรูปภาพ');\\n    try{\\n      const blob=await resizeImageFileToBlob(f);\\n      gbImageProgress('marquee',25,gbCaption+'กำลังส่งรูปภาพ');");
- once("      const path=await uploadToLibrary(blob,'marquee','jpg');",
-      "      const path=await uploadToLibrary(blob,'marquee','jpg');\\n      gbImageProgress('marquee',88,gbCaption+'กำลังบันทึกลงคลังภาพ');");
- once("      stagedImages.push(data);\\n      renderThumbs();",
-      "      stagedImages.push(data);\\n      renderThumbs();\\n      gbImageProgress('marquee',100,gbCaption+'เพิ่มภาพสำเร็จ');");
- once("    }catch(err){ console.warn('upload failed', err); alert(",
-      "    }catch(err){gbImageProgress('marquee',0,gbCaption+'อัปโหลดไม่สำเร็จ'); console.warn('upload failed', err); alert(");
- // Game covers follow the same progress design without changing their ROM flow.
- once("updateData.cover_path=await uploadToLibrary(coverFile,'covers');",
-      "gbImageProgress('cover',25,'กำลังอัปโหลดภาพปกเกม');updateData.cover_path=await uploadToLibrary(coverFile,'covers');gbImageProgress('cover',88,'ส่งภาพครบแล้ว · กำลังบันทึกข้อมูลเกม');");
- once("coverPath=await uploadToLibrary(coverFile,'covers');",
-      "gbImageProgress('cover',25,'กำลังอัปโหลดภาพปกเกม');coverPath=await uploadToLibrary(coverFile,'covers');gbImageProgress('cover',88,'ส่งภาพครบแล้ว · กำลังบันทึกข้อมูลเกม');");
- once("    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;",
-      "    if(coverFile)gbImageProgress('cover',100,'บันทึกภาพปกเกมสำเร็จ');\\n    uploadJob.active=false;uploadJob.phase='success';uploadJob.fraction=1;");
  // Existing save IDs, ROM provider paths, engine code and all visual effects stay byte-for-byte intact.
  return page;
 }
