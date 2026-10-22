@@ -105,6 +105,32 @@ if(new URLSearchParams(location.search).get("emu")!=="3ds"){
   if(bundledPage.includes("return data||[];\n}\n\n// ---------- site_settings")) bundledPage=bundledPage.replace("return data||[];\n}\n\n// ---------- site_settings","const rank={gb:0,gbc:1,gba:2,nds:3,'3ds':4,psp:5};\n  return (data||[]).sort((a,b)=>(rank[String(a.core||'').toLowerCase()]??99)-(rank[String(b.core||'').toLowerCase()]??99) || (Number(a.sort_order??2147483647)-Number(b.sort_order??2147483647)) || (new Date(a.created_at||0)-new Date(b.created_at||0)));\n}\n\n// ---------- site_settings"); else console.warn("Gameboys patch: expected source not found");
   if(bundledPage.includes("const nextOrder = currentGames.length ? Math.max(...currentGames.map(g=>g.sort_order||0))+1 : 0;")) bundledPage=bundledPage.replace("const nextOrder = currentGames.length ? Math.max(...currentGames.map(g=>g.sort_order||0))+1 : 0;","const sameCoreGames=currentGames.filter(g=>String(g.core||'').toLowerCase()===String(system||'').toLowerCase()); const nextOrder=sameCoreGames.length ? Math.max(...sameCoreGames.map(g=>Number(g.sort_order)||0))+1 : 0;"); else console.warn("Gameboys patch: expected source not found");
   if(bundledPage.includes("wasEditing?'อัปเดตเกมเรียบร้อยแล้ว':'อัปโหลดเกมสำเร็จ'")) bundledPage=bundledPage.replace("wasEditing?'อัปเดตเกมเรียบร้อยแล้ว':'อัปโหลดเกมสำเร็จ'","wasEditing?'แก้ไขสำเร็จ':'อัปโหลดเกมสำเร็จ'"); else console.warn("Gameboys patch: expected source not found");
+
+  // Replace only the successful ROM-upload notification with a themed dialog.
+  // Upload, storage, and library handlers are unchanged.
+  bundledPage=bundledPage.replace("toastMsg(wasEditing?'แก้ไขสำเร็จ':'อัปโหลดเกมสำเร็จ')",
+    "wasEditing?toastMsg('แก้ไขสำเร็จ'):window.gbShowUploadSuccess()");
+  bundledPage=bundledPage.replace("toastMsg(wasEditing?'อัปเดตเกมเรียบร้อยแล้ว':'อัปโหลดเกมสำเร็จ')",
+    "wasEditing?toastMsg('อัปเดตเกมเรียบร้อยแล้ว'):window.gbShowUploadSuccess()");
+  bundledPage=bundledPage.replace('</body>', `<style id="gb-upload-modal-style">
+#gbUploadSuccess{position:fixed;inset:0;z-index:2147483000;background:#000b;backdrop-filter:blur(7px);display:grid;place-items:center;padding:18px}
+#gbUploadSuccess[hidden]{display:none!important}
+#gbUploadSuccess .gb-upload-card{width:min(100%,380px);box-sizing:border-box;background:linear-gradient(145deg,#25272d,#15171b);border:1px solid #d9aa58aa;border-radius:20px;box-shadow:0 20px 65px #000b;padding:30px 25px 24px;text-align:center;color:#fff}
+#gbUploadSuccess .gb-upload-check{width:70px;height:70px;border:2px solid #e6b75c;border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;color:#98efb8;background:#17352b;font-size:38px}
+#gbUploadSuccess .gb-upload-kicker{font-size:11px;font-weight:800;letter-spacing:.3em;color:#e8be6b}
+#gbUploadSuccess h2{font-size:24px;line-height:1.3;margin:12px 0 8px;color:#fff}
+#gbUploadSuccess p{font-size:14px;color:#b7bec9;margin:0 0 24px}
+#gbUploadSuccess button{display:block;width:100%;min-height:48px;border:0;border-radius:12px;background:linear-gradient(#f4cc72,#d9a447);color:#1b160e;font-size:16px;font-weight:800;cursor:pointer}
+#gbUploadSuccess button:focus-visible{outline:2px solid #fff;outline-offset:3px}
+</style><script>
+window.gbShowUploadSuccess=function(){
+ let el=document.getElementById('gbUploadSuccess');
+ if(!el){el=document.createElement('div');el.id='gbUploadSuccess';el.setAttribute('role','presentation');
+ el.innerHTML='<section class="gb-upload-card" role="dialog" aria-modal="true" aria-labelledby="gbUploadSuccessTitle"><div class="gb-upload-check" aria-hidden="true">✓</div><div class="gb-upload-kicker">SUCCESS</div><h2 id="gbUploadSuccessTitle">อัปโหลดเกมสำเร็จ!</h2><p>เกมถูกเพิ่มในคลังของคุณแล้ว</p><button type="button">ตกลง</button></section>';
+ el.querySelector('button').addEventListener('click',()=>{el.hidden=true});document.body.append(el)}
+ el.hidden=false;el.querySelector('button').focus();
+};
+<\/script></body>`);
   if(bundledPage.includes("currentGames.splice(toIdx,0,moved);\n      renderGridFromCurrent();")) bundledPage=bundledPage.replace("currentGames.splice(toIdx,0,moved);\n      renderGridFromCurrent();","currentGames.splice(toIdx,0,moved);\n      {const rank={gb:0,gbc:1,gba:2,nds:3,'3ds':4,psp:5};currentGames.sort((a,b)=>(rank[String(a.core||'').toLowerCase()]??99)-(rank[String(b.core||'').toLowerCase()]??99));}\n      renderGridFromCurrent();"); else console.warn("Gameboys patch: expected source not found");
   bundledPage=bundledPage.replace("</body>","<style id=\"gb-modal-layout-patch\">\n.modal-bg .modal{position:relative}\n.modal-bg .modal-actions{display:flex;gap:8px}\n.modal-bg .modal-actions button{flex:1}\n/* Admin edit dialog: consistent button typography, without changing button dimensions */\n#modalBg .modal button:not(.gb-modal-x){font-size:14px!important;font-weight:700!important;line-height:1.5;letter-spacing:0;word-spacing:normal}\n#modalBg .modal button:not(.gb-modal-x) svg,#modalBg .modal button:not(.gb-modal-x) .icon{width:1em;height:1em;flex-shrink:0}\n#modalBg .modal button:not(.gb-modal-x){column-gap:6px}\n.modal-bg .modal-actions button[data-gb-dismiss=\"true\"],.modal-bg .modal-actions button.gb-close-right{margin-left:auto!important;order:99!important}\n.modal-bg .modal-actions #saveBtn,.modal-bg .modal-actions #detailPlayBtn{order:-5!important;margin-right:0!important}\n.modal-bg .modal-actions #cancelBtn,.modal-bg .modal-actions #detailCloseBtn,.modal-bg .modal-actions #keyCancelBtn{margin-left:auto!important;order:99!important}\n#detailModalBg #detailTopCloseBtn{display:none!important}\n.modal-bg .modal .gb-modal-x{display:none!important}\n.card-actions button[data-act=\"play\"]{order:-10;margin-right:auto}\n</style><script id=\"gb-modal-close-patch\">\n(function(){\n function setup(){\n  document.querySelectorAll('.modal-bg').forEach(bg=>{\n   const modal=bg.querySelector('.modal');if(!modal)return;\n   const actions=modal.querySelector('.modal-actions');\n   if(actions){\n    actions.querySelectorAll('button').forEach(btn=>{\n     if(/^(ปิด|ยกเลิก)$/.test(btn.textContent.trim())||/^(cancelBtn|detailCloseBtn|keyCancelBtn|imgCancelBtn|syncCancelBtn)$/.test(btn.id))btn.classList.add('gb-close-right');\n    });\n   }\n\n  });\n }\n if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});else setup();\n})();\n<\\/script>"+"</body>");
 }
