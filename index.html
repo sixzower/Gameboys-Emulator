@@ -385,7 +385,7 @@ function routeOracleAssets(page){
       "Object.assign(uploadJob,{fraction:info.phase==='done'?0.9:Math.min(0.9,fraction*0.9),rate:info.rate,remaining:info.remaining,message:info.message,phase:info.phase==='done'?'saving':info.phase});");
  once("  text.textContent=info.phase==='stalled'?",
       "  if(info.phase==='done'){text.textContent='ส่งไฟล์ครบแล้ว · กำลังบันทึกเกมลงคลัง...';return;}\n  text.textContent=info.phase==='stalled'?");
- once("uploadJob.phase='saving';if(isFileOperation)UploadFloat.set(uploadJob);",
+ page=page.replaceAll("uploadJob.phase='saving';if(isFileOperation)UploadFloat.set(uploadJob);",
       "uploadJob.phase='saving';uploadJob.fraction=Math.max(uploadJob.fraction||0,0.93);document.getElementById('romUploadProgressBar').value=0.93;if(isFileOperation)UploadFloat.set(uploadJob);");
  once("    modalBg.classList.remove('show');\n    resetModalToAdd();\n    if(!wasEditing){",
       "    if(!wasEditing){");
