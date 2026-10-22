@@ -435,18 +435,17 @@ function routeOracleAssets(page){
 @media(prefers-reduced-motion:reduce){.gb-marquee-busy .gb-marquee-fill{animation:none;width:60%!important}}
 </style></head>`);
 
- // Completed game uploads remain visible in the floating progress panel until
- // the user dismisses them; no separate success modal is opened.
+ // Completed uploads stay in the floating progress panel until dismissed.
  once("if(!data.active){box.hidden=true;drag=null;box.classList.remove('upload-dragging');}",
       "if(!data.active){box.hidden=data.phase!=='success';drag=null;box.classList.remove('upload-dragging');}");
  once("if(!next.active){clearTimeout(doneTimer);box.hidden=true;}",
       "if(!next.active){clearTimeout(doneTimer);box.hidden=next.phase!=='success';}");
- once("UploadFloat.set(uploadJob);UploadFloat.hide();\\n    showUploadResult(true,",
-      "UploadFloat.set(uploadJob);UploadFloat.show();\\n    /* Success is displayed in the persistent progress panel. */ void (");
- // Remove the old success popup invocation while keeping upload result messages
- // for errors. Match the complete statement without changing database operations.
- page=page.replace(/\/\* Success is displayed in the persistent progress panel\. \*\/ void \(wasEditing\?[^;]+;(?=\s*\n\s*\}catch\(err\))/,
-   "/* Completion is reported by UploadFloat; no separate popup. */");
+ const successCall="UploadFloat.set(uploadJob);UploadFloat.hide();\n    showUploadResult(true,";
+ if(!page.includes(successCall))throw Error('Upload completion hook missing');
+ page=page.replace(successCall,"UploadFloat.set(uploadJob);UploadFloat.show();\n    /* Completion is shown in the progress panel. */ showUploadResult(true,");
+ // Suppress only the success modal, retaining existing error/cancellation dialogs.
+ once("function showUploadResult(success,title,message,options={}){",
+      "function showUploadResult(success,title,message,options={}){\n  if(success&&(options.sound==='upload'||options.sound==='summary'))return;");
  // Existing save IDs, ROM provider paths, engine code and all visual effects stay byte-for-byte intact.
  return page;
 }
