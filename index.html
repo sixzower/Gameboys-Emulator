@@ -281,8 +281,10 @@ if(introStart>=0&&introEnd>introStart){
       const img=document.createElement('img');img.crossOrigin='anonymous';
       // Start fetching every image immediately while prioritizing the visible first frame.
       const priority=k<2;
+      // Request each original tile first; duplicate animation tiles can reuse the browser cache.
+      const repeated=k>=list.length;
       img.loading='eager';img.decoding='async';img.alt='';img.draggable=false;
-      img.fetchPriority=priority?'high':'auto';
+      img.fetchPriority=priority?'high':(repeated?'low':'auto');
       if(priority)firstFrame.push(new Promise(resolve=>{
         img.addEventListener('load',resolve,{once:true});
         img.addEventListener('error',resolve,{once:true});
