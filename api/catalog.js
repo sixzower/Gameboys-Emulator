@@ -16,7 +16,7 @@ async function readTable(name,select,order){
  const url=new URL(`/rest/v1/${name}`,base);
  url.searchParams.set('select',select);
  if(order)url.searchParams.set('order',order);
- if(name==='site_settings')url.searchParams.set('or','(key.like.gameSummary:*,key.like.romBase:*)');
+ if(name==='site_settings')url.searchParams.set('or','(key.like.gameSummary:*,key.like.romBase:*,key.in.(headerIconOrder,oracle_worker_url,introLogoWidth,introLogoDefaultWidth))');
  const response=await fetch(url,{headers:{apikey:service,Authorization:`Bearer ${service}`},signal:AbortSignal.timeout(18000)});
  if(!response.ok)throw Error(`${name}: HTTP ${response.status}`);
  const rows=await response.json();
