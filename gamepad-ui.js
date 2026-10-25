@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   if (typeof navigator.getGamepads !== 'function') return;
+  if (window.__gbGamepadHudInitialized) return;
+  window.__gbGamepadHudInitialized = true;
 
   // Use precise, well-established USB vendor/product pairs only. Do not
   // infer a specific product from a generic XInput / standard mapping.
