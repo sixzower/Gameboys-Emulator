@@ -1,54 +1,69 @@
 'use strict';
-// A bounded device cache for public Supabase images. Preserve original image quality.
-const CACHE_NAME='gameboys-public-images-v2';
-const IMAGE_ORIGIN='https://opceuxrvzwbzuwzmubsh.supabase.co';
-const IMAGE_PREFIX='/storage/v1/object/public/gameboysemulator/';
-const MAX_AGE=24*60*60*1000,MAX_ENTRIES=48,MAX_BYTES=16*1024*1024,MAX_IMAGE_BYTES=4*1024*1024;
-const inflight=new Map();
-let writes=Promise.resolve();
-self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
-self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('gameboys-public-images-')&&name!==CACHE_NAME)await caches.delete(name);await self.clients.claim();})()));
+// Bounded read-through cache. Native browser HTTP cache remains the primary cache
+// for Oracle public artwork. No opaque responses or private ROM data are stored.
+const CACHE_NAME='gameboys-public-images-v3';
+const MAX_AGE=24*60*60*1000,MAX_ENTRIES=64,MAX_BYTES=32*1024*1024,MAX_IMAGE=4*1024*1024;
+const OCI_ORIGIN='https://objectstorage.ap-singapore-1.oraclecloud.com';
+const OCI_PATH='/n/ax9vabhnvdmn/b/sixzower-assets/o/';
+const ASSET=/^(covers|marquee|skins|site-assets|splash|audio)\//;
+const pending=new Map();let writes=Promise.resolve();
+self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));
+self.addEventListener('activate',e=>e.waitUntil((async()=>{
+ for(const key of await caches.keys())if(key.startsWith('gameboys-public-images-')&&key!==CACHE_NAME)await caches.delete(key);
+ await self.clients.claim();
+})()));
 function eligible(request){
+ if(request.method!=='GET'||request.destination!=='image'||request.credentials==='include'||request.headers.has('range'))return false;
+ if(['no-store','reload','no-cache'].includes(request.cache))return false;
+ // Opaque cross-origin images cannot be size-verified: leave their native cache alone.
+ if(!['same-origin','cors'].includes(request.mode))return false;
  const url=new URL(request.url);
- return request.method==='GET'&&request.destination==='image'&&['cors','same-origin','no-cors'].includes(request.mode)&&
-  request.credentials!=='include'&&((url.origin===self.location.origin&&url.pathname==='/api/asset'&&/^(covers|marquee|skins|site-assets|splash)\//.test(url.searchParams.get('key')||''))||(url.origin===IMAGE_ORIGIN&&url.pathname.startsWith(IMAGE_PREFIX)))&&
-  !request.headers.has('range')&&!['reload','no-store','no-cache'].includes(request.cache);
+ if(url.origin===self.location.origin&&url.pathname==='/api/asset')return ASSET.test(url.searchParams.get('key')||'');
+ if(url.origin===OCI_ORIGIN&&url.pathname.startsWith(OCI_PATH)){
+  try{return ASSET.test(decodeURIComponent(url.pathname.slice(OCI_PATH.length)));}catch{return false;}
+ }
+ return false;
 }
-async function storeImage(cache,request,response){
- if(response.redirected||!response.ok||response.status!==200||!/^image\//i.test(response.headers.get('content-type')||''))return;
+async function retain(request,response){
+ if(response.type==='opaque'||response.redirected||!response.ok||response.status!==200)return;
+ if(!/^image\//i.test(response.headers.get('content-type')||''))return;
  if(/no-store|private/i.test(response.headers.get('cache-control')||''))return;
- const declared=Number(response.headers.get('content-length'));
- if(declared>MAX_IMAGE_BYTES)return;
- // Bound memory even when the response has no Content-Length.
- const reader=response.body?.getReader();if(!reader)return;
- const chunks=[];let size=0;
- try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>MAX_IMAGE_BYTES){void reader.cancel();return;}chunks.push(part.value);}}finally{reader.releaseLock();}
- if(!size)return;
- const headers=new Headers(response.headers);headers.set('x-gameboys-cached-at',String(Date.now()));headers.set('x-gameboys-cache-bytes',String(size));
- // The stored body is decoded, so do not retain wire compression headers.
- headers.delete('content-encoding');headers.delete('content-length');
- const stored=new Response(new Blob(chunks),{status:200,headers});
+ if(Number(response.headers.get('content-length')||0)>MAX_IMAGE)return;
+ const buffer=await response.arrayBuffer();
+ if(!buffer.byteLength||buffer.byteLength>MAX_IMAGE)return;
+ const cache=await caches.open(CACHE_NAME),headers=new Headers(response.headers);
+ headers.delete('content-length');headers.delete('content-encoding');
+ headers.set('x-gameboys-cached-at',String(Date.now()));
+ headers.set('x-gameboys-size',String(buffer.byteLength));
+ const entry=new Response(buffer,{status:200,headers});
  writes=writes.catch(()=>{}).then(async()=>{
-  await cache.delete(request);await cache.put(request,stored);
-  const keys=await cache.keys(),items=await Promise.all(keys.map(async key=>({key,response:await cache.match(key)})));
-  let count=items.length,bytes=items.reduce((sum,item)=>sum+Number(item.response?.headers.get('x-gameboys-cache-bytes')||0),0);
-  for(const item of items){const old=Date.now()-Number(item.response?.headers.get('x-gameboys-cached-at')||0)>=MAX_AGE;
-   if(old||count>MAX_ENTRIES||bytes>MAX_BYTES){await cache.delete(item.key);count--;bytes-=Number(item.response?.headers.get('x-gameboys-cache-bytes')||0);}
+  await cache.put(request,entry);
+  const items=await cache.keys();let size=0,excess=[];
+  for(const key of items){const item=await cache.match(key),stamp=Number(item?.headers.get('x-gameboys-cached-at')||0),bytes=Number(item?.headers.get('x-gameboys-size')||0);
+   size+=bytes;if(!stamp||Date.now()-stamp>=MAX_AGE)excess.push([key,bytes]);
+  }
+  for(const [key,bytes] of excess){await cache.delete(key);size-=bytes;}
+  const remaining=await cache.keys();let count=remaining.length;
+  for(const key of remaining){
+   if(count<=MAX_ENTRIES&&size<=MAX_BYTES)break;
+   const value=await cache.match(key),bytes=Number(value?.headers.get('x-gameboys-size')||0);
+   await cache.delete(key);count--;size-=bytes;
   }
  });
  await writes;
 }
-async function imageResponse(request,event){
- let cache;
- try{cache=await caches.open(CACHE_NAME);const hit=await cache.match(request);if(hit&&Date.now()-Number(hit.headers.get('x-gameboys-cached-at')||0)<MAX_AGE)return hit;}catch{}
- const key=request.url+'|'+request.mode+'|'+request.credentials;
- if(inflight.has(key))return (await inflight.get(key)).clone();
- const job=(async()=>{try{
-  const response=await fetch(request);
-  const saved=cache?storeImage(cache,request,response.clone()).catch(()=>{}):Promise.resolve();
-  event.waitUntil(saved.finally(()=>{inflight.delete(key);}));return response;
- }catch(error){inflight.delete(key);throw error;}})();
- inflight.set(key,job);
- return (await job).clone();
+async function responseFor(request,e){
+ const cache=await caches.open(CACHE_NAME).catch(()=>null);
+ if(cache){const hit=await cache.match(request).catch(()=>null);
+  if(hit&&Date.now()-Number(hit.headers.get('x-gameboys-cached-at')||0)<MAX_AGE)return hit;
+ }
+ const key=request.url+'|'+request.mode;
+ if(pending.has(key))return (await pending.get(key)).clone();
+ const work=fetch(request).then(res=>{
+  if(cache)e.waitUntil(retain(request,res.clone()).catch(()=>{}));
+  return res;
+ }).finally(()=>pending.delete(key));
+ pending.set(key,work);
+ return (await work).clone();
 }
-self.addEventListener('fetch',event=>{if(eligible(event.request))event.respondWith(imageResponse(event.request,event));});
+self.addEventListener('fetch',e=>{if(eligible(e.request))e.respondWith(responseFor(e.request,e));});
