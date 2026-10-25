@@ -516,5 +516,50 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
   }
 })();
 
+
+// Refresh marquee after editing without clearing a visible intro while boot is over.
+// Transactional source patch: either all changes apply or the previous page remains.
+(()=>{
+ try {
+  let page=bundledPage;
+  const once=(from,to,label)=>{
+   const at=page.indexOf(from);
+   if(at<0||page.indexOf(from,at+from.length)>=0)throw Error("Marquee fix anchor mismatch: "+label);
+   page=page.slice(0,at)+to+page.slice(at+from.length);
+  };
+  once(
+   "async function buildIntroMarquee(){\n try{",
+   "async function buildIntroMarquee(options={}){\n try{",
+   "refresh argument"
+  );
+  once(
+   "  if(!grid){bootState.done=true;return;}\n  grid.classList.remove('ready');\n  grid.replaceChildren();\n  const doBoot=boot?.style.display!=='none'&&document.getElementById('introView')?.style.display!=='none';\n  // When going straight to the game/library, there is no visible intro. Never\n  // spend ROM/playback bandwidth or Oracle usage fetching an invisible image wall.\n  if(!doBoot){bootState.done=true;return;}",
+   "  if(!grid){bootState.done=true;return;}\n  const introVisible=document.getElementById('introView')?.style.display!=='none';\n  // The introduction may already be visible after loading. Editor saves must\n  // not clear its artwork while replacement images are still being decoded.\n  const refresh=options?.refresh===true;\n  if(!introVisible){bootState.done=true;return;}\n  if(!refresh){grid.classList.remove('ready');grid.replaceChildren();}",
+   "preserve intro wall when loading screen is hidden"
+  );
+  once(
+   "  const displayed=[];\n  const attachedOriginals=new Set();\n  cols.forEach((list,i)=>{",
+   "  const displayed=[];\n  const stagingGrid=refresh?document.createDocumentFragment():grid;\n  const attachedOriginals=new Set();\n  cols.forEach((list,i)=>{",
+   "staged grid"
+  );
+  once(
+   "    col.appendChild(frag);grid.appendChild(col);\n  });",
+   "    col.appendChild(frag);stagingGrid.appendChild(col);\n  });",
+   "append to stage"
+  );
+  once(
+   "  readySources.clear();\n  grid.classList.add('ready');\n  bootState.done=true;\n }catch(error){\n  console.error('Intro image preparation failed',error);\n  // Never show unverified images following a fatal preparation error.\n  const grid=document.getElementById('introGrid');\n  if(grid){grid.replaceChildren();grid.classList.add('ready');}",
+   "  readySources.clear();\n  if(refresh){\n    const anyReady=displayed.some(image=>!!image.getAttribute('src')&&image.complete&&image.naturalWidth>0);\n    if(anyReady||!grid.childElementCount){\n      grid.replaceChildren(stagingGrid);\n      grid.classList.add('ready');\n    }else{\n      console.warn('Marquee refresh: keeping existing images because replacements failed');\n    }\n  }else grid.classList.add('ready');\n  bootState.done=true;\n }catch(error){\n  console.error('Intro image preparation failed',error);\n  // Keep the existing wall if refresh fails; only first-visit boot uses empty fallback.\n  const grid=document.getElementById('introGrid');\n  if(grid&&!options?.refresh){grid.replaceChildren();grid.classList.add('ready');}",
+   "atomic switch and error fallback"
+  );
+  once(
+   "document.getElementById('imgSaveBtn').onclick=()=>{\n  imgModalBg.classList.remove('show');\n  buildIntroMarquee();\n};",
+   "document.getElementById('imgSaveBtn').onclick=()=>{\n  imgModalBg.classList.remove('show');\n  void buildIntroMarquee({refresh:true});\n};",
+   "editor completed action"
+  );
+  bundledPage=page;
+ }catch(error){console.warn('Marquee refresh correction not applied:',error.message);}
+})();
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>
