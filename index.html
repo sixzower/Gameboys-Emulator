@@ -483,9 +483,9 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
       " if(data?.quotaEnforced!==true||!Number.isSafeInteger(data.bytes)||data.bytes<0||"+
       "!Number.isSafeInteger(data.limit)||data.limit<=0||"+
       "!Number.isSafeInteger(data.objects)||data.objects<0||"+
-      "!Number.isSafeInteger(data.reservedBytes)||data.reservedBytes<0)\n"+
+      "(data.reservedBytes!=null&&(!Number.isSafeInteger(data.reservedBytes)||data.reservedBytes<0)))\n"+
       "  throw Error('R2 Worker ยังไม่ส่งข้อมูลโควตาที่ตรวจสอบได้ (bytes / objects / limit / reservedBytes / quotaEnforced)');\n"+
-      " return data;\n}",
+      " return {...data,reservedBytes:data.reservedBytes??0};\n}",
       'R2 usage validation'
     );
     replaceOnce(
