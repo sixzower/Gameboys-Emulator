@@ -94,16 +94,19 @@ window.GB_MIGRATION=Object.freeze({
   const code=()=>String(localStorage.getItem('syncCode')||'').trim().toLowerCase();
   let token;try{token=sessionStorage.getItem('emu-profile-token')||''}catch{}
   if(!/^[0-9a-f-]{36}$/i.test(token)){token=crypto.randomUUID();sessionStorage.setItem('emu-profile-token',token);}
-  let held='',inflight=null;
+  let held='',inflight=null,lastLease=0;
   const action=(type,payload={},keepalive=false)=>call('/v1/profile',{action:type,code:payload.code??code(),token,...payload},'',{keepalive});
   async function claim(value){value=String(value||'').trim().toLowerCase();if(!value)return true;
+    // Avoid one network lease request per favorite/quick-save access.
+    // Refresh frequently enough to preserve the existing shared-code lease model.
+    if(held===value&&Date.now()-lastLease<4000)return true;
     if(inflight){await inflight;if(held===value)return true;throw Error('กำลังตรวจรหัสซิงก์อื่นอยู่');}
-    const job=(async()=>{const out=await action('lease',{code:value,release:false});if(!out?.ok){held='';throw Error('รหัสซิงก์นี้มีคนใช้งานอยู่');}held=value;return true;})();
+    const job=(async()=>{const out=await action('lease',{code:value,release:false});if(!out?.ok){held='';throw Error('รหัสซิงก์นี้มีคนใช้งานอยู่');}held=value;lastLease=Date.now();return true;})();
     inflight=job;try{return await job}finally{inflight=null;}
   }
   async function select(value){value=String(value||'').trim().toLowerCase();if(value.length>128)throw Error('รหัสซิงก์ยาวเกิน 128 ตัวอักษร');
    const previous=code();await claim(value);localStorage.setItem('syncCode',value);
-   if(previous&&previous!==value)void action('lease',{code:previous,release:true}).catch(()=>{});
+   if(previous&&previous!==value){if(held===previous){held='';lastLease=0;}void action('lease',{code:previous,release:true}).catch(()=>{});}
   }
   async function ensure(){const value=code();if(value)await claim(value);return value;}
   const favorites=async(game=null,on=null)=>{const value=await ensure();return value?await action('favorites',{game,on}):[];};
