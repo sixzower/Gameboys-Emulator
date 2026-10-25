@@ -1,4 +1,5 @@
 import { GetObjectCommand,PutObjectCommand } from '@aws-sdk/client-s3';
+import { readFile } from 'node:fs/promises';
 import {oracle,bucketFor,verifyAdmin} from '../lib/oracle.js';
 
 // The public catalog contains game metadata only. Player saves never enter this object.
@@ -23,6 +24,15 @@ async function readTable(name,select,order){
  if(!Array.isArray(rows))throw Error('Unexpected table response: '+name);
  return rows;
 }
+// Static public catalog fallback; never contains login data or player saves.
+// Used only if the live Oracle catalog is unreachable. Source/date are explicit.
+async function readBackupCatalog(){
+ const bytes=await readFile(new URL('../catalog-backup.json',import.meta.url));
+ if(bytes.length===0||bytes.length>MAX_CATALOG_BYTES)throw Error('Invalid backup catalog length');
+ const value=JSON.parse(bytes.toString('utf8'));
+ if(!isCatalog(value))throw Error('Invalid backup catalog schema');
+ return value;
+}
 async function readCatalog(){
  const response=await oracle().send(new GetObjectCommand({Bucket:bucketFor(KEY),Key:KEY}),{abortSignal:AbortSignal.timeout(12000)});
  const bytes=Buffer.from(await response.Body.transformToByteArray());
@@ -39,8 +49,17 @@ export default async function handler(req,res){
    res.setHeader('Cache-Control','public, max-age=0, s-maxage=60, stale-while-revalidate=180');
    return res.status(200).json(catalog);
   }catch(error){
-   res.setHeader('Cache-Control','no-store');
-   return res.status(503).json({error:'Oracle catalog unavailable'});
+   try{
+    const backup=await readBackupCatalog();
+    res.setHeader('Cache-Control','public, max-age=0, s-maxage=30, stale-while-revalidate=60');
+    res.setHeader('X-GB-Catalog-Source','static-backup');
+    res.setHeader('X-GB-Catalog-Generated-At',String(backup.generated_at||'unknown'));
+    return res.status(200).json(backup);
+   }catch(fallbackError){
+    console.error('Catalog live and fallback unavailable:',error?.message,fallbackError?.message);
+    res.setHeader('Cache-Control','no-store');
+    return res.status(503).json({error:'Oracle catalog and static backup unavailable'});
+   }
   }
  }
  if(req.method!=='POST'){
