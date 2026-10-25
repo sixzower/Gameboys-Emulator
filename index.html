@@ -561,5 +561,73 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
  }catch(error){console.warn('Marquee refresh correction not applied:',error.message);}
 })();
 
+
+// UI-only corrections: accurate Hobby snapshot, R2 status, dashboard buttons and ROM size.
+// Keep the approved marquee Finish fix; never touch storage, ROM or save backends.
+(()=>{
+ try{
+  let page=bundledPage;
+  const once=(before,after,label)=>{
+   const at=page.indexOf(before);
+   if(at<0||page.indexOf(before,at+before.length)>=0)throw Error('Dashboard Usage patch anchor mismatch: '+label);
+   page=page.slice(0,at)+after+page.slice(at+before.length);
+  };
+  once(
+    '<button id="dashRefreshBtn" class="dashboard-footer-action" style="background:var(--border);color:var(--text)">',
+    '<button id="dashRefreshBtn" class="dashboard-footer-action" style="background:var(--accent);color:#fff">',
+    'Refresh red'
+  );
+  once(
+    '<button id="dashCloseBtn" class="dashboard-footer-action" style="background:var(--accent);color:#fff">',
+    '<button id="dashCloseBtn" class="dashboard-footer-action" style="background:var(--border);color:var(--text)">',
+    'Close grey'
+  );
+  once(
+    "button.style.cssText='padding:4px 8px;min-height:27px;min-width:0;width:auto;max-width:max-content;flex:0 0 auto;font-family:Prompt,sans-serif;font-size:11px;font-weight:700;line-height:1.35;letter-spacing:0;border-radius:7px';",
+    "button.style.cssText='padding:3px 7px!important;min-height:24px!important;min-width:0;width:auto;max-width:max-content;flex:0 0 auto;font-family:Prompt,sans-serif;font-size:10px!important;font-weight:700;line-height:1.25;letter-spacing:0;border-radius:6px';",
+    'Compact admin ROM download'
+  );
+  once(
+    "async function renderVercelUsage(){",
+    "\nconst GB_VERCEL_MANUAL_KEY='gb-emulator-vercel-hobby-manual-last30-v1';\n// Screenshot supplied by the site owner (not an API feed), explicitly dated.\nconst GB_VERCEL_SCREENSHOT={fdtGB:11.44,originGB:7.58,asOf:'2026-10-26',source:'ภาพหน้าจอที่ส่ง',period:'Last 30 days'};\nfunction gbVercelManualSnapshot(){\n try{\n  const saved=JSON.parse(localStorage.getItem(GB_VERCEL_MANUAL_KEY)||'null');\n  if(saved&&saved.period==='Last 30 days'&&typeof saved.asOf==='string'\n    &&Number.isFinite(saved.fdtGB)&&saved.fdtGB>=0&&saved.fdtGB<=100000\n    &&Number.isFinite(saved.originGB)&&saved.originGB>=0&&saved.originGB<=100000)\n   return {...saved,source:'บันทึกด้วยตนเอง'};\n }catch{}\n return {...GB_VERCEL_SCREENSHOT};\n}\nfunction gbVercelManualBar(label,value,limit){\n const ratio=Math.min(100,Math.max(0,value/limit*100));\n const color=ratio>=90?'#e53935':ratio>=70?'#fb8c00':ratio>=50?'#fdd835':'#34c759';\n return '<div class=\"gbv-manual-stat\"><strong>'+escapeHtml(label)+'</strong><span>'\n   +value.toFixed(2)+' GB / '+limit.toFixed(0)+' GB</span></div>'\n  +'<div class=\"storage-bar\" role=\"progressbar\" aria-label=\"'+escapeHtml(label)+' จากภาพหรือการกรอกเอง\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"'+ratio.toFixed(1)+'\">'\n  +'<i style=\"width:'+ratio.toFixed(1)+'%;background:'+color+'\"></i></div>'\n  +'<div class=\"st-sub\" style=\"color:'+color+';font-weight:700;margin-bottom:10px\">'+ratio.toFixed(1)+'% · '+(ratio>=90?'วิกฤต':ratio>=70?'เฝ้าระวัง':'ปกติ')+'</div>';\n}\nfunction gbVercelManualCard(node,errorMessage){\n if(!node||!node.isConnected)return;\n const data=gbVercelManualSnapshot(),stamp=data.asOf==='2026-10-26'?'26 ต.ค. 2026':String(data.asOf);\n const note=String(errorMessage||'Vercel Query API ใช้ไม่ได้บน Hobby').slice(0,180);\n node.innerHTML='<div class=\"st-head\"><strong>Vercel Usage · Last 30 days</strong><span class=\"gbv-manual-tag\">บันทึกจาก Dashboard</span></div>'\n  +gbVercelManualBar('Fast Data Transfer',data.fdtGB,100)\n  +gbVercelManualBar('Fast Origin Transfer',data.originGB,10)\n  +'<div class=\"st-sub\">ข้อมูลจาก '+escapeHtml(data.source)+' · '+escapeHtml(stamp)+' · รวมทุกโปรเจกต์ในทีม ไม่ใช่ข้อมูลสด</div>'\n  +'<div class=\"st-sub gbv-manual-warning\">ไม่สามารถซิงก์อัตโนมัติ: '+escapeHtml(note)+'</div>'\n  +'<div class=\"gbv-manual-actions\"><button type=\"button\" data-gbv-edit>อัปเดตยอดด้วยตนเอง</button>'\n  +'<a href=\"https://vercel.com/dashboard\" target=\"_blank\" rel=\"noopener noreferrer\">เปิด Vercel Usage</a></div>'\n  +'<form class=\"gbv-manual-form\" data-gbv-form hidden>'\n  +'<label>Fast Data Transfer (GB)<input type=\"number\" name=\"fdt\" min=\"0\" max=\"100000\" step=\"0.01\" required value=\"'+data.fdtGB+'\"></label>'\n  +'<label>Fast Origin Transfer (GB)<input type=\"number\" name=\"origin\" min=\"0\" max=\"100000\" step=\"0.01\" required value=\"'+data.originGB+'\"></label>'\n  +'<button type=\"submit\">บันทึกค่าจาก Vercel</button><div class=\"st-sub\" data-gbv-error role=\"status\"></div></form>';\n const form=node.querySelector('[data-gbv-form]');\n node.querySelector('[data-gbv-edit]').onclick=()=>{form.hidden=!form.hidden;if(!form.hidden)form.elements.fdt.focus();};\n form.onsubmit=e=>{\n  e.preventDefault();\n  const fdt=Number(form.elements.fdt.value),origin=Number(form.elements.origin.value);\n  if(!Number.isFinite(fdt)||!Number.isFinite(origin)||fdt<0||origin<0||fdt>100000||origin>100000){\n   form.querySelector('[data-gbv-error]').textContent='กรุณาใส่ตัวเลข GB ที่ถูกต้อง';return;\n  }\n  const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'});\n  const value={fdtGB:fdt,originGB:origin,asOf:today,source:'บันทึกด้วยตนเอง',period:'Last 30 days'};\n  try{localStorage.setItem(GB_VERCEL_MANUAL_KEY,JSON.stringify(value));}\n  catch{form.querySelector('[data-gbv-error]').textContent='บันทึกในเบราว์เซอร์ไม่ได้ กรุณาตรวจการตั้งค่าการเก็บข้อมูล';return;}\n  gbVercelManualCard(node,'บัญชี Hobby ไม่รองรับ Vercel Query API');\n };\n}\n"+"\nasync function renderVercelUsage(){",
+    'Manual Hobby fallback functions'
+  );
+  once(
+    "node.outerHTML=storageCardHtml('Vercel · Fast Data Transfer',data.usedBytes,limit,note,Math.max(0,limit-data.usedBytes));",
+    "node.outerHTML=storageCardHtml('Vercel · Fast Data Transfer',data.usedBytes,limit,note,Math.max(0,limit-data.usedBytes)).replace('<div class=\"storage-card\">','<div id=\"vercelUsageCard\" class=\"storage-card\">');",
+    'Keep auto-usage refreshable'
+  );
+  once(
+    "}catch(error){if(node.isConnected)node.innerHTML=vercelUnavailableCard(error.message);}",
+    "}catch(error){if(node.isConnected)gbVercelManualCard(node,error.message);}",
+    'Hobby fallback displayed after unavailable API'
+  );
+  once(
+    "' · ตรวจจาก R2 Worker (ตามเพดานที่ Worker ตั้งไว้)'",
+    "' · ดึงจาก R2 Worker เวลา '+new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' · เพดาน Worker'",
+    'R2 source and actual fetch time'
+  );
+  const css='<style id="gb-usage-hobby-manual-and-buttons">'
+   +'#dashboardModalBg #downloadEmeraldRomBtn{font-family:Prompt,sans-serif!important;font-size:10px!important;line-height:1.2!important;font-weight:700!important;padding:4px 8px!important;min-height:26px!important;max-width:max-content!important;width:auto!important;letter-spacing:0!important;border-radius:7px!important}'
+   +'#dashboardModalBg #downloadEmeraldRomBtn svg{width:12px!important;height:12px!important}'
+   +'#dashboardModalBg .gbv-manual-tag{color:var(--sub);font-size:10px;font-weight:600;text-align:right}'
+   +'#dashboardModalBg .gbv-manual-stat{display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px;font-size:12px;font-weight:700;margin:12px 0 6px}'
+   +'#dashboardModalBg .gbv-manual-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:12px}'
+   +'#dashboardModalBg .gbv-manual-actions button,#dashboardModalBg .gbv-manual-form button{font-family:Prompt,sans-serif;font-weight:700;font-size:11px;padding:6px 10px;background:var(--border);color:var(--text);border:1px solid var(--border);border-radius:7px;cursor:pointer}'
+   +'#dashboardModalBg .gbv-manual-actions a{font-size:11px;color:var(--accent)}'
+   +'#dashboardModalBg .gbv-manual-warning{color:var(--sub);font-size:10px;margin-top:6px;overflow-wrap:anywhere}'
+   +'#dashboardModalBg .gbv-manual-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;padding:10px;border-radius:9px;border:1px solid var(--border)}'
+   +'#dashboardModalBg .gbv-manual-form[hidden]{display:none!important}'
+   +'#dashboardModalBg .gbv-manual-form label{display:flex;flex-direction:column;gap:4px;font-size:11px;min-width:0}'
+   +'#dashboardModalBg .gbv-manual-form input{width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:6px;padding:7px;font-size:12px}'
+   +'#dashboardModalBg .gbv-manual-form button{grid-column:1/-1;background:var(--accent);color:#fff}'
+   +'#dashboardModalBg .gbv-manual-form [data-gbv-error]{grid-column:1/-1}'
+   +'@media(max-width:440px){#dashboardModalBg .gbv-manual-form{grid-template-columns:1fr}}'
+   +'</style>';
+  once('</head>',css+'</head>','Scoped UI styling');
+  bundledPage=page;
+ }catch(error){console.warn('Usage/button patch not applied:',error.message);}
+})();
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>
