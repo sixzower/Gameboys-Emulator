@@ -320,5 +320,87 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
 {const before=" el.innerHTML=html;document.getElementById('oracleConnectBtn').onclick=saveOracleConnection;document.getElementById('storageMoveBtn').onclick=()=>requireAuth(openStorageManager);",after=" el.innerHTML=html;document.getElementById('oracleConnectBtn').onclick=saveOracleConnection;document.getElementById('storageMoveBtn').onclick=()=>requireAuth(openStorageManager);void renderVercelUsage();";if(bundledPage.split(before).length!==2)throw Error("Vercel patch missing: Load Vercel usage asynchronously without blocking R2 or other cards");bundledPage=bundledPage.replace(before,after);}
 {const before="button.classList.add('iconbtn');const anchor=document.getElementById('summaryBtn');if(anchor)anchor.before(button);else document.body.append(button);",after="button.classList.add('iconbtn');const anchor=document.getElementById('summaryBtn');if(anchor)anchor.before(button);else (document.getElementById('headerIconGroup')||document.body).prepend(button);";if(bundledPage.split(before).length!==2)throw Error("Keep music button in header after removing details icon");bundledPage=bundledPage.replace(before,after);}
 {const before="while(intro?.style.display!=='none'&&\n        !document.getElementById('introGrid')?.classList.contains('ready')&&\n        waitCycles++<200&&version===gameCoverWarmupId){\n   await new Promise(resolve=>setTimeout(resolve,180));\n  }\n  if(version!==gameCoverWarmupId)return;",after="while(intro?.style.display!=='none'&&\n        !document.getElementById('introGrid')?.classList.contains('ready')&&\n        waitCycles++<400&&version===gameCoverWarmupId){\n   await new Promise(resolve=>setTimeout(resolve,180));\n  }\n  if(version!==gameCoverWarmupId||\n    (intro?.style.display!=='none'&&!document.getElementById('introGrid')?.classList.contains('ready')))return;";if(bundledPage.split(before).length!==2)throw Error("Do not warm library artwork while marquee loading is still active");bundledPage=bundledPage.replace(before,after);}
+
+// --- Dashboard & UI refinement based on 29989fed (review branch, no production release) ---
+{
+ const replaceUnique=(before,after,label)=>{
+  const at=bundledPage.indexOf(before);
+  if(at<0||bundledPage.indexOf(before,at+before.length)>=0)throw Error('UI review patch anchor mismatch: '+label);
+  bundledPage=bundledPage.slice(0,at)+after+bundledPage.slice(at+before.length);
+ };
+ // Match both footer actions to the existing compact Prompt button system.
+ replaceUnique(
+  '<button id="dashRefreshBtn" style="background:var(--border);color:var(--text)">',
+  '<button id="dashRefreshBtn" class="dashboard-footer-action" style="background:var(--border);color:var(--text)">',
+  'Refresh button'
+ );
+ replaceUnique(
+  '<button id="dashCloseBtn" style="background:var(--accent);color:#fff">',
+  '<button id="dashCloseBtn" class="dashboard-footer-action" style="background:var(--accent);color:#fff">',
+  'Close button'
+ );
+ // Reduce only the ROM download action in the game editor, never game downloads.
+ replaceUnique(
+  "button.style.cssText='padding:6px 10px;min-height:30px;min-width:0;width:auto;max-width:max-content;flex:0 0 auto;font-family:Prompt,sans-serif;font-size:12px;font-weight:700;line-height:1.35;letter-spacing:0';",
+  "button.style.cssText='padding:4px 8px;min-height:27px;min-width:0;width:auto;max-width:max-content;flex:0 0 auto;font-family:Prompt,sans-serif;font-size:11px;font-weight:700;line-height:1.35;letter-spacing:0;border-radius:7px';",
+  'Compact ROM download'
+ );
+ // Keep catalog reference icons, but remove the verbose counts sentence.
+ replaceUnique(
+  "return '<div class=\"storage-kinds\"><div class=\"storage-kinds-label\">ไฟล์ที่อ้างอิงใน Catalog · จำนวนจริงทั้งหมด '+Number(objectCount||0)+' ไฟล์</div>'+content+'</div>';",
+  "return '<span class=\"storage-kinds\">'+content+'</span>';",
+  'Catalog inventory label'
+ );
+ // Put provider category icons next to the provider name, rather than under the gauge.
+ replaceUnique(
+  "<div class=\"st-head\"><span style=\"display:inline-flex;align-items:center;gap:6px\">'+icon+escapeHtml(title)+'</span><span>'+storageDecimal(used)",
+  "<div class=\"st-head\"><div class=\"storage-provider-heading\"><span style=\"display:inline-flex;align-items:center;gap:6px\">'+icon+escapeHtml(title)+'</span>'+storageKindsMarkup(provider,objects)+'</div><span>'+storageDecimal(used)",
+  'Inventory icons in storage header'
+ );
+ replaceUnique(
+  "'</div>'+storageKindsMarkup(provider,objects)+'</div>';",
+  "'</div></div>';",
+  'Remove secondary category list'
+ );
+ // The D1 save *summary card* is removed; sync and D1 data stay untouched.
+ const saveStart=bundledPage.indexOf(" if(GB_D1_ACTIVE&&Number.isFinite(dashboardOverview.saves)){");
+ const saveEnd=saveStart<0?-1:bundledPage.indexOf("\n el.innerHTML=html;",saveStart);
+ if(saveStart<0||saveEnd<0||saveEnd-saveStart>1300||
+    !bundledPage.slice(saveStart,saveEnd).includes('ข้อมูลเซฟ D1'))
+  throw Error('UI review patch anchor mismatch: D1 save summary');
+ bundledPage=bundledPage.slice(0,saveStart)+bundledPage.slice(saveEnd);
+ // Explicitly separate Vercel transfer from Cloudflare R2 storage, no fake metrics.
+ replaceUnique(
+  "html+='<div id=\"vercelUsageCard\" class=\"storage-card\">'+vercelUnavailableCard('กำลังตรวจ Vercel Usage...')+'</div>';",
+  "html+='<section class=\"usage-provider-block\" aria-label=\"Vercel Usage\"><div class=\"usage-provider-title\">Vercel · Data Transfer</div><div id=\"vercelUsageCard\" class=\"storage-card\">'+vercelUnavailableCard('กำลังตรวจ Vercel Usage...')+'</div></section>';",
+  'Vercel usage section'
+ );
+ replaceUnique(
+  " if(r.status==='fulfilled'&&r.value){const u=r.value;",
+  " html+='<section class=\"usage-provider-block\" aria-label=\"Cloudflare R2 Usage\"><div class=\"usage-provider-title\">Cloudflare R2 · Storage</div>';\n if(r.status==='fulfilled'&&r.value){const u=r.value;",
+  'R2 standalone heading'
+ );
+ replaceUnique(
+  "}else html+=failure('R2',r);",
+  "}else html+=failure('R2',r);\n html+='</section>';",
+  'R2 standalone section end'
+ );
+ // CSS only for requested controls/presentation, maintaining the established dark theme.
+ const css='<style id="gb-admin-review-styles">'
+  +'.dashboard-footer-action{font-family:Prompt,sans-serif!important;font-size:14px!important;font-weight:700!important;line-height:1.5!important;height:36px!important;min-height:36px!important;width:auto!important;min-width:82px!important;padding:6px 14px!important;border-radius:9px!important;letter-spacing:0!important}'
+  +'.storage-card .st-head{align-items:flex-start}'
+  +'.storage-card .st-head .storage-provider-heading{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:4px;flex:1;min-width:0}'
+  +'.storage-card .st-head .storage-provider-heading>span:first-child{display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:normal;font-weight:700;font-size:13px;color:var(--text)}'
+  +'.storage-card .st-head .storage-kinds{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px 9px;margin:0;padding:0;border:0;width:auto}'
+  +'.storage-card .st-head .storage-kind{display:inline-flex;align-items:center;gap:3px;font-family:Prompt,sans-serif;font-size:11px;color:var(--sub);font-weight:500;white-space:nowrap}'
+  +'.storage-card .st-head .storage-kind svg{width:13px;height:13px;flex-shrink:0}'
+  +'.usage-provider-block{margin:12px 0 14px;padding:10px 10px 2px;border:1px solid var(--border);border-radius:12px;background:var(--card)}'
+  +'.usage-provider-title{font-family:Prompt,sans-serif;font-size:13px;font-weight:700;line-height:1.5;color:var(--text);margin:0 0 9px}'
+  +'.usage-provider-block>.storage-card{margin-bottom:8px}'
+  +'@media(max-width:440px){.dashboard-footer-action{min-width:72px!important;padding:6px 11px!important}.storage-card .st-head{flex-wrap:wrap}.storage-card .st-head .storage-provider-heading{flex-basis:100%}}'
+  +'</style>';
+ replaceUnique('</head>',css+'</head>','Scoped admin styling');
+}
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>
