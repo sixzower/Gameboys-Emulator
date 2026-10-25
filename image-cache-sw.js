@@ -60,7 +60,10 @@ async function responseFor(request,e){
  const key=request.url+'|'+request.mode;
  if(pending.has(key))return (await pending.get(key)).clone();
  const work=fetch(request).then(res=>{
-  if(cache)e.waitUntil(retain(request,res.clone()).catch(()=>{}));
+  // Cache maintenance must never turn a successful image response into an error.
+  if(cache){const saved=retain(request,res.clone()).catch(()=>{});
+   try{e.waitUntil(saved);}catch{/* Keep the network response even if background caching is unavailable. */}
+  }
   return res;
  }).finally(()=>pending.delete(key));
  pending.set(key,work);
