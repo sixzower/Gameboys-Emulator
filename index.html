@@ -376,7 +376,7 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
   'Vercel usage section'
  );
  replaceUnique(
-  " if(r.status==='fulfilled'&&r.value){const u=r.value;",
+  " if(r.status==='fulfilled'&&r.value&&r.value.quotaEnforced===true&&Number.isFinite(r.value.bytes)&&r.value.bytes>=0){const u=r.value;",
   " html+='<section class=\"usage-provider-block\" aria-label=\"Cloudflare R2 Usage\"><div class=\"usage-provider-title\">Cloudflare R2 · Storage</div>';\n if(r.status==='fulfilled'&&r.value){const u=r.value;",
   'R2 standalone heading'
  );
