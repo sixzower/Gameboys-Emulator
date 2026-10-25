@@ -1,5 +1,5 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Gameboy Emulator</title><link rel="icon" type="image/png" sizes="512x512" href="https://objectstorage.ap-singapore-1.oraclecloud.com/n/ax9vabhnvdmn/b/sixzower-assets/o/splash/browser-logo-v3.png?v=20261024-2"><link rel="dns-prefetch" href="//objectstorage.ap-singapore-1.oraclecloud.com"><link rel="preconnect" href="https://objectstorage.ap-singapore-1.oraclecloud.com" crossorigin><link rel="preconnect" href="https://gameboys-backend-test.natlego007.workers.dev" crossorigin><script>// TEST CONFIG: The existing website stays on its old database until the new
-// D1 database is imported and verified. Never enable useD1 before migration.
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Gameboy Emulator</title><link rel="icon" type="image/png" sizes="512x512" href="https://objectstorage.ap-singapore-1.oraclecloud.com/n/ax9vabhnvdmn/b/sixzower-assets/o/splash/browser-logo-v3.png?v=20261024-2"><link rel="dns-prefetch" href="//objectstorage.ap-singapore-1.oraclecloud.com"><link rel="preconnect" href="https://objectstorage.ap-singapore-1.oraclecloud.com" crossorigin><link rel="preconnect" href="https://gameboys-backend-test.natlego007.workers.dev" crossorigin><script>// Cloudflare D1 is currently enabled in this snapshot. Changes remain off-production.
+// Before release, verify Worker CORS, row counts, upload tokens, and save compatibility.
 window.GB_MIGRATION=Object.freeze({
   useD1:true,
   workerUrl:'https://gameboys-backend-test.natlego007.workers.dev', // Set to the HTTPS address of the new Cloudflare Worker when ready.
@@ -22,6 +22,13 @@ window.GB_MIGRATION=Object.freeze({
   if(!response.ok)throw Object.assign(Error(result.error||'D1 request failed'),{status:response.status});
   return result;
  };
+ let workerAdminPrompt=null;
+ const requestWorkerAdminPassword=async()=>{
+  if(!workerAdminPrompt){
+   workerAdminPrompt=Promise.resolve().then(()=>window.prompt('รหัส ADMIN_PASSWORD ของ Cloudflare Worker (ใช้จัดการเกม/การตั้งค่า):')).finally(()=>{workerAdminPrompt=null;});
+  }
+  return workerAdminPrompt;
+ };
  class Builder{
   constructor(table,adminPassword){this.table=table;this.password=adminPassword;this.returning=false;this.op='select';this.columns='*';this.filters={};this.sort=[];this.max=1000;this.options={};this.val=null;this.sig=null;this.singleMode=0;}
   select(columns='*',options={}){this.columns=columns;this.options=options||{};if(this.op!=='select')this.returning=true;return this;}
@@ -42,7 +49,7 @@ window.GB_MIGRATION=Object.freeze({
     const endpoint='/v1/db/'+encodeURIComponent(this.table);
     const payload={operation:this.op,select:this.columns,filters:this.filters,order:this.sort,limit:this.max,options:this.options,values:this.val};
     let result;try{result=await call(endpoint,payload,this.password(),{signal:this.sig});}
-    catch(e){if(e.status!==401||!this.password())throw e;const other=window.prompt('รหัส ADMIN_PASSWORD ของ Cloudflare Worker (สำหรับจัดการเกม/ตั้งค่า):');if(!other)throw e;window.GB_WORKER_ADMIN_PASSWORD=other;result=await call(endpoint,payload,other,{signal:this.sig});}
+    catch(e){if(e.status!==401||!this.password())throw e;const other=await requestWorkerAdminPassword();if(!other)throw e;window.GB_WORKER_ADMIN_PASSWORD=other;result=await call(endpoint,payload,other,{signal:this.sig});}
     let data=result.data;
     if(this.singleMode){
      if(Array.isArray(data)&&data.length===0&&this.singleMode===2)data=null;
@@ -68,7 +75,8 @@ window.GB_MIGRATION=Object.freeze({
       return this;
     },
     async track(meta){current=meta;await heartbeat('track');},
-    async untrack(){await heartbeat('leave');current=null;if(interval!==null){clearInterval(interval);interval=null;}}
+    async untrack(){if(interval!==null){clearInterval(interval);interval=null;}if(current){await heartbeat('leave');current=null;}},
+    async unsubscribe(){await this.untrack();return 'ok';}
    };
  }
  function createClient(options={}){
@@ -77,7 +85,7 @@ window.GB_MIGRATION=Object.freeze({
   return {
    from:table=>new Builder(table,password),
    channel:()=>newPresence(),
-   removeChannel:()=>Promise.resolve(),
+   removeChannel:channel=>channel?.unsubscribe?.()??Promise.resolve(),
    rpc:async()=>({error:{message:'Legacy RPC disabled. Use profile adapter.'}}),
    storage:{from:()=>({getPublicUrl:()=>({data:{publicUrl:''}}),upload:async()=>({error:{message:'Supabase Storage disabled in D1 mode'}}),remove:async()=>({error:{message:'Supabase Storage disabled in D1 mode'}})})}
   };
@@ -194,5 +202,26 @@ bundledPage=bundledPage.replace(before,after);}
 {const before="}catch(error){keyErrorMsg.textContent=error.message||'ตรวจสอบรหัสไม่สำเร็จ กรุณาลองอีกครั้ง';}",after="}catch(error){const network=error instanceof TypeError||/Failed to fetch|NetworkError/i.test(String(error?.message||''));keyErrorMsg.textContent=network?'ติดต่อระบบล็อกอินไม่ได้ กรุณาตรวจเซิร์ฟเวอร์และการตั้งค่า API /api/admin-auth':(error.message||'ตรวจสอบรหัสไม่สำเร็จ กรุณาลองอีกครั้ง');}";if(bundledPage.includes(before))bundledPage=bundledPage.replace(before,after);else console.warn("Final UX patch skipped: helpful login network error");}
 // In verified D1 mode, the old Supabase SDK is never referenced; avoid its blocking download.
 if(window.GBD1?.enabled===true){const oldTag='<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></scr'+'ipt>';bundledPage=bundledPage.replace(oldTag,'');}
+{const before="  const backup=GB_D1_ACTIVE?new Promise(r=>setTimeout(r,1200)).then(()=>fetchCatalog(EMU_RAW_CATALOG,4500)):fetchCatalog(EMU_LOCAL_PREVIEW?'https://gameboysemulator.vercel.app/catalog-backup.json':'/catalog-backup.json',EMU_LOCAL_PREVIEW?5000:1600);",after="  const backup=GB_D1_ACTIVE?new Promise(r=>setTimeout(r,550)).then(()=>fetchCatalog(EMU_RAW_CATALOG,3500)):fetchCatalog(EMU_LOCAL_PREVIEW?'https://gameboysemulator.vercel.app/catalog-backup.json':'/catalog-backup.json',EMU_LOCAL_PREVIEW?5000:1600);";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Begin catalog fallback sooner");bundledPage=bundledPage.replace(before,after);}
+{const before="  const winner=await Promise.race([oracle.then(v=>v?{type:'oracle',v}:null),backup.then(v=>v?{type:'backup',v}:null)]);",after="  const firstValid=Promise.any([oracle.then(v=>{if(!valid(v))throw Error('Worker catalog unavailable');return {type:'oracle',v};}),backup.then(v=>{if(!valid(v))throw Error('Backup catalog unavailable');return {type:'backup',v};})]).catch(()=>null);\n  const winner=await Promise.race([firstValid,new Promise(resolve=>setTimeout(()=>resolve(null),cached?500:2400))]);";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Choose first valid catalog rather than first failed response");bundledPage=bundledPage.replace(before,after);}
+{const before="  let result=winner?.v||await Promise.race([Promise.all([oracle,backup]).then(([a,b])=>a||b),new Promise(r=>setTimeout(()=>r(null),EMU_LOCAL_PREVIEW?6500:1850))])||cached;",after="  let result=winner?.v||cached||await Promise.race([firstValid.then(v=>v?.v||null),new Promise(r=>setTimeout(()=>r(null),EMU_LOCAL_PREVIEW?6500:2800))]);";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Prefer cached catalog instead of waiting for slow Worker");bundledPage=bundledPage.replace(before,after);}
+{const before="        v.__gbPreloadedAt=Date.now();v.__gbPreloadedSource='d1';\n        localStorage.setItem('gb-public-catalog-v1',JSON.stringify(v));",after="        const updated={...v,settings:{...(cached.settings||{}),...(v.settings||{})},__gbPreloadedAt:Date.now(),__gbPreloadedSource:'d1'};\n        localStorage.setItem('gb-public-catalog-v1',JSON.stringify(updated));";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Preserve public settings on background D1 refresh");bundledPage=bundledPage.replace(before,after);}
+{const before="void oracle.then(v=>{if(valid(v))try{v.__gbPreloadedAt=Date.now();v.__gbPreloadedSource=GB_D1_ACTIVE?'d1':'oracle';localStorage.setItem('gb-public-catalog-v1',JSON.stringify(v));}catch{}});",after="void oracle.then(v=>{if(valid(v))try{const old=GB_D1_ACTIVE?JSON.parse(localStorage.getItem('gb-public-catalog-v1')||'null'):null;const fresh={...v,settings:{...(old?.settings||{}),...(v.settings||{})},__gbPreloadedAt:Date.now(),__gbPreloadedSource:GB_D1_ACTIVE?'d1':'oracle'};localStorage.setItem('gb-public-catalog-v1',JSON.stringify(fresh));}catch{}});";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Never erase catalog settings during worker refresh");bundledPage=bundledPage.replace(before,after);}
+{const before="      const covers=Array.isArray(snapshot?.games)?snapshot.games.slice(0,28).map(g=>publicUrl(g.cover_path)).filter(Boolean):[];",after="      const covers=Array.isArray(snapshot?.games)?snapshot.games.slice(0,Math.min(innerWidth<720?14:28,snapshot.games.length)).map(g=>publicUrl(g.cover_path)).filter(Boolean):[];";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Limit early cover warmup by device");bundledPage=bundledPage.replace(before,after);}
+{const before="            const image=new Image();let finished=false;\n            const finish=()=>{if(finished)return;finished=true;image.onload=image.onerror=null;resolve();};\n            image.onload=image.onerror=finish;image.decoding='async';image.fetchPriority='low';\n            image.src=src;setTimeout(finish,7000);",after="            const image=new Image();let finished=false,timeout;\n            const finish=()=>{if(finished)return;finished=true;clearTimeout(timeout);image.onload=image.onerror=null;resolve();};\n            image.onload=image.onerror=finish;image.decoding='async';image.fetchPriority='low';\n            image.src=src;timeout=setTimeout(finish,6500);";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Prevent retained preloader timers after image completes");bundledPage=bundledPage.replace(before,after);}
+{const before="  // A synchronized initial fade without waiting for all offscreen covers.\n  await Promise.race([Promise.all(firstFrame),new Promise(resolve=>setTimeout(resolve,1200))]);",after="  // Show the marquee once the visible frames settle; never wait for the full image wall.\n  await Promise.race([Promise.all(firstFrame),new Promise(resolve=>setTimeout(resolve,1000))]);";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Show initial slider without waiting for offscreen artwork");bundledPage=bundledPage.replace(before,after);}
+{const before="  if(GB_D1_ACTIVE&&valid(result)){try{const b=await fetchCatalog(EMU_RAW_CATALOG,4500);if(valid(b))result={...result,settings:{...(b.settings||{}),...(result.settings||{})}};}catch{}}",after="  if(GB_D1_ACTIVE&&valid(result)){const retained=valid(cached)?cached.settings||{}:{};result={...result,settings:{...retained,...(result.settings||{})}};void backup.then(b=>{if(valid(b)&&b.settings)try{const old=JSON.parse(localStorage.getItem('gb-public-catalog-v1')||'null');if(valid(old))localStorage.setItem('gb-public-catalog-v1',JSON.stringify({...old,settings:{...b.settings,...(old.settings||{})}}));}catch{}});}";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Do not block catalog rendering on optional public settings snapshot");bundledPage=bundledPage.replace(before,after);}
+{const before="if(GB_D1_ACTIVE&&valid(cached)&&cached.__gbPreloadedSource==='d1'&&\n     Date.now()-Number(cached.__gbPreloadedAt||0)<180000){",after="if(GB_D1_ACTIVE&&valid(cached)&&cached.__gbPreloadedSource==='d1'&&\n     Date.now()-Number(cached.__gbPreloadedAt||0)<180000){";if(!bundledPage.includes(before))throw Error("Staged optimization anchor missing: Mark existing valid D1 snapshot fast path");bundledPage=bundledPage.replace(before,after);}
+
+// Lightweight image-cache-worker opt-in: install only after load and never on file:// previews.
+// Browsers lacking compatible cross-origin image responses keep native HTTP caching unchanged.
+if('serviceWorker' in navigator && location.protocol==='https:' && location.hostname!=='localhost'){
+ window.addEventListener('load',()=>{
+  const register=()=>navigator.serviceWorker.register('/image-cache-sw.js').catch(()=>{});
+  if(typeof requestIdleCallback==='function')requestIdleCallback(register,{timeout:3500});
+  else setTimeout(register,1200);
+ },{once:true});
+}
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>

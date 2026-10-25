@@ -853,7 +853,7 @@
     });
     const observer = new MutationObserver(refresh);
     observer.observe(document.body,{attributes:true,attributeFilter:['class']});
-    setInterval(refresh,450);
+    setInterval(()=>{if(document.visibilityState==='visible')refresh();},650);
     refresh();
   }
   function init() {
