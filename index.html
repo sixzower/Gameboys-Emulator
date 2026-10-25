@@ -402,5 +402,69 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
  replaceUnique('</head>',css+'</head>','Scoped admin styling');
 }
 
+
+// Dashboard desktop layout / Analytics icon / centrally-aligned delete actions.
+// Work on the unpacked presentation only. Never alter the ROM player or backend.
+(()=>{
+  try {
+    let next=bundledPage;
+    const replaceExactlyOnce=(oldValue,newValue,label)=>{
+      const first=next.indexOf(oldValue);
+      if(first<0||next.indexOf(oldValue,first+oldValue.length)>=0)throw Error('Missing or ambiguous dashboard markup: '+label);
+      next=next.slice(0,first)+newValue+next.slice(first+oldValue.length);
+    };
+    const chartIcon='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16v5M16 14v7M20 10v11"/><path d="m22 3-8.97 8.97-4.5-4.5L2 14"/></svg>';
+    replaceExactlyOnce(
+      '<button class="iconbtn" id="dashboardBtn" title="แดชบอร์ดผู้เล่น">\n      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="1"/><rect x="13" y="8" width="3" height="10" rx="1"/><rect x="19" y="5" width="1" height="13"/></svg>\n    </button>',
+      '<button class="iconbtn" id="dashboardBtn" title="แดชบอร์ด Analytics" aria-label="เปิดแดชบอร์ด Analytics">\n      '+chartIcon+'\n    </button>',
+      'Analytics dashboard icon'
+    );
+    replaceExactlyOnce(
+      '    <div class="dash-section-title" style="margin-top:14px;">เวลาเล่นรวมรายวัน (14 วันล่าสุด)</div>',
+      '    <div class="dash-desktop-grid">\n      <section class="dash-column dash-column-charts" aria-label="กราฟและสถิติการเล่น">\n        <div class="dash-section-title" style="margin-top:0;">เวลาเล่นรวมรายวัน (14 วันล่าสุด)</div>',
+      'Charts column opening'
+    );
+    replaceExactlyOnce(
+      '    <div id="dashTopGames"></div>\n    <div class="dash-section-title">ผู้เล่นรายคน</div>',
+      '    <div id="dashTopGames"></div>\n      </section>\n      <section class="dash-column dash-column-system" aria-label="ผู้เล่นและพื้นที่จัดเก็บ">\n    <div class="dash-section-title" style="margin-top:0;">ผู้เล่นรายคน</div>',
+      'Players column opening'
+    );
+    replaceExactlyOnce(
+      '    <div class="dash-rom-download"><button type="button" id="downloadEmeraldRomBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Download GBA ROM Emerald</span></button></div>\n    <div class="modal-actions">',
+      '    <div class="dash-rom-download"><button type="button" id="downloadEmeraldRomBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Download GBA ROM Emerald</span></button></div>\n      </section>\n    </div>\n    <div class="modal-actions">',
+      'Dashboard columns closing'
+    );
+    const css='<style id="gb-dashboard-wide-analytics">'
+     +'#dashboardBtn svg{display:block;flex:none}'
+     +'#dashboardModalBg .dash-modal{box-sizing:border-box}'
+     +'#dashboardModalBg .dash-desktop-grid{display:block}'
+     +'#dashboardModalBg .dash-column{min-width:0}'
+     +'#dashboardModalBg #dashResetStatsBtn{justify-content:center!important;margin-right:0!important;text-align:center!important;gap:6px!important;min-width:0!important}'
+     +'#dashboardModalBg #dashResetStatsBtn svg{width:15px;height:15px;flex:0 0 15px;display:block;margin:0}'
+     +'body.authed .card-actions button[data-act="del"]{display:inline-flex!important;align-items:center;justify-content:center;text-align:center}'
+     +'@media (min-width:960px){'
+     +'#dashboardModalBg{box-sizing:border-box;padding:24px}'
+     +'#dashboardModalBg .dash-modal{width:min(1240px,calc(100vw - 48px))!important;max-width:1240px!important;max-height:min(92dvh,920px);padding:24px 26px!important}'
+     +'#dashboardModalBg .dash-desktop-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);gap:18px;align-items:start;margin-top:14px}'
+     +'#dashboardModalBg .dash-column{padding:16px 18px;border:1px solid var(--border);background:var(--bg);border-radius:12px}'
+     +'#dashboardModalBg .dash-chart-box{height:205px}'
+     +'#dashboardModalBg .dashboard-overview,#dashboardModalBg #dashSummary{grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px}'
+     +'#dashboardModalBg .modal-actions{position:sticky;bottom:-24px;padding:12px 0 0;margin-top:18px;background:var(--card);border-top:1px solid var(--border);z-index:3}'
+     +'}'
+     +'@media (min-width:680px) and (max-width:959px){'
+     +'#dashboardModalBg .dash-modal{width:calc(100vw - 44px)!important;max-width:850px!important}'
+     +'#dashboardModalBg .dash-desktop-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:10px}'
+     +'#dashboardModalBg .dash-column{min-width:0}'
+     +'}'
+     +'@media (max-width:679px){#dashboardModalBg .dash-modal{width:100%;max-width:620px}#dashboardModalBg .dash-desktop-grid{display:block}#dashboardModalBg .dash-column{padding:0;border:0}}'
+     +'</style>';
+    replaceExactlyOnce('</head>',css+'</head>','Dashboard stylesheet');
+    bundledPage=next;
+  } catch(error) {
+    // No broken white-page boot: retain the already-working layout if markup changes.
+    console.warn('Dashboard layout adaptation skipped:',error.message);
+  }
+})();
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>
