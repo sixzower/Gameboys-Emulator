@@ -20,12 +20,17 @@ async function queryVercelUsage(){
   }),
   signal:AbortSignal.timeout(9000)
  });
- if(!upstream.ok)throw Object.assign(Error('Vercel Observability ยังไม่อนุญาตให้อ่านข้อมูล Usage ('+upstream.status+')'),{status:503});
+ if(!upstream.ok){
+  const message=upstream.status===400||upstream.status===403
+   ?'Vercel Query API ไม่อนุญาตให้ดึง Fast Data Transfer (HTTP '+upstream.status+') · บัญชี Hobby อาจไม่มีสิทธิ์ Query; ตรวจยอดจริงที่ Vercel Usage'
+   :'Vercel API ไม่สามารถอ่าน Fast Data Transfer ได้ (HTTP '+upstream.status+')';
+  throw Object.assign(Error(message),{status:503});
+ }
  const result=await upstream.json();
  const list=result.summary||result.result?.summary;
  const raw=list?.[0]?.vercel_request_fdt_total_bytes_sum;
  const bytes=Number(raw);
- if(!Array.isArray(list)||!list.length||!Number.isFinite(bytes)||bytes<0)
+ if(!Array.isArray(list)||!list.length||raw===null||raw===undefined||raw===''||typeof raw==='boolean'||!Number.isFinite(bytes)||bytes<0)
   throw Object.assign(Error('Vercel ยังไม่ส่งข้อมูล Fast Data Transfer ที่ตรวจสอบได้'),{status:503});
  const configured=Number(process.env.VERCEL_FDT_LIMIT_BYTES);
  return {
