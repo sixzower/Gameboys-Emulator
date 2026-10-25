@@ -463,5 +463,58 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
   }
 })();
 
+
+// Dashboard Usage data integrity + bounded R2 Worker request; preview-only.
+(()=>{
+  try {
+    let doc=bundledPage;
+    const replaceOnce=(oldCode,newCode,label)=>{
+      const first=doc.indexOf(oldCode);
+      if(first<0||doc.indexOf(oldCode,first+oldCode.length)!==-1)throw Error('Usage patch anchor mismatch: '+label);
+      doc=doc.slice(0,first)+newCode+doc.slice(first+oldCode.length);
+    };
+    replaceOnce(
+      "async function getR2Usage(){\n  if(!r2Enabled()) return null;\n  return JSON.parse(await r2Request('GET', r2Base()+'/usage'));\n}",
+      "async function getR2Usage(){\n"+
+      " if(!r2Enabled())throw Error('ยังไม่ได้ตั้งค่า Cloudflare R2 Worker');\n"+
+      " if(!marqueeAuthorized||!MARQUEE_PASSWORD)throw Error('เข้าสู่ระบบผู้ดูแลก่อนตรวจ R2 Usage');\n"+
+      " const raw=await r2Request('GET',r2Base()+'/usage',null,null,{timeout:14000,idleTimeout:11000});\n"+
+      " let data;try{data=JSON.parse(raw);}catch{throw Error('R2 Worker ส่งข้อมูล /usage ที่อ่านไม่ได้');}\n"+
+      " if(data?.quotaEnforced!==true||!Number.isSafeInteger(data.bytes)||data.bytes<0||"+
+      "!Number.isSafeInteger(data.limit)||data.limit<=0||"+
+      "!Number.isSafeInteger(data.objects)||data.objects<0||"+
+      "!Number.isSafeInteger(data.reservedBytes)||data.reservedBytes<0)\n"+
+      "  throw Error('R2 Worker ยังไม่ส่งข้อมูลโควตาที่ตรวจสอบได้ (bytes / objects / limit / reservedBytes / quotaEnforced)');\n"+
+      " return data;\n}",
+      'R2 usage validation'
+    );
+    replaceOnce(
+      " const el=document.getElementById('dashStorage');el.innerHTML='<div class=\"dash-empty\">กำลังโหลด...</div>';",
+      " const el=document.getElementById('dashStorage');"+
+      "el.innerHTML='<section class=\"usage-provider-block\" aria-label=\"Vercel Usage\"><div class=\"usage-provider-title\">Vercel · Data Transfer</div><div class=\"storage-card\">กำลังตรวจสอบ Vercel Usage...</div></section>'"+
+      "+'<section class=\"usage-provider-block\" aria-label=\"Cloudflare R2 Usage\"><div class=\"usage-provider-title\">Cloudflare R2 · Storage</div><div class=\"storage-card\">กำลังตรวจสอบ Cloudflare R2 Worker...</div></section>';",
+      'Immediate per-provider loading state'
+    );
+    replaceOnce(
+      "  +'<div class=\"st-sub\" style=\"font-weight:700;color:var(--sub)\">ยังไม่ทราบระดับ Usage</div>'",
+      "  +'<div class=\"st-sub\" style=\"font-weight:700;color:var(--sub)\">ยังไม่มีตัวเลข Usage ที่ยืนยันได้</div>'",
+      'No unverified Vercel percentage'
+    );
+    replaceOnce(
+      "  +'<div class=\"st-sub\">'+text+' · <a href=\"https://vercel.com/dashboard\" target=\"_blank\" rel=\"noopener noreferrer\">ดู Vercel Dashboard</a></div>';",
+      "  +'<div class=\"st-sub\">'+text+' · บัญชี Hobby อาจไม่รองรับการเรียก Query API เพื่อดึงค่าจริงอัตโนมัติ · <a href=\"https://vercel.com/dashboard\" target=\"_blank\" rel=\"noopener noreferrer\">ตรวจยอดจริงใน Vercel Usage</a></div>';",
+      'Vercel Hobby explanation'
+    );
+    replaceOnce(
+      "'▤ '+u.objects+' ไฟล์ · จองอยู่ '+fmtBytes(u.reservedBytes||0)+' · วัดจาก Worker'",
+      "'▤ '+u.objects+' ไฟล์ · จองอยู่ '+fmtBytes(u.reservedBytes||0)+' · ตรวจจาก R2 Worker (ตามเพดานที่ Worker ตั้งไว้)'",
+      'R2 limit semantics'
+    );
+    bundledPage=doc;
+  } catch(error) {
+    console.warn('Usage status patch skipped; preserving existing UI:',error.message);
+  }
+})();
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>
