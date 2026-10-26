@@ -687,5 +687,91 @@ if('serviceWorker' in navigator && location.protocol==='https:' && location.host
   bundledPage=bundledPage.replace('</head>',reviewStyle+'</head>');
 })();
 
+
+// REVIEW ONLY: dashboard cleanup and UX update (not deployed)
+(()=>{
+  const replaceOne=(before,after,label)=>{
+    const first=bundledPage.indexOf(before);
+    if(first<0||bundledPage.indexOf(before,first+before.length)>=0){console.warn('Review adjustment skipped:',label);return;}
+    bundledPage=bundledPage.slice(0,first)+after+bundledPage.slice(first+before.length);
+  };
+  // Remove the temporary upload widget and the two now-unneeded ROM readiness messages.
+  for(const id of ['gbFireRedAvailability','gbEmeraldAvailability','gbEmeraldAdminUpload']){
+    const pattern=new RegExp('<div id="'+id+'"[^>]*>[\\s\\S]*?<\\/div>');
+    if(pattern.test(bundledPage))bundledPage=bundledPage.replace(pattern,'');
+    else console.warn('Could not remove temporary ROM UI:',id);
+  }
+  // Keep verified FireRed/Emerald downloads. Detach upload dependencies and polling only.
+  const runtime=/<script id="gb-firered-oracle-runtime">([\s\S]*?)<\/script>/;
+  const match=bundledPage.match(runtime);
+  if(match){
+    let code=match[1];
+    const fix=(a,b,label)=>{if(!code.includes(a))console.warn('ROM runtime anchor missing:',label);else code=code.replace(a,b)};
+    fix('if(!fire||!emerald||!fireState||!panel||!choose||!input||!status)return;','if(!fire||!emerald)return;','download early exit');
+    fix('const refreshPanel=()=>{panel.hidden=!isAdmin()};','const refreshPanel=()=>{};','upload UI toggle');
+    const uploaderStart=code.indexOf(' let uploading=false;');
+    const uploaderStop=code.indexOf(" document.getElementById('dashboardBtn')?.addEventListener",uploaderStart);
+    if(uploaderStart>=0&&uploaderStop>uploaderStart){code=code.slice(0,uploaderStart)+code.slice(uploaderStop)}
+    const dashboardHead=code.indexOf(" document.getElementById('dashboardBtn')?.addEventListener");
+    const runtimeEnd=code.lastIndexOf(' refreshPanel();');
+    if(dashboardHead>=0&&runtimeEnd>dashboardHead)code=code.slice(0,dashboardHead)+code.slice(runtimeEnd+' refreshPanel();'.length);
+    // The notification remains consistent across both downloads and login/logout.
+    fix("if(typeof toastMsg==='function')toastMsg(message);else console.info(message)","if(typeof window.gbThemeToast==='function')window.gbThemeToast(message,/ไม่สำเร็จ|ไม่พบ|ผิดพลาด/.test(message)?'error':'success');else if(typeof toastMsg==='function')toastMsg(message)",'ROM notification');
+    fix('กรุณาอัปโหลดผ่านปุ่ม Admin','กรุณาตรวจสอบไฟล์บน Oracle','Emerald absent text');
+    bundledPage=bundledPage.replace(runtime,()=>'<script id="gb-firered-oracle-runtime">'+code+'<'+ '/script>');
+  }else console.warn('ROM download module missing');
+  // Connectivity state is driven by the actual sync state, not just browser online status.
+  replaceOne(
+    "const status=document.getElementById('cloudSyncStatusLabel');if(status)status.textContent=!code?'ยังไม่มีรหัสซิงก์':({ok:'ซิงก์สำเร็จ',connected:'เชื่อมต่อพร้อมซิงก์',busy:'กำลังซิงก์…',error:'ซิงก์ไม่สำเร็จ',idle:'รอเซฟในเกม'})[state];",
+    "const status=document.getElementById('cloudSyncStatusLabel');if(status){status.textContent=!code?'ยังไม่มีรหัสซิงก์':({ok:'ซิงก์สำเร็จ',connected:'เชื่อมต่อพร้อมซิงก์',busy:'กำลังซิงก์…',error:'ซิงก์ไม่สำเร็จ',idle:'รอเซฟในเกม'})[state];status.dataset.connection=code&&navigator.onLine&&['ok','connected','busy'].includes(state)?'online':'offline';}",
+    'sync label state');
+  // Music still starts at the safe 2% volume, with a perceptible smooth fade in/out.
+  replaceOne('const t=Math.min(1,(now-start)/650);audio.volume=from+(target-from)*(t*t*(3-2*t));',
+             'const t=Math.min(1,(now-start)/(target===0?1500:2000));audio.volume=from+(target-from)*(t*t*(3-2*t));','ambient music fade');
+  // Login messages are emitted once on a verified authentication transition.
+  replaceOne('function updateAuthUI(){\n  document.body.classList.toggle',
+             'let gbLastAuthenticated=false;\nfunction updateAuthUI(){\n  if(gbLastAuthenticated!==marqueeAuthorized){gbLastAuthenticated=marqueeAuthorized;window.gbThemeToast?.(marqueeAuthorized?"เข้าสู่ระบบ":"ออกจากระบบ","success");}\n  document.body.classList.toggle',
+             'admin login/logout toast');
+  // Prefer locally loaded games for stat cover lookup, falling back to cached catalog.
+  replaceOne('  const snapshot=await gbCatalog();\n  const all=Array.isArray(snapshot?.games)?snapshot.games:[];\n  const byName=new Map();',
+             '  let snapshot=null;try{snapshot=await gbCatalog()}catch{}\n  const all=[...(Array.isArray(currentGames)?currentGames:[]),...(Array.isArray(snapshot?.games)?snapshot.games:[])];\n  const byName=new Map();',
+             'popular game cover fallback');
+  replaceOne('<button id="dashRefreshBtn" class="dashboard-footer-action" style="background:var(--accent);color:#fff">รีเฟรชข้อมูล</button>',
+    '<button id="dashRefreshBtn" class="dashboard-footer-action" style="background:var(--accent);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.5 9a7.5 7.5 0 0 1 13-2l1.5 5M18.5 15a7.5 7.5 0 0 1-13 2L4 12"/></svg><span>รีเฟรชข้อมูล</span></button>',
+    'minimal refresh icon');
+  const css=`
+#cloudSyncStatusLabel[data-connection="online"]{color:#22c55e!important;text-shadow:0 0 10px #22c55e24}
+#cloudSyncStatusLabel[data-connection="offline"]{color:#ef4444!important}
+#dashboardModalBg #dashResetStatsBtn,#dashboardModalBg #dashRefreshBtn{display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:7px;font-family:Prompt,sans-serif!important;font-size:14px!important;font-weight:700!important;line-height:1.5!important;min-height:36px!important;padding:6px 12px!important}
+#dashboardModalBg #dashResetStatsBtn svg,#dashboardModalBg #dashRefreshBtn svg{display:block;width:16px!important;height:16px!important;min-width:16px!important;flex:none}
+#dashboardModalBg #dashResetStatsBtn span,#dashboardModalBg #dashRefreshBtn span{display:inline-block;white-space:nowrap}
+#dashboardModalBg #dashResetStatsBtn{display:none!important;background:#b91c1c!important;color:#fff!important;border:1px solid #ef4444!important;margin-right:auto}body.authed #dashboardModalBg #dashResetStatsBtn{display:inline-flex!important}
+#dashboardModalBg #gbEmeraldAdminUpload,#dashboardModalBg #gbFireRedAvailability,#dashboardModalBg #gbEmeraldAvailability{display:none!important}
+#dashboardModalBg .dash-game-row .g-name{min-width:0;flex:1 1 auto;display:flex!important;align-items:center;gap:7px;overflow:hidden}
+#dashboardModalBg .dash-game-row .gb-stat-cover{display:block!important;flex-shrink:0;width:24px;height:29px;object-fit:cover;border-radius:4px}
+#gbThemeNotice{position:fixed;top:max(72px,calc(env(safe-area-inset-top,0px) + 16px));left:50%;transform:translate(-50%,-16px);z-index:2147483647;width:max-content;max-width:min(90vw,470px);min-width:170px;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 16px;background:linear-gradient(135deg,#231e1b,#141414);color:#fff8f4;border:1px solid color-mix(in srgb,var(--accent,#f15a24) 55%,#5b4033);border-radius:12px;box-shadow:0 12px 36px #0009,0 0 0 1px #ff8d3f19;font:700 13px/1.5 Prompt,sans-serif;text-align:center;opacity:0;pointer-events:none;transition:transform .24s ease,opacity .24s ease}
+#gbThemeNotice.show{opacity:1;transform:translate(-50%,0)}#gbThemeNotice .gb-toast-mark{display:grid;place-items:center;flex-shrink:0;width:25px;height:25px;border-radius:50%;background:var(--accent,#ef410d);font:bold 17px/1 system-ui;color:white}#gbThemeNotice.error .gb-toast-mark{background:#dc2626}
+@media(max-width:390px){#dashboardModalBg #dashResetStatsBtn,#dashboardModalBg #dashRefreshBtn{font-size:12px!important;gap:5px;padding:6px 8px!important}#dashboardModalBg #dashResetStatsBtn svg,#dashboardModalBg #dashRefreshBtn svg{width:14px!important;height:14px!important;min-width:14px!important}}
+`;
+  bundledPage=bundledPage.replace('</head>','<style id="gb-polish-20261026">'+css+'</style></head>');
+  const runtimeJs=`(()=>{
+  let timer=0;
+  window.gbThemeToast=(msg,type='success')=>{
+    let box=document.getElementById('gbThemeNotice');
+    if(!box){box=document.createElement('div');box.id='gbThemeNotice';box.setAttribute('role','status');box.setAttribute('aria-live','polite');box.innerHTML='<span class="gb-toast-mark" aria-hidden="true"></span><span class="gb-toast-label"></span>';document.body.appendChild(box)}
+    box.classList.remove('show','error');if(type==='error')box.classList.add('error');
+    box.querySelector('.gb-toast-mark').textContent=type==='error'?'!':'✓';
+    box.querySelector('.gb-toast-label').textContent=String(msg||'');
+    clearTimeout(timer);void box.offsetWidth;box.classList.add('show');
+    timer=setTimeout(()=>box.classList.remove('show'),2600);
+  };
+  const showOnlineState=()=>{const label=document.getElementById('cloudSyncStatusLabel');if(!label)return;
+    if(!navigator.onLine)label.dataset.connection='offline';else if(typeof cloudSyncState!=='undefined')label.dataset.connection=cloudSyncState.code&&['connected','ok','busy'].includes(cloudSyncState.state)?'online':'offline';
+  };
+  window.addEventListener('online',showOnlineState);window.addEventListener('offline',showOnlineState);showOnlineState();
+})();`;
+  bundledPage=bundledPage.replace('</body>','<script id="gb-notice-and-sync-runtime">'+runtimeJs+'<'+'/script></body>');
+})();
+
 document.open();document.write(bundledPage);document.close();
 </script></body></html>
