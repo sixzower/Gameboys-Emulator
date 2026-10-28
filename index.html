@@ -229,8 +229,9 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 {const external='<script defer src="/gb-dashboard-library-overview-v1.js?v=20261028-3"><'+'/script>';
  if(!gbCartridgePage.includes('id="dashTopGames"'))throw Error('Dashboard overview anchor missing');
  if(gbCartridgePage.split('</body>').length!==2)throw Error('Dashboard body closing tag mismatch');
- const analytics='<script defer src="/gb-dashboard-analytics-v1.js?v=20261028-4"><'+'/script>';
- gbCartridgePage=gbCartridgePage.replace('</body>',external+analytics+'</body>');}
+ const analytics='<script defer src="/gb-dashboard-analytics-v1.js?v=20261028-5"><'+'/script>';
+ const supabaseUsage='<script defer src="/gb-dashboard-supabase-usage-v1.js?v=20261028-1"><'+'/script>';
+ gbCartridgePage=gbCartridgePage.replace('</body>',external+analytics+supabaseUsage+'</body>');}
 // Keep the original Chart.js line chart; only the time window is selectable.
 {const rewrites=[
  ["function renderDashCharts(){","function renderDashCharts(onlyDaily=false){"],
@@ -240,5 +241,17 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 }
 // Keep up to ten ranked games while preserving the original session totals.
 {const before="const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,15);",after="const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,10);";if(gbCartridgePage.split(before).length!==2)throw Error('Top games limit patch mismatch');gbCartridgePage=gbCartridgePage.replace(before,after);}
+// Restore Supabase Storage usage when the data client runs on D1;
+// leave D1 catalog and save behavior unchanged.
+{
+ const input='GB_D1_ACTIVE?Promise.resolve(null):getSupabaseUsage()';
+ const output='window.GB_SUPABASE_USAGE.read()';
+ if(gbCartridgePage.split(input).length!==2)throw Error('Supabase usage reader anchor mismatch');
+ gbCartridgePage=gbCartridgePage.replace(input,output);
+ const block=/if\\(GB_D1_ACTIVE\\)\\{\\/\\* Supabase has been retired from the active dashboard\\. \\*\\/\\}else if\\(s\\.status==='fulfilled'\\)\\{const u=s\\.value;html\\+=storageCardHtml\\('Supabase',u\\.total,SUPABASE_STORAGE_LIMIT,[^;]*\\);\\}else html\\+=failure\\('Supabase',s\\);/;
+ const restored="if(s.status==='fulfilled'){const u=s.value;html+='<section class=\\\"usage-provider-block\\\" aria-label=\\\"Supabase Storage Usage\\\"><div class=\\\"usage-provider-title\\\">Supabase · Storage</div>'+storageCardHtml('Supabase',u.total,SUPABASE_STORAGE_LIMIT,u.files+' ไฟล์ · ROM '+fmtBytes(u.folders.roms)+' · ไฟล์อื่น '+fmtBytes(u.total-u.folders.roms)+' · ไม่รวมฐานข้อมูล')+'</section>';}else html+='<section class=\\\"usage-provider-block\\\" aria-label=\\\"Supabase Storage Usage\\\">'+failure('Supabase',s)+'</section>';";
+ if(!block.test(gbCartridgePage))throw Error('Supabase usage panel anchor mismatch');
+ gbCartridgePage=gbCartridgePage.replace(block,restored);
+}
 document.open();document.write(gbCartridgePage);document.close();
 </script></body></html>
