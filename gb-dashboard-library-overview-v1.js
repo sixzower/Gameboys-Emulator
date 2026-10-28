@@ -25,7 +25,7 @@
     '#dashboardModalBg .gb-lib-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}',
     '#dashboardModalBg .gb-lib-heading-title{display:flex;align-items:center;min-width:0;gap:9px;font-size:15px;font-weight:800;color:var(--text);}',
     '#dashboardModalBg .gb-lib-heading-title .gb-lib-icon{color:#f05a46;background:color-mix(in srgb,var(--accent) 16%,var(--card));border-radius:9px;width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;}',
-    '#dashboardModalBg .gb-lib-action{font:600 11px inherit!important;white-space:nowrap;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px 10px;border-radius:999px;cursor:pointer;flex-shrink:0;}',
+    '#dashboardModalBg .gb-lib-action{font-family:inherit!important;font-size:11px!important;font-weight:700!important;line-height:1.2!important;white-space:nowrap;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px 10px;border-radius:999px;cursor:pointer;flex-shrink:0;}',
     '#dashboardModalBg .gb-lib-action:hover{border-color:var(--accent);}',
     '#dashboardModalBg .gb-lib-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:14px;}',
     '#dashboardModalBg .gb-lib-metric{min-width:0;min-height:96px;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;padding:10px;background:linear-gradient(155deg,color-mix(in srgb,var(--text) 4%,var(--card)),var(--bg));}',
