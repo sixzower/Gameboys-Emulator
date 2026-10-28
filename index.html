@@ -241,17 +241,15 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 }
 // Keep up to ten ranked games while preserving the original session totals.
 {const before="const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,15);",after="const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,10);";if(gbCartridgePage.split(before).length!==2)throw Error('Top games limit patch mismatch');gbCartridgePage=gbCartridgePage.replace(before,after);}
-// Restore Supabase Storage usage when the data client runs on D1;
-// leave D1 catalog and save behavior unchanged.
+// Restore Supabase Storage usage independently of the D1 catalog/saves.
 {
- const input='GB_D1_ACTIVE?Promise.resolve(null):getSupabaseUsage()';
- const output='window.GB_SUPABASE_USAGE.read()';
+ const input="GB_D1_ACTIVE?Promise.resolve(null):getSupabaseUsage()";
  if(gbCartridgePage.split(input).length!==2)throw Error('Supabase usage reader anchor mismatch');
- gbCartridgePage=gbCartridgePage.replace(input,output);
- const block=/if\\(GB_D1_ACTIVE\\)\\{\\/\\* Supabase has been retired from the active dashboard\\. \\*\\/\\}else if\\(s\\.status==='fulfilled'\\)\\{const u=s\\.value;html\\+=storageCardHtml\\('Supabase',u\\.total,SUPABASE_STORAGE_LIMIT,[^;]*\\);\\}else html\\+=failure\\('Supabase',s\\);/;
- const restored="if(s.status==='fulfilled'){const u=s.value;html+='<section class=\\\"usage-provider-block\\\" aria-label=\\\"Supabase Storage Usage\\\"><div class=\\\"usage-provider-title\\\">Supabase · Storage</div>'+storageCardHtml('Supabase',u.total,SUPABASE_STORAGE_LIMIT,u.files+' ไฟล์ · ROM '+fmtBytes(u.folders.roms)+' · ไฟล์อื่น '+fmtBytes(u.total-u.folders.roms)+' · ไม่รวมฐานข้อมูล')+'</section>';}else html+='<section class=\\\"usage-provider-block\\\" aria-label=\\\"Supabase Storage Usage\\\">'+failure('Supabase',s)+'</section>';";
- if(!block.test(gbCartridgePage))throw Error('Supabase usage panel anchor mismatch');
- gbCartridgePage=gbCartridgePage.replace(block,restored);
+ gbCartridgePage=gbCartridgePage.replace(input,'window.GB_SUPABASE_USAGE.read()');
+ const begin="if(GB_D1_ACTIVE){/* Supabase has been retired from the active dashboard. */}else if(s.status==='fulfilled'){",end="else html+=failure('Supabase',s);";
+ const start=gbCartridgePage.indexOf(begin),finish=gbCartridgePage.indexOf(end,start);
+ if(start<0||finish<0||gbCartridgePage.indexOf(begin,start+1)>=0)throw Error('Supabase panel anchor mismatch');
+ gbCartridgePage=gbCartridgePage.slice(0,start)+"if(s.status==='fulfilled'){const u=s.value;html+='<section class=\"usage-provider-block\" aria-label=\"Supabase Storage Usage\"><div class=\"usage-provider-title\">Supabase · Storage</div>'+storageCardHtml('Supabase',u.total,SUPABASE_STORAGE_LIMIT,u.files+' ไฟล์ · ROM '+fmtBytes(u.folders.roms)+' · ไฟล์อื่น '+fmtBytes(u.total-u.folders.roms)+' · ไม่รวมฐานข้อมูล')+'</section>';}else html+='<section class=\"usage-provider-block\" aria-label=\"Supabase Storage Usage\">'+failure('Supabase',s)+'</section>';"+gbCartridgePage.slice(finish+end.length);
 }
 document.open();document.write(gbCartridgePage);document.close();
 </script></body></html>
