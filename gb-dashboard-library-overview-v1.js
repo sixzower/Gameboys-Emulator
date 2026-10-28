@@ -21,12 +21,10 @@
   const style=document.createElement('style');
   style.id='gb-library-overview-style-v2';
   style.textContent=[
-    '#dashboardModalBg #gbLibraryOverview{margin-top:16px;padding:13px 14px 14px;min-width:0;border:2px solid var(--accent,#e3350d);border-radius:13px;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 4%,var(--card)),var(--card));box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 17%,transparent),0 5px 20px #0003;box-sizing:border-box;}',
+    '#dashboardModalBg #gbLibraryOverview{margin-top:16px;padding:13px 14px 14px;min-width:0;border:1px solid var(--border);border-radius:12px;background:var(--bg);box-shadow:none;box-sizing:border-box;}',
     '#dashboardModalBg .gb-lib-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}',
     '#dashboardModalBg .gb-lib-heading-title{display:flex;align-items:center;min-width:0;gap:9px;font-size:15px;font-weight:800;color:var(--text);}',
     '#dashboardModalBg .gb-lib-heading-title .gb-lib-icon{color:#f05a46;background:color-mix(in srgb,var(--accent) 16%,var(--card));border-radius:9px;width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;}',
-    '#dashboardModalBg .gb-lib-action{font-family:inherit!important;font-size:11px!important;font-weight:700!important;line-height:1.2!important;white-space:nowrap;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px 10px;border-radius:999px;cursor:pointer;flex-shrink:0;}',
-    '#dashboardModalBg .gb-lib-action:hover{border-color:var(--accent);}',
     '#dashboardModalBg .gb-lib-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:14px;}',
     '#dashboardModalBg .gb-lib-metric{min-width:0;min-height:96px;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;padding:10px;background:linear-gradient(155deg,color-mix(in srgb,var(--text) 4%,var(--card)),var(--bg));}',
     '#dashboardModalBg .gb-lib-metric-head{display:flex;align-items:center;gap:6px;min-height:27px;}',
@@ -54,13 +52,9 @@
   const panel=document.createElement('section');
   panel.id='gbLibraryOverview';
   panel.setAttribute('aria-label','ภาพรวมคลังเกม');
-  panel.innerHTML='<header class="gb-lib-heading"><div class="gb-lib-heading-title"><span class="gb-lib-icon">'+icon('library')+'</span><strong>ภาพรวมคลังเกม</strong></div><button type="button" class="gb-lib-action">ดูคลังเกมทั้งหมด →</button></header><div class="gb-lib-metrics" id="gbLibMetrics"></div><div class="gb-lib-section"><span>จำนวนเกมแยกตามเครื่อง</span><span class="total" id="gbLibConsoleTotal"></span></div><div class="gb-lib-systems" id="gbLibSystems"></div>';
+  panel.innerHTML='<header class="gb-lib-heading"><div class="gb-lib-heading-title"><span class="gb-lib-icon">'+icon('library')+'</span><strong>ภาพรวมคลังเกม</strong></div></header><div class="gb-lib-metrics" id="gbLibMetrics"></div><div class="gb-lib-section"><span>จำนวนเกมแยกตามเครื่อง</span><span class="total" id="gbLibConsoleTotal"></span></div><div class="gb-lib-systems" id="gbLibSystems"></div>';
   topList.insertAdjacentElement('afterend',panel);
 
-  panel.querySelector('.gb-lib-action').addEventListener('click',()=>{
-    document.getElementById('dashCloseBtn')?.click();
-    requestAnimationFrame(()=>document.getElementById('grid')?.scrollIntoView({behavior:'smooth',block:'start'}));
-  });
   const metrics=panel.querySelector('#gbLibMetrics');
   const systemsEl=panel.querySelector('#gbLibSystems');
   const totalEl=panel.querySelector('#gbLibConsoleTotal');
