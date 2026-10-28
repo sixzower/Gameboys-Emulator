@@ -1,22 +1,24 @@
 /* Supabase Storage usage — admin dashboard only.
-   Independent client: the site's main "sb" adapter can be pointed at D1.
+   Direct authenticated-by-publishable-key Storage REST; the site's main "sb" adapter uses D1.
    No service-role keys, no polling, five-minute usage cache. */
 (()=>{
  'use strict';
  if(window.GB_SUPABASE_USAGE)return;
  const TTL=5*60*1000;
- let client=null,cache=null,until=0,inFlight=null;
- function source(){
-  if(!client){
-   if(!window.supabase?.createClient)throw Error('Supabase Storage SDK ไม่พร้อมใช้งาน');
-   client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
-    auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
-   });
-  }
-  return client.storage.from(BUCKET);
+ let cache=null,until=0,inFlight=null;
+ // D1 mode does not load supabase-js: use the documented Storage listing REST endpoint.
+ async function list(prefix,offset,signal){
+  const response=await fetch(SUPABASE_URL+'/storage/v1/object/list/'+encodeURIComponent(BUCKET),{
+   method:'POST',cache:'no-store',signal,
+   headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
+   body:JSON.stringify({prefix,limit:1000,offset})
+  });
+  const body=await response.json().catch(()=>null);
+  if(!response.ok||!Array.isArray(body))throw Error('Supabase Storage '+response.status+' · อ่านข้อมูลไม่สำเร็จ');
+  return body;
  }
  async function load(){
-  const bucket=source(),queue=[''],visited=new Set(),folders={roms:0,covers:0,marquee:0,skins:0,other:0};
+  const signal=AbortSignal.timeout(16000),queue=[''],visited=new Set(),folders={roms:0,covers:0,marquee:0,skins:0,other:0};
   let total=0,files=0,listed=0;
   while(queue.length){
    const prefix=queue.shift();
@@ -25,9 +27,7 @@
    if(visited.size>160)throw Error('มีโฟลเดอร์ Supabase Storage มากเกินกำหนด');
    let offset=0;
    while(true){
-    const {data,error}=await bucket.list(prefix,{limit:1000,offset});
-    if(error)throw Error('อ่าน Supabase Storage ไม่สำเร็จ: '+error.message);
-    const entries=Array.isArray(data)?data:[];
+    const entries=await list(prefix,offset,signal);
     for(const item of entries){
      if(!item||!item.name)continue;
      const path=prefix?prefix+'/'+item.name:item.name;
