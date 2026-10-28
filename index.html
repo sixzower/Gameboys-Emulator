@@ -226,10 +226,10 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 {const before="      schedulePublicCatalogSync();\n      try{await recordGameFileHistory",after="      try{await gbPublishEditorial({id:addedGame.id,name},{description});}\n      catch(editorialError){indexWarning='ข้อมูลเกมถูกบันทึกใน D1 แล้ว แต่เผยแพร่คำอธิบายไป Supabase ไม่สำเร็จ: '+editorialError.message;}\n      schedulePublicCatalogSync();\n      try{await recordGameFileHistory";if(gbCartridgePage.split(before).length!==2)throw Error("Editorial patch mismatch: new game publication without duplicate upload");gbCartridgePage=gbCartridgePage.replace(before,after);}
 {const before="gbRomContentMemo=cached.rows;gbRomContentAt=cached.at;",after="gbRomContentMemo=cached.rows;gbRomContentAt=0; // Revalidate once on each fresh page load; keep cached fallback.";if(gbCartridgePage.split(before).length!==2)throw Error("Editorial patch mismatch: cross-device fresh read");gbCartridgePage=gbCartridgePage.replace(before,after);}
 // Append the desktop-only library overview after unpacking the unchanged game UI.
-{const external='<script defer src="/gb-dashboard-library-overview-v1.js?v=20261028-2"><'+'/script>';
+{const external='<script defer src="/gb-dashboard-library-overview-v1.js?v=20261028-3"><'+'/script>';
  if(!gbCartridgePage.includes('id="dashTopGames"'))throw Error('Dashboard overview anchor missing');
  if(gbCartridgePage.split('</body>').length!==2)throw Error('Dashboard body closing tag mismatch');
- const analytics='<script defer src="/gb-dashboard-analytics-v1.js?v=20261028-2"><'+'/script>';
+ const analytics='<script defer src="/gb-dashboard-analytics-v1.js?v=20261028-3"><'+'/script>';
  gbCartridgePage=gbCartridgePage.replace('</body>',external+analytics+'</body>');}
 // Keep the original Chart.js line chart; only the time window is selectable.
 {const rewrites=[
@@ -238,5 +238,7 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
  ["  // --- top games bar chart (minutes), matches the ","  if(onlyDaily)return;\n  // --- top games bar chart (minutes), matches the "]
  ];for(const [before,after] of rewrites){if(gbCartridgePage.split(before).length!==2)throw Error('Dashboard chart patch mismatch: '+before);gbCartridgePage=gbCartridgePage.replace(before,after);}
 }
+// Keep up to ten ranked games while preserving the original session totals.
+{const before="const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,15);",after="const topGames=[...gameTotals.entries()].sort((a,b)=>b[1].seconds-a[1].seconds).slice(0,10);";if(gbCartridgePage.split(before).length!==2)throw Error('Top games limit patch mismatch');gbCartridgePage=gbCartridgePage.replace(before,after);}
 document.open();document.write(gbCartridgePage);document.close();
 </script></body></html>
