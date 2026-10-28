@@ -28,7 +28,9 @@
     '#dashboardModalBg .gb-dash-range select{appearance:none;-webkit-appearance:none;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:8px 30px 8px 12px;min-height:34px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;line-height:1.25;}',
     '#dashboardModalBg .gb-dash-range select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}',
     '#dashboardModalBg .gb-dash-range::after{content:"";position:absolute;right:12px;top:calc(50% - 3px);width:6px;height:6px;border-bottom:1.8px solid var(--sub);border-right:1.8px solid var(--sub);transform:rotate(45deg);pointer-events:none;}',
-    '#dashboardModalBg #dashTopGames .dash-game-row{display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 4px;box-sizing:border-box;}',
+    '#dashboardModalBg #dashTopGames .dash-game-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 4px;box-sizing:border-box;}',
+    '#dashboardModalBg #dashTopGames.gb-rank-scroll{max-height:336px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;}',
+    '#dashboardModalBg #dashTopGames.gb-rank-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px;}',
     '#dashboardModalBg #dashTopGames .gb-rank-cover{display:flex;align-items:center;justify-content:center;width:36px;height:43px;flex:0 0 36px;overflow:hidden;background:color-mix(in srgb,var(--border) 38%,var(--card));border:1px solid var(--border);border-radius:6px;box-sizing:border-box;color:var(--sub);}',
     '#dashboardModalBg #dashTopGames .gb-rank-cover img{display:block;max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;}',
     '#dashboardModalBg #dashTopGames .gb-rank-cover .gb-rank-placeholder{font-size:15px;line-height:1;opacity:.55;}',
@@ -41,6 +43,7 @@
     '#dashboardModalBg #dashSummary .dash-card .gb-topgame-cover{grid-column:2;grid-row:1 / span 2;justify-self:end;align-self:center;display:block;width:100%!important;max-width:70px;height:78px!important;max-height:78px;min-width:0;object-fit:contain;border:1px solid var(--border);border-radius:7px;background:var(--card);box-sizing:border-box;box-shadow:0 3px 9px #0004;}',
     '#dashboardModalBg #dashSummary .dash-card:has(> .n.gb-topgame-with-cover)>.l{grid-column:1;grid-row:2;align-self:start;margin:0;min-width:0;font-size:12px;line-height:1.25;}',
     '@media(max-width:420px){#dashboardModalBg #dashSummary .dash-card:has(> .n.gb-topgame-with-cover){grid-template-columns:minmax(0,1fr) 50px;gap:7px;padding:9px;}#dashboardModalBg #dashSummary .dash-card .gb-topgame-cover{height:66px!important;max-height:66px;}}',
+    '@media(min-width:960px){#dashboardModalBg .dash-desktop-grid{align-items:stretch!important;}#dashboardModalBg .dash-column-charts,#dashboardModalBg .dash-column-system{min-height:0;}#dashboardModalBg .dash-column-system{display:flex;flex-direction:column;}#dashboardModalBg .dash-column-system>.gb-rom-download-tiles{margin-top:auto;}#dashboardModalBg .dash-column-charts .dash-chart-box{height:185px;}}',
     '@media(max-width:679px){#dashboardModalBg .gb-dash-heading-label{font-size:12px;}#dashboardModalBg .gb-dash-range select{font-size:11px;padding:7px 26px 7px 9px;}#dashboardModalBg #dashTopGames .gb-rank-cover{width:31px;height:38px;flex-basis:31px;}#dashboardModalBg #dashTopGames .g-meta{font-size:10px;max-width:43%;}}'
   ].join('');
   document.head.append(style);
@@ -115,6 +118,18 @@
         holder.append(fallback);
       }
       row.insertBefore(holder,label);
+    }
+    const count=rankList.querySelectorAll(':scope > .dash-game-row').length;
+    const scroll=count>6;
+    rankList.classList.toggle('gb-rank-scroll',scroll);
+    if(scroll){
+      rankList.setAttribute('tabindex','0');
+      rankList.setAttribute('role','region');
+      rankList.setAttribute('aria-label','รายละเอียดเกมยอดนิยม เลื่อนดูได้สูงสุด 10 อันดับ');
+    }else{
+      rankList.removeAttribute('tabindex');
+      rankList.removeAttribute('role');
+      rankList.removeAttribute('aria-label');
     }
   }
   let queued=false;
