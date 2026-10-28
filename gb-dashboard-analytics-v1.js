@@ -41,7 +41,7 @@
   function decorateHeading(el,kind){
     if(!el)return;
     const raw=el.textContent.trim();
-    const text=kind==='calendar'?raw.replace(/\s*\(\d+\s*วันล่าสุด\)\s*$/,''):raw;
+    const text=kind==='gamepad'?raw.replace(/\s*\(\d+\s*วันล่าสุด\)\s*$/,''):raw;
     el.replaceChildren();
     el.classList.add('gb-dash-heading');
     const title=document.createElement('span');title.className='gb-dash-heading-label';
@@ -50,7 +50,7 @@
     title.append(pict,label);el.append(title);
     return el;
   }
-  const dayHeading=decorateHeading(dailyHeading,'calendar');
+  const dayHeading=decorateHeading(dailyHeading,'gamepad');
   if(dayHeading){
     const picker=document.createElement('label');
     picker.className='gb-dash-range';
