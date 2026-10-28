@@ -210,5 +210,13 @@ gbCartridgePage=gbCartridgePage.replace('</body>',style+'</body>');
 {const b="if(row&&typeof row.summary==='string')return row.summary;",a="if(row&&typeof row.story_text==='string'&&row.story_text.trim())return row.story_text;\n    if(row&&typeof row.summary==='string')return row.summary;";if(gbCartridgePage.split(b).length!==2)throw Error("Tab separation mismatch: story-only");gbCartridgePage=gbCartridgePage.replace(b,a);}
 // Keep public editorial reads cached; admins always refresh the current source.
 {const before="if(gbRomContentMemo&&Date.now()-gbRomContentAt<GB_ROM_CONTENT_TTL)return gbRomContentMemo;",after="if(gbRomContentMemo&&!marqueeAuthorized&&Date.now()-gbRomContentAt<GB_ROM_CONTENT_TTL)return gbRomContentMemo;";if(gbCartridgePage.split(before).length!==2)throw Error('Editorial cache patch mismatch');gbCartridgePage=gbCartridgePage.replace(before,after);}
+// Verify D1 settings writes against the database actually written, not the
+// read-only Supabase overlay (which may be intentionally published later).
+{const before="const actual=await getSiteSettingRaw(key,null);if(actual!==story)",after="const verified=await sb.from('site_settings').select('value').eq('key',key).limit(1);if(verified.error)throw verified.error;const actual=verified.data?.[0]?.value??null;if(actual!==story"; 
+// Use an exact full replacement to avoid altering unrelated settings reads.
+const old="const actual=await getSiteSettingRaw(key,null);if(actual!==story)throw Error(";
+const replacement="const checked=await sb.from('site_settings').select('value').eq('key',key).limit(1);if(checked.error)throw checked.error;const actual=checked.data?.[0]?.value??null;if(actual!==story)throw Error(";
+if(gbCartridgePage.split(old).length!==2)throw Error('D1 write verification anchor mismatch');
+gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 document.open();document.write(gbCartridgePage);document.close();
 </script></body></html>
