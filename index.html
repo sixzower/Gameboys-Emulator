@@ -229,6 +229,14 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 {const external='<script defer src="/gb-dashboard-library-overview-v1.js"><'+'/script>';
  if(!gbCartridgePage.includes('id="dashTopGames"'))throw Error('Dashboard overview anchor missing');
  if(gbCartridgePage.split('</body>').length!==2)throw Error('Dashboard body closing tag mismatch');
- gbCartridgePage=gbCartridgePage.replace('</body>',external+'</body>');}
+ const analytics='<script defer src="/gb-dashboard-analytics-v1.js"><'+'/script>';
+ gbCartridgePage=gbCartridgePage.replace('</body>',external+analytics+'</body>');}
+// Keep the original Chart.js line chart; only the time window is selectable.
+{const rewrites=[
+ ["function renderDashCharts(){","function renderDashCharts(onlyDaily=false){"],
+ ["  for(let i=13;i>=0;i--){","  for(let i=(window.GB_DASH_DAY_RANGE||14)-1;i>=0;i--){"],
+ ["  // --- top games bar chart (minutes), matches the ","  if(onlyDaily)return;\n  // --- top games bar chart (minutes), matches the "]
+ ];for(const [before,after] of rewrites){if(gbCartridgePage.split(before).length!==2)throw Error('Dashboard chart patch mismatch: '+before);gbCartridgePage=gbCartridgePage.replace(before,after);}
+}
 document.open();document.write(gbCartridgePage);document.close();
 </script></body></html>
