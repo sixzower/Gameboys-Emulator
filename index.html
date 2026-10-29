@@ -256,5 +256,14 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
  if(gbCartridgePage.split(before).length!==2)throw Error('Shelf return curtain patch mismatch');
  gbCartridgePage=gbCartridgePage.replace(before,after);
 }
+// Back of the flipping cover: use the short game description, keep feature lists on the detail page.
+{
+ const before="summary.textContent=raw;info.textContent=String(item.core||'').toUpperCase()",after="summary.textContent=String(item.description||'').trim()||'ยังไม่มีคำโปรยสำหรับเกมนี้';summary.title=summary.textContent;info.textContent=String(item.core||'').toUpperCase()";
+ if(gbCartridgePage.split(before).length!==2)throw Error('Cover blurb source anchor mismatch');
+ gbCartridgePage=gbCartridgePage.replace(before,after);
+ const css="<style id=\"gb-cover-back-blurb-20261029\">\n/* The reversible square cover shows the short blurb, not the full feature list. */\n#detailModalBg .detail-cover-back{\n  overflow:hidden!important;\n  min-width:0;\n  display:flex;\n  flex-direction:column;\n  gap:9px;\n  padding:14px;\n  overflow-wrap:anywhere;\n  word-break:break-word;\n}\n#detailModalBg .detail-cover-back[hidden]{display:none!important}\n#detailModalBg .detail-cover-back strong{\n  display:-webkit-box;\n  -webkit-box-orient:vertical;\n  -webkit-line-clamp:2;\n  line-clamp:2;\n  overflow:hidden;\n  flex:0 0 auto;\n  min-width:0;\n  margin:0;\n  font-size:15px;\n  line-height:1.35;\n}\n#detailModalBg .detail-cover-back p{\n  display:-webkit-box;\n  -webkit-box-orient:vertical;\n  -webkit-line-clamp:6;\n  line-clamp:6;\n  overflow:hidden;\n  flex:0 1 auto;\n  min-height:0;\n  min-width:0;\n  margin:0;\n  font-size:12px;\n  line-height:1.55;\n  white-space:normal;\n  overflow-wrap:anywhere;\n}\n#detailModalBg .detail-cover-back small{\n  display:block;\n  margin-top:auto;\n  flex:0 0 auto;\n  min-width:0;\n  padding-top:7px;\n  overflow:hidden;\n  text-overflow:ellipsis;\n  white-space:nowrap;\n  font-size:10.5px;\n}\n@media(max-width:560px){\n  #detailModalBg .detail-cover-back{padding:11px;gap:7px}\n  #detailModalBg .detail-cover-back strong{font-size:13px;line-height:1.3}\n  #detailModalBg .detail-cover-back p{\n    font-size:11px;\n    line-height:1.45;\n    -webkit-line-clamp:4;\n    line-clamp:4;\n  }\n  #detailModalBg .detail-cover-back small{padding-top:5px;font-size:10px}\n}\n</style>";
+ if(gbCartridgePage.split('</body>').length!==2)throw Error('Cover blurb style anchor mismatch');
+ gbCartridgePage=gbCartridgePage.replace('</body>',css+'</body>');
+}
 document.open();document.write(gbCartridgePage);document.close();
 </script></body></html>
