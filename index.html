@@ -229,7 +229,7 @@ gbCartridgePage=gbCartridgePage.replace(old,replacement);}
 {const external='<script defer src="/gb-dashboard-library-overview-v1.js?v=20261028-3"><'+'/script>';
  if(!gbCartridgePage.includes('id="dashTopGames"'))throw Error('Dashboard overview anchor missing');
  if(gbCartridgePage.split('</body>').length!==2)throw Error('Dashboard body closing tag mismatch');
- const analytics='<script defer src="/gb-dashboard-analytics-v1.js?v=20261028-6"><'+'/script>';
+ const analytics='<script defer src="/gb-dashboard-analytics-v1.js?v=20261031-1"><'+'/script>';
  const supabaseUsage='<script defer src="/gb-dashboard-supabase-usage-v1.js?v=20261028-1"><'+'/script>';
  gbCartridgePage=gbCartridgePage.replace('</body>',external+analytics+supabaseUsage+'</body>');}
 // Keep the original Chart.js line chart; only the time window is selectable.
