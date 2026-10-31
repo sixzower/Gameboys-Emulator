@@ -30,6 +30,8 @@
     '#dashboardModalBg .gb-dash-range::after{content:"";position:absolute;right:12px;top:calc(50% - 3px);width:6px;height:6px;border-bottom:1.8px solid var(--sub);border-right:1.8px solid var(--sub);transform:rotate(45deg);pointer-events:none;}',
     '#dashboardModalBg #dashTopGames .dash-game-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 4px;box-sizing:border-box;}',
     '#dashboardModalBg #dashTopGames.gb-rank-scroll{max-height:336px;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;}',
+    /* Eight 56px rows fit the previously unused space over the library overview. */
+    '@media(min-width:960px){#dashboardModalBg #dashTopGames.gb-rank-scroll{max-height:448px;}}',
     '#dashboardModalBg #dashTopGames.gb-rank-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px;}',
     '#dashboardModalBg #dashTopGames .gb-rank-cover{display:flex;align-items:center;justify-content:center;width:36px;height:43px;flex:0 0 36px;overflow:hidden;background:color-mix(in srgb,var(--border) 38%,var(--card));border:1px solid var(--border);border-radius:6px;box-sizing:border-box;color:var(--sub);}',
     '#dashboardModalBg #dashTopGames .gb-rank-cover img{display:block;max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;}',
@@ -48,6 +50,12 @@
     /* Compact the whole statistics row; image cannot affect grid row height. */
     '@media(min-width:680px){#dashboardModalBg #dashSummary .dash-card{height:82px!important;min-height:82px!important;max-height:82px!important;box-sizing:border-box;padding:8px 10px!important;overflow:hidden;}#dashboardModalBg #dashSummary .dash-card:has(> .n.gb-topgame-with-cover){height:82px!important;min-height:82px!important;max-height:82px!important;padding:8px 10px!important;}#dashboardModalBg #dashSummary .dash-card:has(> .n.gb-topgame-with-cover):has(.gb-topgame-cover){padding-right:88px!important;}#dashboardModalBg #dashSummary .dash-card .gb-topgame-cover{right:6px;top:5px;width:70px!important;height:calc(100% - 10px)!important;max-height:72px;}#dashboardModalBg #dashSummary .dash-card .gb-topgame-name{font-size:clamp(15px,1.5vw,18px);line-height:1.16;width:100%;max-width:100%;overflow-wrap:anywhere;white-space:normal!important;}}',
     '@media(min-width:960px){#dashboardModalBg .dash-desktop-grid{align-items:stretch!important;}#dashboardModalBg .dash-desktop-grid>.dash-column{align-self:stretch;box-sizing:border-box;}#dashboardModalBg .dash-column-charts{display:flex;flex-direction:column;}#dashboardModalBg #gbLibraryOverview{margin-top:auto!important;}#dashboardModalBg .dash-column-system{display:flex;flex-direction:column;}#dashboardModalBg .dash-column-system>.gb-rom-download-tiles{margin-top:auto;}}',
+    /* Reserve a stable storage panel while the existing Vercel/R2/B2/Oracle requests resolve. */
+    '@media(min-width:960px){#dashboardModalBg #dashStorage{min-height:var(--gb-storage-reserved-height,480px);box-sizing:border-box;}#dashboardModalBg #dashStorage:not(:has(#storageMoveBtn)):has(.usage-provider-block)::after{content:"";display:block;height:155px;margin:10px 0 14px;border:1px solid var(--border);border-radius:11px;background:linear-gradient(180deg,color-mix(in srgb,var(--text) 4%,var(--card)) 0 45%,transparent 45% 53%,color-mix(in srgb,var(--text) 4%,var(--card)) 53% 100%);opacity:.65;pointer-events:none;}}',
+    /* The preview lives above clipped cards, ranks and the scrolling dashboard. */
+    '#gb-dashboard-cover-peek{position:fixed;z-index:2147483100;display:none;flex-direction:column;gap:7px;align-items:center;box-sizing:border-box;width:212px;max-width:calc(100vw - 20px);padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--card);box-shadow:0 16px 36px #000a;pointer-events:none;contain:layout style;}',
+    '#gb-dashboard-cover-peek img{display:block;width:100%;max-height:min(265px,56dvh);height:auto;aspect-ratio:1;object-fit:contain;border-radius:6px;background:var(--bg);}',
+    '#gb-dashboard-cover-peek .gb-cover-peek-label{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-width:100%;overflow-wrap:anywhere;color:var(--text);font:700 12px/1.35 Prompt,sans-serif;text-align:center;}',
     '@media(max-width:679px){#dashboardModalBg .gb-dash-heading-label{font-size:12px;}#dashboardModalBg .gb-dash-range select{font-size:11px;padding:7px 26px 7px 9px;}#dashboardModalBg #dashTopGames .gb-rank-cover{width:31px;height:38px;flex-basis:31px;}#dashboardModalBg #dashTopGames .g-meta{font-size:10px;max-width:43%;}}'
   ].join('');
   document.head.append(style);
@@ -124,7 +132,7 @@
       row.insertBefore(holder,label);
     }
     const count=rankList.querySelectorAll(':scope > .dash-game-row').length;
-    const scroll=count>6;
+    const scroll=count>(window.matchMedia('(min-width:960px)').matches?8:6);
     rankList.classList.toggle('gb-rank-scroll',scroll);
     if(scroll){
       rankList.setAttribute('tabindex','0');
@@ -142,5 +150,74 @@
     queueMicrotask(()=>{queued=false;decorateRanking();});
   };
   new MutationObserver(schedule).observe(rankList,{childList:true});
+  // The scroll threshold changes with the desktop two-column layout.
+  window.matchMedia('(min-width:960px)').addEventListener?.('change',schedule);
+
+  // Keep the storage section's last measured height on subsequent refreshes so
+  // the right column never collapses to the tiny asynchronous loading placeholder.
+  const storage=modal.querySelector('#dashStorage');
+  if(storage){
+    const refreshStorageReserve=()=>{
+      if(!storage.querySelector('#storageMoveBtn'))return;
+      const measured=Math.ceil(storage.scrollHeight);
+      if(Number.isFinite(measured)&&measured>0){
+        const reserved=Math.max(480,Math.min(measured,1000));
+        storage.style.setProperty('--gb-storage-reserved-height',reserved+'px');
+      }
+    };
+    new MutationObserver(refreshStorageReserve).observe(storage,{childList:true});
+    refreshStorageReserve();
+  }
+
+  // One floating preview, only while hovering an image already loaded in the
+  // dashboard. Reusing the same image URL uses the browser's existing cache.
+  const hoverQuery='.gb-rank-cover img,.gb-topgame-cover,.gb-rom-cover,.gb-stat-cover';
+  const peek=document.createElement('div');
+  peek.id='gb-dashboard-cover-peek';
+  peek.setAttribute('aria-hidden','true');
+  const peekImage=document.createElement('img');
+  peekImage.alt='';
+  peekImage.referrerPolicy='no-referrer';
+  const peekTitle=document.createElement('span');
+  peekTitle.className='gb-cover-peek-label';
+  peek.append(peekImage,peekTitle);
+  document.body.append(peek);
+  let hoveredImage=null;
+  const hidePeek=()=>{hoveredImage=null;peek.style.display='none';};
+  function positionPeek(e){
+    if(!hoveredImage)return;
+    const pad=10;
+    const w=peek.offsetWidth||212,h=peek.offsetHeight||250;
+    const x=e.clientX+18+w>window.innerWidth-pad?e.clientX-w-18:e.clientX+18;
+    const y=e.clientY+16+h>window.innerHeight-pad?e.clientY-h-16:e.clientY+16;
+    peek.style.left=Math.max(pad,Math.min(x,window.innerWidth-pad-w))+'px';
+    peek.style.top=Math.max(pad,Math.min(y,window.innerHeight-pad-h))+'px';
+  }
+  modal.addEventListener('pointerover',e=>{
+    if(e.pointerType!=='mouse'||!window.matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+    const img=e.target.closest?.(hoverQuery);
+    if(!img||!img.complete||!img.naturalWidth||!modal.classList.contains('show'))return;
+    if(hoveredImage!==img){
+      hoveredImage=img;
+      peekImage.src=img.currentSrc||img.src;
+      peekTitle.textContent=img.closest('.dash-game-row')?.querySelector('.g-name')?.textContent
+        ||img.closest('.dash-card')?.querySelector('.gb-topgame-name')?.textContent
+        ||img.alt||'ภาพปกเกม';
+      peek.style.display='flex';
+    }
+    positionPeek(e);
+  });
+  modal.addEventListener('pointermove',positionPeek,{passive:true});
+  modal.addEventListener('pointerout',e=>{
+    if(!hoveredImage)return;
+    const next=e.relatedTarget?.closest?.(hoverQuery);
+    if(next===hoveredImage)return;
+    if(e.target===hoveredImage||e.target.closest?.(hoverQuery)===hoveredImage)hidePeek();
+  });
+  modal.addEventListener('pointerleave',hidePeek);
+  modal.addEventListener('scroll',hidePeek,true);
+  window.addEventListener('resize',hidePeek,{passive:true});
+  new MutationObserver(()=>{if(!modal.classList.contains('show'))hidePeek();})
+    .observe(modal,{attributes:true,attributeFilter:['class']});
   schedule();
 })();
